@@ -1,0 +1,21 @@
+# .NET Build Folders
+bin/
+obj/
+
+# SQL Server Database files
+*.mdf
+*.ldf
+
+# User-specific files (where your secrets live!)
+appsettings.Development.json
+*.user
+*.suo
+
+# Flutter/Dart build folders
+mygate_app/build/
+mygate_app/.dart_tool/
+mygate_app/.packages
+
+# Windows junk
+Thumbs.db
+.DS_Store

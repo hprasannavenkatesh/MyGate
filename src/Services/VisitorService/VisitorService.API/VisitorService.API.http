@@ -1,0 +1,6 @@
+@VisitorService.API_HostAddress = http://localhost:5271
+
+GET {{VisitorService.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

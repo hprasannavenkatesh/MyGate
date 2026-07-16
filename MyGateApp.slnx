@@ -1,0 +1,31 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Messaging/BuildingBlocks.Messaging.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/IdentityService/">
+    <Project Path="src/Services/IdentityService/IdentityService.API/IdentityService.API.csproj" />
+    <Project Path="src/Services/IdentityService/IdentityService.Application/IdentityService.Application.csproj" />
+    <Project Path="src/Services/IdentityService/IdentityService.Domain/IdentityService.Domain.csproj" />
+    <Project Path="src/Services/IdentityService/IdentityService.Infrastructure/IdentityService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/NotificationService/">
+    <Project Path="src/Services/NotificationService/NotificationService.API/NotificationService.API.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Application/NotificationService.Application.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Domain/NotificationService.Domain.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Infrastructure/NotificationService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/TenantService/">
+    <Project Path="src/Services/TenantService/TenantService.API/TenantService.API.csproj" />
+    <Project Path="src/Services/TenantService/TenantService.Application/TenantService.Application.csproj" />
+    <Project Path="src/Services/TenantService/TenantService.Domain/TenantService.Domain.csproj" />
+    <Project Path="src/Services/TenantService/TenantService.Infrastructure/TenantService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/VisitorService/">
+    <Project Path="src/Services/VisitorService/VisitorService.API/VisitorService.API.csproj" />
+    <Project Path="src/Services/VisitorService/VisitorService.Application/VisitorService.Application.csproj" />
+    <Project Path="src/Services/VisitorService/VisitorService.Domain/VisitorService.Domain.csproj" />
+    <Project Path="src/Services/VisitorService/VisitorService.Infrastructure/VisitorService.Infrastructure.csproj" />
+  </Folder>
+</Solution>
