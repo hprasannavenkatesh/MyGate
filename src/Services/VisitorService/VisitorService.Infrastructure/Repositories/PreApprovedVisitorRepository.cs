@@ -25,4 +25,12 @@ public class PreApprovedVisitorRepository : IPreApprovedVisitorRepository
     {
         return await _context.PreApprovedVisitors.FindAsync(id);
     }
+
+        public async Task<List<PreApprovedVisitor>> GetByInviterIdAsync(Guid inviterId)
+    {
+        return await _context.PreApprovedVisitors
+            .Where(v => v.InvitedByUserId == inviterId)
+            .OrderByDescending(v => v.ExpectedDate)
+            .ToListAsync();
+    }
 }

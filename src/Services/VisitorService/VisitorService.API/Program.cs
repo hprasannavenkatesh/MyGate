@@ -11,6 +11,13 @@ using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });
+});
 
 // 1. Database
 builder.Services.AddDbContext<VisitorDbContext>(options =>
@@ -87,6 +94,7 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
 app.UseAuthentication();
 app.UseAuthorization();
 

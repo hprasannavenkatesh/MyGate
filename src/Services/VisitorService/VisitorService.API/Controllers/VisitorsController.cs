@@ -4,6 +4,8 @@ using MediatR;
 using VisitorService.Domain.Interfaces;
 using VisitorService.Infrastructure.Repositories;
 using VisitorService.Application.Features.Visitors.Commands;
+using VisitorService.Application.Features.Visitors.Queries; // For GetMyVisitorsQuery
+using VisitorService.Domain.Entities;                     // For PreApprovedVisitor
 
 namespace VisitorService.API.Controllers;
 
@@ -37,5 +39,13 @@ public class VisitorsController : ControllerBase
     {
         await _mediator.Send(command);
         return Ok(); // 204 No Content
+    }
+
+        [HttpGet("my-visitors")]
+    public async Task<IActionResult> GetMyVisitors([FromQuery] Guid inviterId)
+    {
+        var query = new GetMyVisitorsQuery { InviterId = inviterId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 }

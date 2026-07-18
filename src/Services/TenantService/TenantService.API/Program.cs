@@ -11,6 +11,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });
+});
+
 builder.Services.AddDbContext<TenantDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("TenantDb")));
 
@@ -77,6 +85,7 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
 app.UseAuthentication(); // MUST be before Authorization!
 app.UseAuthorization();
 
