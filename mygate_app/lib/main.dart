@@ -281,6 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+/*
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -334,6 +335,81 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
+    );
+  }*/
+    @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Visitors'),
+        centerTitle: true,
+        actions: [
+          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('jwt_token');
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          })
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          final prefs = SharedPreferences.getInstance();
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddVisitorScreen(token: 'dummy', societyId: 'dummy', flatId: 'dummy')));
+        },
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Visitor'),
+      ),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // NEW: Quick Access Button
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const MyDuesScreen()));
+                      },
+                      icon: const Icon(Icons.receipt_long),
+                      label: const Text('View My Maintenance Dues', style: TextStyle(fontSize: 16)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                    ),
+                  ),
+                ),
+                // Existing Visitor List
+                Expanded(
+                  child: _visitors.isEmpty 
+                      ? const Center(child: Text('No visitors pre-approved yet.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(8.0),
+                          itemCount: _visitors.length,
+                          itemBuilder: (context, index) {
+                            final v = _visitors[index];
+                            return Card(
+                              child: ListTile(
+                                leading: const Icon(Icons.person_outline, size: 40),
+                                title: Text(v['visitorName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Mobile: ${v['visitorMobile']}'),
+                                    Text('Date: ${v['expectedDate'].toString().substring(0, 10)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                  ],
+                                ),
+                                trailing: Chip(
+                                  label: Text(v['status'] == 0 ? 'Pending' : 'Expired'),
+                                  backgroundColor: v['status'] == 0 ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -699,6 +775,164 @@ class _GuardScreenState extends State<GuardScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ==========================================
+// 6. MY DUES SCREEN
+// ==========================================
+class MyDuesScreen extends StatefulWidget {
+  const MyDuesScreen({super.key});
+
+  @override
+  State<MyDuesScreen> createState() => _MyDuesScreenState();
+}
+
+class _MyDuesScreenState extends State<MyDuesScreen> {
+  List<dynamic> _invoices = [];
+  bool _isLoading = true;
+  String? _token;
+  String? _flatId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _token = prefs.getString('jwt_token');
+      _flatId = prefs.getString('flat_id');
+    });
+
+    if (_token == null || _flatId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5107/api/invoices/my-dues?flatId=$_flatId'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _invoices = jsonDecode(response.body);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Helper to format the money nicely
+  String _formatAmount(dynamic amount) {
+    double amt = double.tryParse(amount.toString()) ?? 0.0;
+    return '\₹ ${amt.toStringAsFixed(2)}'; // Rupee symbol
+  }
+
+  // Helper to format the status
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Pending';
+      case 1: return 'Paid';
+      case 2: return 'Overdue';
+      case 3: return 'Waived';
+      default: return 'Unknown';
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 0: return Colors.orange;
+      case 1: return Colors.green;
+      case 2: return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Maintenance Dues'),
+        centerTitle: true,
+        actions: [
+          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('jwt_token');
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          })
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _invoices.isEmpty
+              ? const Center(child: Text('No dues found. You are all clear!', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _invoices.length,
+                  itemBuilder: (context, index) {
+                    final invoice = _invoices[index];
+                    final status = invoice['status'] is int ? invoice['status'] as int : 0;
+                    
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(invoice['description'] ?? 'Maintenance', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 4),
+                                      Text('Due: ${invoice['dueDate'].toString().substring(0, 10)}', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      _formatAmount(invoice['totalAmount']),
+                                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(status).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        _getStatusText(status),
+                                        style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold, fontSize: 12),
+                                      ),
+                                  )],
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 20),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }
