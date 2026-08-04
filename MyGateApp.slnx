@@ -10,6 +10,12 @@
     <Project Path="src/Services/BillingService/BillingService.Domain/BillingService.Domain.csproj" />
     <Project Path="src/Services/BillingService/BillingService.Infrastructure/BillingService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/DailyHelpService/">
+    <Project Path="src/Services/DailyHelpService/DailyHelpService.API/DailyHelpService.API.csproj" />
+    <Project Path="src/Services/DailyHelpService/DailyHelpService.Application/DailyHelpService.Application.csproj" />
+    <Project Path="src/Services/DailyHelpService/DailyHelpService.Domain/DailyHelpService.Domain.csproj" />
+    <Project Path="src/Services/DailyHelpService/DailyHelpService.Infrastructure/DailyHelpService.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/HelpdeskService/">
     <Project Path="src/Services/HelpdeskService/HelpdeskService.API/HelpdeskService.API.csproj" />
     <Project Path="src/Services/HelpdeskService/HelpdeskService.Application/HelpdeskService.Application.csproj" />
