@@ -10,11 +10,23 @@
     <Project Path="src/Services/BillingService/BillingService.Domain/BillingService.Domain.csproj" />
     <Project Path="src/Services/BillingService/BillingService.Infrastructure/BillingService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/HelpdeskService/">
+    <Project Path="src/Services/HelpdeskService/HelpdeskService.API/HelpdeskService.API.csproj" />
+    <Project Path="src/Services/HelpdeskService/HelpdeskService.Application/HelpdeskService.Application.csproj" />
+    <Project Path="src/Services/HelpdeskService/HelpdeskService.Domain/HelpdeskService.Domain.csproj" />
+    <Project Path="src/Services/HelpdeskService/HelpdeskService.Infrastructure/HelpdeskService.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/IdentityService/">
     <Project Path="src/Services/IdentityService/IdentityService.API/IdentityService.API.csproj" />
     <Project Path="src/Services/IdentityService/IdentityService.Application/IdentityService.Application.csproj" />
     <Project Path="src/Services/IdentityService/IdentityService.Domain/IdentityService.Domain.csproj" />
     <Project Path="src/Services/IdentityService/IdentityService.Infrastructure/IdentityService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/NoticeBoardService/">
+    <Project Path="src/Services/NoticeBoardService/NoticeBoardService.API/NoticeBoardService.API.csproj" />
+    <Project Path="src/Services/NoticeBoardService/NoticeBoardService.Application/NoticeBoardService.Application.csproj" />
+    <Project Path="src/Services/NoticeBoardService/NoticeBoardService.Domain/NoticeBoardService.Domain.csproj" />
+    <Project Path="src/Services/NoticeBoardService/NoticeBoardService.Infrastructure/NoticeBoardService.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Services/NotificationService/">
     <Project Path="src/Services/NotificationService/NotificationService.API/NotificationService.API.csproj" />

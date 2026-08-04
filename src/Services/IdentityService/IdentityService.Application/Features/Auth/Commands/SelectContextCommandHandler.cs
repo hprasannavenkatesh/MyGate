@@ -20,7 +20,20 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
         // (In a real app with service-to-service calls, we'd ask the Tenant Service 
         // "Hey, does this user actually belong to this flat?". For now, we trust the Flutter app).
         var user = await _userRepository.GetByMobileAsync(""); // We'll just mock the user fetch for now
-        
+
+          // ==========================================
+        // SECURE ROLE ASSIGNMENT (Backend decides, not Flutter!)
+        // ==========================================
+        string assignedRole = "Resident"; // Default: Everyone is a resident
+
+        // TEMPORARY HARD CODE FOR TESTING: 
+        // Replace this with your actual User ID from the SQL database!
+        if (request.UserId == Guid.Parse("ECB0DB65-5C7B-4EA3-A79F-5FC2F33D1A30"))
+        {
+            assignedRole = "Admin";
+        }
+        // ==========================================
+         Console.WriteLine($"📱 USER ID  {request.UserId}");
         // 2. Generate the FAT TOKEN with all the new context data!
         var fatToken = _tokenService.GenerateToken(
             request.UserId, 
@@ -28,7 +41,9 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
             "Dummy Name",           // We would fetch this from DB
             request.SocietyId, 
             request.FlatId, 
-            request.MemberType
+            request.MemberType,
+            //request.Role
+            assignedRole
         );
 
         return fatToken;

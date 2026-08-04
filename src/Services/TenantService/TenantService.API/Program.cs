@@ -19,6 +19,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+
 builder.Services.AddDbContext<TenantDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("TenantDb")));
 

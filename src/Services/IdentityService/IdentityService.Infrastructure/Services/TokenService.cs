@@ -17,7 +17,7 @@ public class TokenService : ITokenService
     }
 
     public string GenerateToken(Guid userId, string mobileNumber, string fullName, 
-        Guid? societyId = null, Guid? flatId = null, string? memberType = null)
+        Guid? societyId = null, Guid? flatId = null, string? memberType = null,string? role=null)
     {
          // 1. Get the secret key safely. If it's missing in appsettings, throw a clear error!
         var keyString = _config["Jwt:Key"] 
@@ -41,6 +41,9 @@ public class TokenService : ITokenService
         if (societyId.HasValue) claims.Add(new Claim("SocietyId", societyId.Value.ToString()));
         if (flatId.HasValue) claims.Add(new Claim("FlatId", flatId.Value.ToString()));
         if (!string.IsNullOrEmpty(memberType)) claims.Add(new Claim("MemberType", memberType));
+
+        if (!string.IsNullOrEmpty(role)) 
+            claims.Add(new Claim(ClaimTypes.Role, role));
 
         // 4. Build the actual token
         var token = new JwtSecurityToken(
