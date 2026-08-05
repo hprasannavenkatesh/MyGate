@@ -498,6 +498,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
+                  //New: My Daily Help Button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const MyDailyHelpScreen()));
+                      },
+                      icon: const Icon(Icons.cleaning_services),
+                      label: const Text('My Daily Help', style: TextStyle(fontSize: 16)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.lightGreen),
+                    ),
+                  ),
+                ),
+
                 // Existing Visitor List
                 Expanded(
                   child: _visitors.isEmpty 
@@ -2084,6 +2101,189 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                   child: const Text('Cancel Booking', style: TextStyle(color: Colors.red)),
                                 ),
                               )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+// ==========================================
+// 11. MY DAILY HELP SCREEN
+// ==========================================
+class MyDailyHelpScreen extends StatefulWidget {
+  const MyDailyHelpScreen({super.key});
+
+  @override
+  State<MyDailyHelpScreen> createState() => _MyDailyHelpScreenState();
+}
+
+class _MyDailyHelpScreenState extends State<MyDailyHelpScreen> {
+  List<dynamic> _assignments = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    final flatId = prefs.getString('flat_id');
+
+    if (token == null || flatId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5111/api/Assignments/my-help?flatId=$flatId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _assignments = jsonDecode(response.body);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Helper to format the working days nicely
+  String _formatDays(String days) {
+    if (days.isEmpty) return 'No days set';
+    // Just capitalize the first letter of each day for now
+    return days.split(',').map((d) => d.trim()).join(', ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Daily Help'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _assignments.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No daily help assigned to your flat yet.',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _assignments.length,
+                  itemBuilder: (context, index) {
+                    final a = _assignments[index];
+                    final isActive = a['isActive'] == true;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: isActive ? Colors.white : Colors.grey.shade200,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Left Side: Type & Name
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.lightGreen.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              a['helpTypeName'] ?? 'Help',
+                                              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            a['staffName'] ?? 'Unknown',
+                                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Mobile Number
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.phone, size: 16, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Text(a['staffMobile'] ?? 'No number', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Right Side: Status
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    isActive ? 'Active' : 'Inactive',
+                                    style: TextStyle(color: isActive ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            // Bottom Section: Days & Timings
+                            Row(
+                              children: [
+                                // Working Days
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Working Days', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      const SizedBox(height: 4),
+                                      Text(_formatDays(a['workingDays'] ?? ''), style: const TextStyle(fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                ),
+                                // Timings
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      const Text('Timings', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${a['inTime'] ?? '--:--'} - ${a['outTime'] ?? '--:--'}',
+                                        style: const TextStyle(fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
                           ],
                         ),
                       ),
