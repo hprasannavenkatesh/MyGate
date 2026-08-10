@@ -46,6 +46,12 @@
     <Project Path="src/Services/TenantService/TenantService.Domain/TenantService.Domain.csproj" />
     <Project Path="src/Services/TenantService/TenantService.Infrastructure/TenantService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/VehicleService/">
+    <Project Path="src/Services/VehicleService/VehicleService.API/VehicleService.API.csproj" />
+    <Project Path="src/Services/VehicleService/VehicleService.Application/VehicleService.Application.csproj" />
+    <Project Path="src/Services/VehicleService/VehicleService.Domain/VehicleService.Domain.csproj" />
+    <Project Path="src/Services/VehicleService/VehicleService.Infrastructure/VehicleService.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/VisitorService/">
     <Project Path="src/Services/VisitorService/VisitorService.API/VisitorService.API.csproj" />
     <Project Path="src/Services/VisitorService/VisitorService.Application/VisitorService.Application.csproj" />

@@ -515,6 +515,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
+                //New: My Vehicles Button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const MyVehiclesScreen()));
+                      },
+                      icon: const Icon(Icons.directions_car),
+                      label: const Text('My Vehicles & Parking', style: TextStyle(fontSize: 16)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+                    ),
+                  ),
+                ),
+
                 // Existing Visitor List
                 Expanded(
                   child: _visitors.isEmpty 
@@ -2290,6 +2307,384 @@ class _MyDailyHelpScreenState extends State<MyDailyHelpScreen> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+// ==========================================
+// 12. MY VEHICLES SCREEN
+// ==========================================
+class MyVehiclesScreen extends StatefulWidget {
+  const MyVehiclesScreen({super.key});
+
+  @override
+  State<MyVehiclesScreen> createState() => _MyVehiclesScreenState();
+}
+
+class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
+  List<dynamic> _vehicles = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    final societyId = prefs.getString('society_id');
+
+    if (token == null || societyId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5112/api/Vehicles/my-vehicles?societyId=$societyId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _vehicles = jsonDecode(response.body);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _getVehicleTypeText(int type) {
+    return type == 1 ? '4-Wheeler' : '2-Wheeler';
+  }
+
+  Color _getVehicleTypeColor(int type) {
+    return type == 1 ? Colors.blue : Colors.orange;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Vehicles'),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+       /* onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterVehicleScreen()));
+        },*/
+         onPressed: () async {
+          // Wait for the Register screen to return
+          final result = await Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => const RegisterVehicleScreen())
+          );
+          
+          // If it returned 'true', it means registration was successful! Refresh the list.
+          if (result == true) {
+            _loadData();
+          }
+        },
+        icon: const Icon(Icons.add_circle),
+        label: const Text('Add Vehicle'),
+        backgroundColor: Colors.blue.shade700,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _vehicles.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No vehicles registered yet.',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _vehicles.length,
+                  itemBuilder: (context, index) {
+                    final v = _vehicles[index];
+                    final type = v['vehicleType'] is int ? v['vehicleType'] as int : 0;
+                    final hasSlot = v['hasParkingSlot'] == true;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Left: Type Badge & Vehicle Number
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: _getVehicleTypeColor(type).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              _getVehicleTypeText(type),
+                                              style: TextStyle(color: _getVehicleTypeColor(type), fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            v['vehicleNumber'] ?? 'N/A',
+                                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                      if (v['makeModel'] != null) ...[
+                                        const SizedBox(height: 4),
+                                        Text(v['makeModel'], style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                                      ]
+                                    ],
+                                  ),
+                                ),
+                                // Right: Parking Status
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Icon(
+                                      hasSlot ? Icons.local_parking : Icons.local_parking_outlined,
+                                      color: hasSlot ? Colors.green : Colors.grey,
+                                      size: 32,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      hasSlot ? 'Parked' : 'No Slot',
+                                      style: TextStyle(
+                                        color: hasSlot ? Colors.green : Colors.grey,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            // Bottom: Slot Number (if assigned)
+                            if (hasSlot && v['assignedSlotNumber'] != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 12),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.green.withOpacity(0.2)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.pin_drop, size: 16, color: Colors.green),
+                                    const SizedBox(width: 8),
+                                    Text('Assigned Slot: ${v['assignedSlotNumber']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+// ==========================================
+// 13. REGISTER VEHICLE SCREEN
+// ==========================================
+class RegisterVehicleScreen extends StatefulWidget {
+  const RegisterVehicleScreen({super.key});
+
+  @override
+  State<RegisterVehicleScreen> createState() => _RegisterVehicleScreenState();
+}
+
+class _RegisterVehicleScreenState extends State<RegisterVehicleScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _vehicleNumberController = TextEditingController();
+  final _makeModelController = TextEditingController();
+  int _selectedType = 0; // 0 = 2-Wheeler, 1 = 4-Wheeler
+  bool _isLoading = false;
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+      final societyId = prefs.getString('society_id');
+      final flatId = prefs.getString('flat_id');
+
+      final response = await http.post(
+        Uri.parse('http://localhost:5112/api/Vehicles'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'societyId': societyId,
+          'flatId': flatId,
+          'vehicleNumber': _vehicleNumberController.text.trim().toUpperCase(),
+          'vehicleType': _selectedType,
+          'makeModel': _makeModelController.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('🎉 Vehicle Registered!'), backgroundColor: Colors.green),
+          );
+          Navigator.pop(context, true); 
+        }
+            } else {
+        // DEBUG: Print the raw response to the VS Code console
+        print('🔍 VEHICLE ERROR BODY: ${response.body}');
+        
+        String errorMsg = 'Failed to register vehicle.';
+        
+        try {
+          final errorData = jsonDecode(response.body);
+          
+          // 1. Check FluentValidation errors
+          if (errorData['errors'] != null) {
+            errorMsg = errorData['errors'].values.first.first;
+          } 
+          // 2. Check standard .NET ProblemDetails "detail" field
+          else if (errorData['detail'] != null) {
+            errorMsg = errorData['detail'];
+          } 
+          // 3. Check generic "message" field
+          else if (errorData['message'] != null) {
+            errorMsg = errorData['message'];
+          } 
+          // 4. Ultimate fallback
+          else {
+            errorMsg = response.body;
+          }
+        } catch (e) {
+          // If it's not JSON at all, just show the raw string
+          errorMsg = response.body;
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg, maxLines: 3),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    
+    }
+    
+     catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _vehicleNumberController.dispose();
+    _makeModelController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Register Vehicle'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              // Vehicle Type Selector
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _selectedType,
+                    isExpanded: true,
+                    items: const [
+                      DropdownMenuItem(value: 0, child: Text('2-Wheeler (Bike/Scooter)')),
+                      DropdownMenuItem(value: 1, child: Text('4-Wheeler (Car)')),
+                    ],
+                    onChanged: (val) => setState(() => _selectedType = val!),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _vehicleNumberController,
+                //textTransformations: [TextTransform.uppercase], // Auto-uppercase
+                decoration: const InputDecoration(
+                  labelText: 'Vehicle Number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.directions_car),
+                  hintText: 'e.g., KA-01-M-1234',
+                ),
+                validator: (val) => val!.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _makeModelController,
+                decoration: const InputDecoration(
+                  labelText: 'Make & Model (Optional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.info_outline),
+                  hintText: 'e.g., Honda City',
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _register,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Register Vehicle', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
