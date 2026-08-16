@@ -16,6 +16,12 @@
     <Project Path="src/Services/DailyHelpService/DailyHelpService.Domain/DailyHelpService.Domain.csproj" />
     <Project Path="src/Services/DailyHelpService/DailyHelpService.Infrastructure/DailyHelpService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/DirectoryService/">
+    <Project Path="src/Services/DirectoryService/DirectoryService.API/DirectoryService.API.csproj" />
+    <Project Path="src/Services/DirectoryService/DirectoryService.Application/DirectoryService.Application.csproj" />
+    <Project Path="src/Services/DirectoryService/DirectoryService.Domain/DirectoryService.Domain.csproj" />
+    <Project Path="src/Services/DirectoryService/DirectoryService.Infrastructure/DirectoryService.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/HelpdeskService/">
     <Project Path="src/Services/HelpdeskService/HelpdeskService.API/HelpdeskService.API.csproj" />
     <Project Path="src/Services/HelpdeskService/HelpdeskService.Application/HelpdeskService.Application.csproj" />
