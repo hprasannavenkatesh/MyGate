@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:signalr_netcore/signalr_client.dart' hide ConnectionState; // ADDED hide ConnectionState
 
 void main() async {
   // Required for shared_preferences
@@ -545,6 +546,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: const Icon(Icons.contact_phone),
                       label: const Text('Society Directory', style: TextStyle(fontSize: 16)),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),
+                    ),
+                  ),
+                ),
+
+                                // TEMPORARY: SignalR Test Button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const SignalRTestScreen()));
+                      },
+                      icon: const Icon(Icons.sensors),
+                      label: const Text('Test SignalR (Temp)', style: TextStyle(fontSize: 16)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
                     ),
                   ),
                 ),
@@ -2907,6 +2925,99 @@ class _SocietyDirectoryScreenState extends State<SocietyDirectoryScreen> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// TEMP: SIGNALR TEST SCREEN
+// ==========================================
+
+class SignalRTestScreen extends StatefulWidget {
+  const SignalRTestScreen({super.key});
+
+  @override
+  State<SignalRTestScreen> createState() => _SignalRTestScreenState();
+}
+
+class _SignalRTestScreenState extends State<SignalRTestScreen> {
+  final HubConnection _hubConnection = HubConnectionBuilder()
+      .withUrl("http://localhost:5114/hubs/emergency")
+      //.withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Retry logic if connection drops
+      .withAutomaticReconnect() 
+      .build();
+
+  String _connectionStatus = "Connecting...";
+  List<String> _messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _startConnection();
+  }
+
+  Future<void> _startConnection() async {
+    // 1. Listen for incoming messages from the server
+    _hubConnection.on("ReceiveEmergencyAlert", (message) {
+      setState(() {
+        _messages.add("ALERT RECEIVED: $message");
+      });
+    });
+
+    try {
+      // 2. Start the connection
+      await _hubConnection.start();
+      setState(() => _connectionStatus = "Connected!");
+
+      // 3. Join a society group (using a dummy society ID for testing)
+      await _hubConnection.invoke("JoinSocietyGroup", args: ["11111111-1111-1111-1111-111111111111"]);
+      setState(() {
+        _messages.add("Successfully joined society group!");
+      });
+    } catch (e) {
+      setState(() => _connectionStatus = "Error: $e");
+    }
+  }
+
+  @override
+  void dispose() {
+    _hubConnection.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("SignalR Test"), backgroundColor: Colors.pink),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Status: $_connectionStatus", 
+              style: TextStyle(
+                fontSize: 18, 
+                fontWeight: FontWeight.bold, 
+                color: _connectionStatus == "Connected!" ? Colors.green : Colors.red
+              )
+            ),
+            const Divider(height: 30),
+            const Text("Event Log:", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(_messages[index], style: const TextStyle(fontSize: 14)),
+                  );
+                },
+              ),
+            )
+          ],
+        ),
       ),
     );
   }

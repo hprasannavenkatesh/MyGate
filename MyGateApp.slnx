@@ -46,6 +46,9 @@
     <Project Path="src/Services/NotificationService/NotificationService.Domain/NotificationService.Domain.csproj" />
     <Project Path="src/Services/NotificationService/NotificationService.Infrastructure/NotificationService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/RealtimeGateway/">
+    <Project Path="src/Services/RealtimeGateway/RealtimeGateway.API/RealtimeGateway.API.csproj" />
+  </Folder>
   <Folder Name="/src/Services/TenantService/">
     <Project Path="src/Services/TenantService/TenantService.API/TenantService.API.csproj" />
     <Project Path="src/Services/TenantService/TenantService.Application/TenantService.Application.csproj" />
