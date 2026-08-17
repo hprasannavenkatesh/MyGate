@@ -22,6 +22,12 @@
     <Project Path="src/Services/DirectoryService/DirectoryService.Domain/DirectoryService.Domain.csproj" />
     <Project Path="src/Services/DirectoryService/DirectoryService.Infrastructure/DirectoryService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/EmergencyService/">
+    <Project Path="src/Services/EmergencyService/EmergencyService.API/EmergencyService.API.csproj" />
+    <Project Path="src/Services/EmergencyService/EmergencyService.Application/EmergencyService.Application.csproj" />
+    <Project Path="src/Services/EmergencyService/EmergencyService.Domain/EmergencyService.Domain.csproj" />
+    <Project Path="src/Services/EmergencyService/EmergencyService.Infrastructure/EmergencyService.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/HelpdeskService/">
     <Project Path="src/Services/HelpdeskService/HelpdeskService.API/HelpdeskService.API.csproj" />
     <Project Path="src/Services/HelpdeskService/HelpdeskService.Application/HelpdeskService.Application.csproj" />

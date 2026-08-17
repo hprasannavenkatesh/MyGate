@@ -293,13 +293,44 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _visitors = [];
+  late HubConnection _hubConnection; // ADD THIS
   bool _isLoading = true;
   String? _token;
 
-  @override
+  /*@override
   void initState() {
     super.initState();
     _loadTokenAndFetch();
+  }*/
+   @override
+  void initState() {
+    super.initState();
+    _initSignalR(); // Add this line
+    _loadTokenAndFetch();
+  }
+
+ Future<void> _initSignalR() async {
+    final prefs = await SharedPreferences.getInstance();
+    final societyId = prefs.getString('society_id');
+    if (societyId == null) return;
+
+    _hubConnection = HubConnectionBuilder()
+        .withUrl("http://localhost:5114/hubs/emergency")
+        .withAutomaticReconnect()
+        .build();
+
+    // Listen for alerts from the Gateway
+    _hubConnection.on("ReceiveEmergencyAlert", (message) {
+      if (mounted) _showEmergencyPopup(message);
+    });
+
+    try {
+      await _hubConnection.start();
+      await _hubConnection.invoke("JoinSocietyGroup", args: [societyId]);
+    } catch (e) {
+      // Silent fail for now, don't block the app if gateway is down
+      debugPrint("SignalR init failed: $e");
+    }
   }
 
   Future<void> _loadTokenAndFetch() async {
@@ -310,6 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _fetchVisitors(token);
     }
   }
+
+   
 
   String _extractUserId(String token) {
     final parts = token.split('.');
@@ -550,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                                // TEMPORARY: SignalR Test Button
+                //New: Emergency / SOS Button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: SizedBox(
@@ -558,11 +591,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const SignalRTestScreen()));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const EmergencyScreen()));
                       },
-                      icon: const Icon(Icons.sensors),
-                      label: const Text('Test SignalR (Temp)', style: TextStyle(fontSize: 16)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
+                      icon: const Icon(Icons.sos),
+                      label: const Text('Emergency / SOS', style: TextStyle(fontSize: 16)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                     ),
                   ),
                 ),
@@ -600,8 +633,53 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
     );
   }
+
+
+  void _showEmergencyPopup(dynamic messageData) {
+    String description = "Emergency Alert Triggered!";
+    if (messageData is Map) {
+      description = messageData['description'] ?? description;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.red.shade900,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.yellow, size: 40),
+              SizedBox(width: 10),
+              Text('EMERGENCY ALERT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(description, style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5), textAlign: TextAlign.center),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.red.shade900),
+                child: const Text('ACKNOWLEDGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _hubConnection.stop(); // ADD THIS
+    super.dispose();
+  }
+
 }
 
+ 
 // ==========================================
 // 4. ADD VISITOR SCREEN
 // ==========================================
@@ -2929,93 +3007,207 @@ class _SocietyDirectoryScreenState extends State<SocietyDirectoryScreen> {
     );
   }
 }
-
 // ==========================================
-// TEMP: SIGNALR TEST SCREEN
+// 15. EMERGENCY SCREEN
 // ==========================================
-
-class SignalRTestScreen extends StatefulWidget {
-  const SignalRTestScreen({super.key});
+class EmergencyScreen extends StatefulWidget {
+  const EmergencyScreen({super.key});
 
   @override
-  State<SignalRTestScreen> createState() => _SignalRTestScreenState();
+  State<EmergencyScreen> createState() => _EmergencyScreenState();
 }
 
-class _SignalRTestScreenState extends State<SignalRTestScreen> {
-  final HubConnection _hubConnection = HubConnectionBuilder()
-      .withUrl("http://localhost:5114/hubs/emergency")
-      //.withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Retry logic if connection drops
-      .withAutomaticReconnect() 
-      .build();
-
-  String _connectionStatus = "Connecting...";
-  List<String> _messages = [];
+class _EmergencyScreenState extends State<EmergencyScreen> {
+  int _selectedType = 0; // 0=Panic, 1=Medical, 2=Fire, 3=Security
+  final _descriptionController = TextEditingController();
+  bool _isTriggering = false;
+  List<dynamic> _activeAlerts = [];
+  bool _isLoadingAlerts = true;
 
   @override
   void initState() {
     super.initState();
-    _startConnection();
+    _fetchActiveAlerts();
   }
 
-  Future<void> _startConnection() async {
-    // 1. Listen for incoming messages from the server
-    _hubConnection.on("ReceiveEmergencyAlert", (message) {
-      setState(() {
-        _messages.add("ALERT RECEIVED: $message");
-      });
-    });
+  Future<void> _fetchActiveAlerts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    final societyId = prefs.getString('society_id');
+
+    if (token == null || societyId == null) return;
 
     try {
-      // 2. Start the connection
-      await _hubConnection.start();
-      setState(() => _connectionStatus = "Connected!");
+      final response = await http.get(
+        Uri.parse('http://localhost:5115/api/Emergency/active?societyId=$societyId'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      );
 
-      // 3. Join a society group (using a dummy society ID for testing)
-      await _hubConnection.invoke("JoinSocietyGroup", args: ["11111111-1111-1111-1111-111111111111"]);
-      setState(() {
-        _messages.add("Successfully joined society group!");
-      });
+      if (response.statusCode == 200) {
+        setState(() {
+          _activeAlerts = jsonDecode(response.body);
+          _isLoadingAlerts = false;
+        });
+      }
     } catch (e) {
-      setState(() => _connectionStatus = "Error: $e");
+      setState(() => _isLoadingAlerts = false);
+    }
+  }
+
+  Future<void> _triggerEmergency() async {
+    setState(() => _isTriggering = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+      final societyId = prefs.getString('society_id');
+      final flatId = prefs.getString('flat_id');
+
+      final response = await http.post(
+        Uri.parse('http://localhost:5115/api/Emergency/trigger'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'societyId': societyId,
+          'flatId': flatId,
+          'type': _selectedType,
+          'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('🚨 Alert Triggered! Help is on the way.'), backgroundColor: Colors.red),
+          );
+          _descriptionController.clear();
+          _fetchActiveAlerts(); // Refresh list
+        }
+      } else {
+         // Handle error
+        String errorMsg = 'Failed to trigger alert.';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) errorMsg = errorData['message'];
+        } catch (e) {
+          if (response.body.contains(': ')) errorMsg = response.body.split(': ').last;
+        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg), backgroundColor: Colors.orange));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isTriggering = false);
+    }
+  }
+
+  String _getTypeText(int type) {
+    switch (type) {
+      case 1: return 'Medical';
+      case 2: return 'Fire';
+      case 3: return 'Security';
+      default: return 'Panic';
     }
   }
 
   @override
   void dispose() {
-    _hubConnection.stop();
+    _descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("SignalR Test"), backgroundColor: Colors.pink),
-      body: Padding(
+      appBar: AppBar(title: const Text('Emergency'), backgroundColor: Colors.red),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("Status: $_connectionStatus", 
-              style: TextStyle(
-                fontSize: 18, 
-                fontWeight: FontWeight.bold, 
-                color: _connectionStatus == "Connected!" ? Colors.green : Colors.red
-              )
-            ),
-            const Divider(height: 30),
-            const Text("Event Log:", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(_messages[index], style: const TextStyle(fontSize: 14)),
-                  );
-                },
+            const SizedBox(height: 20),
+            // The SOS Button
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red, width: 4),
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(20),
               ),
-            )
+              onPressed: _isTriggering ? null : _triggerEmergency,
+              child: _isTriggering 
+                  ? const CircularProgressIndicator(color: Colors.red)
+                  : const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sos, color: Colors.red, size: 80),
+                        SizedBox(height: 10),
+                        Text('HOLD TO\nTRIGGER', textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5)),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 30),
+            
+            // Type Selector
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _selectedType,
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem(value: 0, child: Text('Panic (General)')),
+                    DropdownMenuItem(value: 1, child: Text('Medical')),
+                    DropdownMenuItem(value: 2, child: Text('Fire')),
+                    DropdownMenuItem(value: 3, child: Text('Security')),
+                  ],
+                  onChanged: (val) => setState(() => _selectedType = val!),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Description
+            TextField(
+              controller: _descriptionController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Brief Description (Optional)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.message),
+              ),
+            ),
+            const SizedBox(height: 40),
+
+            // Active Alerts List
+            const Divider(thickness: 2),
+            const SizedBox(height: 10),
+            const Text('Active Alerts in Society', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            
+            _isLoadingAlerts 
+                ? const Center(child: CircularProgressIndicator())
+                : _activeAlerts.isEmpty
+                    ? const Center(child: Text('No active alerts. Stay safe!', style: TextStyle(color: Colors.grey)))
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _activeAlerts.length,
+                        itemBuilder: (context, index) {
+                          final alert = _activeAlerts[index];
+                          final type = alert['type'] is int ? alert['type'] as int : 0;
+                          
+                          return Card(
+                            color: Colors.red.shade50,
+                            margin: const EdgeInsets.only(bottom: 8.0),
+                            child: ListTile(
+                              leading: const Icon(Icons.notifications_active, color: Colors.red),
+                              title: Text(_getTypeText(type), style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(alert['description'] ?? 'No description provided'),
+                              trailing: Text('${alert['triggeredAt'].toString().substring(11, 16)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                            ),
+                          );
+                        },
+                      ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
