@@ -20,7 +20,7 @@ public class PreApproveVisitorCommandHandler : IRequestHandler<PreApproveVisitor
         // 1. Create the Visitor Entity
         var visitor = new PreApprovedVisitor(
             request.SocietyId,
-            Guid.Empty, // In real app, this comes from JWT Token (InvitedByUserId)
+            request.InvitedByUserId != Guid.Empty ? request.InvitedByUserId : Guid.Empty, // Use provided InvitedByUserId or default to Guid.Empty
             request.FlatId,
             request.VisitorName,
             request.VisitorMobile,

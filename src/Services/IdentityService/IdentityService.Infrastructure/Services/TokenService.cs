@@ -16,34 +16,39 @@ public class TokenService : ITokenService
         _config = config;
     }
 
-    public string GenerateToken(Guid userId, string mobileNumber, string fullName, 
-        Guid? societyId = null, Guid? flatId = null, string? memberType = null,string? role=null)
+    public string GenerateToken(Guid userId, string mobileNumber, string fullName,
+        Guid? societyId = null, Guid? flatId = null, string? role = null)
     {
-         // 1. Get the secret key safely. If it's missing in appsettings, throw a clear error!
-        var keyString = _config["Jwt:Key"] 
+        // 1. Get the secret key safely. If it's missing in appsettings, throw a clear error!
+        var keyString = _config["Jwt:Key"]
             ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
         var key = Encoding.UTF8.GetBytes(keyString);
 
         // 2. Create the "Credentials" to sign the token
         var signingCredentials = new SigningCredentials(
-            new SymmetricSecurityKey(key), 
+            new SymmetricSecurityKey(key),
             SecurityAlgorithms.HmacSha256);
 
         // 3. Define what information (Claims) lives INSIDE the wristband
-       var claims = new List<Claim>
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()), // Sub = Subject (User ID)
             new Claim(JwtRegisteredClaimNames.UniqueName, mobileNumber),
             new Claim("FullName", fullName)
             // Later we will add SocietyId and FlatId here!
         };
-         // IF society/flat data is provided, add it to the wristband!
+        // IF society/flat data is provided, add it to the wristband!
         if (societyId.HasValue) claims.Add(new Claim("SocietyId", societyId.Value.ToString()));
         if (flatId.HasValue) claims.Add(new Claim("FlatId", flatId.Value.ToString()));
-        if (!string.IsNullOrEmpty(memberType)) claims.Add(new Claim("MemberType", memberType));
+        //if (!string.IsNullOrEmpty(memberType)) claims.Add(new Claim("MemberType", memberType));
 
-        if (!string.IsNullOrEmpty(role)) 
-            claims.Add(new Claim(ClaimTypes.Role, role));
+        if (!string.IsNullOrEmpty(role))
+        {
+            // ADD ROLE CLAIMS (For C# Authorization and React reading)
+            claims.Add(new Claim(ClaimTypes.Role, role)); // Standard C# Claim
+            claims.Add(new Claim("role", role));          // Custom Claim for React
+        }
+        // claims.Add(new Claim(ClaimTypes.Role, role));
 
         // 4. Build the actual token
         var token = new JwtSecurityToken(

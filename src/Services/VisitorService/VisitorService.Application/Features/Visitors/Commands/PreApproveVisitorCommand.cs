@@ -11,4 +11,5 @@ public class PreApproveVisitorCommand : IRequest<Guid>
     public DateTime ExpectedDate { get; set; }
     public TimeSpan? ExpectedTime { get; set; }
     public string? Purpose { get; set; }
+    public Guid InvitedByUserId { get; set; } 
 }

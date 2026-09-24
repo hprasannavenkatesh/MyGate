@@ -9,9 +9,9 @@ export default defineConfig({
     proxy: {
       // Any request starting with /api will be forwarded to your services
       '/api': {
-        target: 'http://localhost:5103', // Your IdentityService/Gateway
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        target: 'http://localhost:5105', // Your IdentityService/Gateway
+        changeOrigin: true//,
+        //rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
   }

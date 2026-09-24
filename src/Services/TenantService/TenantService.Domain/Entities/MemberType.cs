@@ -5,5 +5,6 @@ public enum MemberType
     Owner,
     Tenant,
     FamilyMemberOfOwner,
-    FamilyMemberOfTenant
+    FamilyMemberOfTenant,
+      CommitteeMember = 4   // <--- ADD THIS FOR ADMIN ACCESS
 }

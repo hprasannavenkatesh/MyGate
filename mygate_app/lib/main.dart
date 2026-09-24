@@ -297,12 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _token;
 
-  /*@override
-  void initState() {
-    super.initState();
-    _loadTokenAndFetch();
-  }*/
-   @override
+@override
   void initState() {
     super.initState();
     _initSignalR(); // Add this line
@@ -367,62 +362,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-/*
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Visitors'),
-        centerTitle: true,
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('jwt_token');
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-          })
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final prefs = await SharedPreferences.getInstance();
-          final realSocietyId = prefs.getString('society_id') ?? '';
-          final realFlatId = prefs.getString('flat_id') ?? '';
-          // Navigate to Add Visitor (using dummy IDs for now, in real app pull from saved state)
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddVisitorScreen(token: 'dummy', societyId: 'dummy', flatId: 'dummy')));
-        },
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Visitor'),
-      ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : _visitors.isEmpty 
-              ? const Center(child: Text('No visitors pre-approved yet.', style: TextStyle(fontSize: 18, color: Colors.grey)))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: _visitors.length,
-                  itemBuilder: (context, index) {
-                    final v = _visitors[index];
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.person_outline, size: 40),
-                        title: Text(v['visitorName'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Mobile: ${v['visitorMobile']}'),
-                            Text('Date: ${v['expectedDate'].toString().substring(0, 10)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                          ],
-                        ),
-                        trailing: Chip(
-                          label: Text(v['status'] == 0 ? 'Pending' : 'Expired'),
-                          backgroundColor: v['status'] == 0 ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-    );
-  }*/
     @override
   Widget build(BuildContext context) {
     return Scaffold(

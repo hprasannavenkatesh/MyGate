@@ -7,6 +7,7 @@ using VisitorService.Infrastructure.Persistence;
 using VisitorService.Infrastructure.Repositories;
 using VisitorService.Infrastructure.Services;
 using Microsoft.OpenApi;
+using System.Text.Json.Serialization; 
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,6 +90,13 @@ builder.Services.AddSwaggerGen(c =>
         [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
     });
 });
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // This converts Enums (1, 2) to Strings ("Entered", "Exited")
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 var app = builder.Build();
 

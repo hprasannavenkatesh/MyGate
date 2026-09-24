@@ -12,7 +12,7 @@ namespace VisitorService.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize] // Locked down! Needs JWT
-public class VisitorsController : ControllerBase
+public class VisitorsController : BaseController
 {
     private readonly IMediator _mediator;
 
@@ -24,6 +24,9 @@ public class VisitorsController : ControllerBase
     [HttpPost("pre-approve")]
     public async Task<IActionResult> PreApprove([FromBody] PreApproveVisitorCommand command)
     {
+ 
+        // The 'UserId' comes from your BaseController, which reads the JWT
+        command.InvitedByUserId = GetUserId(); // Injects the real ID!
         var id = await _mediator.Send(command);
         return CreatedAtAction(nameof(PreApprove), new { id }, new { Id = id });
     }

@@ -19,3 +19,8 @@ mygate_app/.packages
 # Windows junk
 Thumbs.db
 .DS_Store
+
+# React / Node
+**/node_modules
+**/dist
+**/.env
