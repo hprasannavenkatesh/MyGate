@@ -33,4 +33,19 @@ public class PreApprovedVisitorRepository : IPreApprovedVisitorRepository
             .OrderByDescending(v => v.ExpectedDate)
             .ToListAsync();
     }
+    // ← ADD THIS METHOD
+    public async Task UpdateAsync(PreApprovedVisitor visitor)
+    {
+        _context.PreApprovedVisitors.Update(visitor);
+        await _context.SaveChangesAsync();
+    }
+
+    // NEW: Get all visitors for a society (Admin view)
+    public async Task<List<PreApprovedVisitor>> GetBySocietyIdAsync(Guid societyId)
+    {
+        return await _context.PreApprovedVisitors
+            .Where(v => v.SocietyId == societyId)
+            .OrderByDescending(v => v.ExpectedDate)
+            .ToListAsync();
+    }
 }

@@ -4,6 +4,12 @@
     <Project Path="src/BuildingBlocks/BuildingBlocks.Messaging/BuildingBlocks.Messaging.csproj" />
   </Folder>
   <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/AmenityService/">
+    <Project Path="src/Services/AmenityService/AmenityService.API/AmenityService.API.csproj" />
+    <Project Path="src/Services/AmenityService/AmenityService.Application/AmenityService.Application.csproj" />
+    <Project Path="src/Services/AmenityService/AmenityService.Domain/AmenityService.Domain.csproj" />
+    <Project Path="src/Services/AmenityService/AmenityService.Infrastructure/AmenityService.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/BillingService/">
     <Project Path="src/Services/BillingService/BillingService.API/BillingService.API.csproj" />
     <Project Path="src/Services/BillingService/BillingService.Application/BillingService.Application.csproj" />

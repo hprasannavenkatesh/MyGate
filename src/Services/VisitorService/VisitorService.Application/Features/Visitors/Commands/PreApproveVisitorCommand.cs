@@ -1,8 +1,8 @@
 using MediatR;
 
 namespace VisitorService.Application.Features.Visitors.Commands;
-
-public class PreApproveVisitorCommand : IRequest<Guid>
+  public record PreApproveVisitorResult(Guid Id, string Otp);
+public class PreApproveVisitorCommand : IRequest<PreApproveVisitorResult>
 {
     public Guid SocietyId { get; set; }
     public Guid FlatId { get; set; }
@@ -12,4 +12,6 @@ public class PreApproveVisitorCommand : IRequest<Guid>
     public TimeSpan? ExpectedTime { get; set; }
     public string? Purpose { get; set; }
     public Guid InvitedByUserId { get; set; } 
+
+  
 }

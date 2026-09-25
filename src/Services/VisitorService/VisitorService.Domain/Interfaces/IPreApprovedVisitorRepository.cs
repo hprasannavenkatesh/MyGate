@@ -7,4 +7,8 @@ public interface IPreApprovedVisitorRepository
     Task<PreApprovedVisitor> AddAsync(PreApprovedVisitor visitor);
     Task<PreApprovedVisitor?> GetByIdAsync(Guid id);
         Task<List<PreApprovedVisitor>> GetByInviterIdAsync(Guid inviterId);
+
+        Task UpdateAsync(PreApprovedVisitor visitor);
+        //Society wide query for Admin
+        Task<List<PreApprovedVisitor>> GetBySocietyIdAsync(Guid societyId);
 }

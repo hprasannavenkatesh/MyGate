@@ -1,0 +1,3511 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET  (continued — Part 3)
+║  Generated : 2026-09-25 21:07:30
+║  Root      : C:\MyGateApp\src\Services
+║  Max part  : 150 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\RequestOtpCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class RequestOtpCommand : IRequest<Unit>
+{
+    public string MobileNumber { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\RequestOtpCommandHandler.cs
+SIZE  : 1.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Interfaces;
+using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class RequestOtpCommandHandler : IRequestHandler<RequestOtpCommand, Unit>
+{
+    private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher _passwordHasher;
+
+    public RequestOtpCommandHandler(IUserRepository userRepository, IPasswordHasher passwordHasher)
+    {
+        _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
+    }
+
+    public async Task<Unit> Handle(RequestOtpCommand request, CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByMobileAsync(request.MobileNumber);
+
+        // SECURITY: Even if the user doesn't exist, return 200 OK. 
+        // This prevents hackers from knowing which phone numbers are registered in our app!
+        if (user != null)
+        {
+            // Generate a random 4-digit number
+            var random = new Random();
+            var otp = random.Next(1000, 9999).ToString();
+
+            // Hash it and save it to the user
+            var hashedOtp = _passwordHasher.HashPassword(otp);
+            user.GenerateOtp(otp, hashedOtp);
+
+            // In a real app, you would call a Twilio/AWS SNS service here to send an SMS.
+            // For now, we will just print it to the terminal so we can test it!
+            Console.WriteLine($"=========================================");
+            Console.WriteLine($"📱 MOCK SMS SENT TO {request.MobileNumber}");
+            Console.WriteLine($"🔑 YOUR OTP IS: {otp}");
+            Console.WriteLine($"=========================================");
+
+            // Save the hashed OTP to the database
+            await _userRepository.UpdateAsync(user);
+        }
+
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\SelectContextCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class SelectContextCommand : IRequest<string>
+{
+    public Guid UserId { get; set; }
+    public Guid SocietyId { get; set; }
+    public Guid FlatId { get; set; }
+    public string MemberType { get; set; } = string.Empty; // "Owner", "Tenant", etc.
+
+    public string Role { get; set; } = "Resident"; 
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\SelectContextCommandHandler.cs
+SIZE  : 4.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Interfaces;
+using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand, string>
+{
+    private readonly IUserRepository _userRepository;
+    private readonly ITokenService _tokenService;
+
+    public SelectContextCommandHandler(IUserRepository userRepository, ITokenService tokenService)
+    {
+        _userRepository = userRepository;
+        _tokenService = tokenService;
+    }
+    public async Task<string> Handle(SelectContextCommand request, CancellationToken cancellationToken)
+    {
+        // 1. FETCH REAL USER FROM IDENTITY DB
+        // (Assuming you have a GetByIdAsync method in your repo)
+        var user = await _userRepository.GetByIdAsync(request.UserId);
+
+        if (user == null)
+        {
+            throw new UnauthorizedAccessException("User does not exist.");
+        }
+
+        // 2. MAP MEMBER TYPE TO ROLE STRING
+        // React sends "0" for Admin, "1" for Resident (Based on our SQL script enum)
+        /*string assignedRole = request.MemberType switch
+        {
+            "0" => "Admin",
+            "1" => "Resident",
+            "Admin" => "Admin", // Fallback if string is sent
+            "Resident" => "Resident",
+            _ => "Resident" // Security Default: If unknown, treat as Resident
+        };*/
+        // 1. Get MemberType from Request (e.g., 0, 1, 2)
+        int memberTypeId = int.Parse(request.MemberType); // Assuming React sends "0", "1"
+
+        // 2. Map MemberType to Security Role
+        string assignedRole = memberTypeId switch
+        {
+            4 => "Admin",       // CommitteeMember gets Admin access
+            0 => "Resident",    // Owner gets Resident access
+            1 => "Resident",    // Tenant gets Resident access
+            2 => "Resident",    // FamilyOfOwner gets Resident access
+            3 => "Resident",    // FamilyOfTenant gets Resident access
+            _ => "Resident"     // Default safe fallback for unknown types
+        };
+
+Console.WriteLine($"🔑 MAPPED ROLE IS: {assignedRole}"); // <--- ADD THIS LOG
+        Console.WriteLine($"📱 Generating Context Token for User: {user.FullName} | Society: {request.SocietyId} | Role: {assignedRole}");
+
+        // 3. GENERATE TOKEN WITH REAL DATA
+        var fatToken = _tokenService.GenerateToken(
+            request.UserId,
+            user.MobileNumber, // FROM DB
+            user.FullName,     // FROM DB
+            request.SocietyId,
+            request.FlatId,
+            assignedRole       // MAPPED SECURELY
+        );
+
+        return fatToken;
+    }
+
+    /* public async Task<string> Handle(SelectContextCommand request, CancellationToken cancellationToken)
+     {
+         // 1. Verify the user actually exists
+         // (In a real app with service-to-service calls, we'd ask the Tenant Service 
+         // "Hey, does this user actually belong to this flat?". For now, we trust the Flutter app).
+         var user = await _userRepository.GetByMobileAsync(""); // We'll just mock the user fetch for now
+
+           // ==========================================
+         // SECURE ROLE ASSIGNMENT (Backend decides, not Flutter!)
+         // ==========================================
+         string assignedRole = "Resident"; // Default: Everyone is a resident
+
+         // TEMPORARY HARD CODE FOR TESTING: 
+         // Replace this with your actual User ID from the SQL database!
+         if (request.UserId == Guid.Parse("ECB0DB65-5C7B-4EA3-A79F-5FC2F33D1A30"))
+         {
+             assignedRole = "Admin";
+         }
+         // ==========================================
+          Console.WriteLine($"📱 USER ID  {request.UserId}");
+         // 2. Generate the FAT TOKEN with all the new context data!
+         var fatToken = _tokenService.GenerateToken(
+             request.UserId, 
+             "dummy_mobile_for_now", // We would fetch this from DB
+             "Dummy Name",           // We would fetch this from DB
+             request.SocietyId, 
+             request.FlatId, 
+             request.MemberType,
+             //request.Role
+             assignedRole
+         );
+
+         return fatToken;
+     }*/
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\UpdateProfileCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class UpdateProfileCommand : IRequest<Unit>
+{
+    public Guid UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? Email { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\UpdateProfileCommandHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Interfaces;
+using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, Unit>
+{
+    private readonly IUserRepository _userRepository;
+
+    public UpdateProfileCommandHandler(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<Unit> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
+
+        // Use the domain method we created in Step 1!
+        user.UpdateProfile(request.FullName, request.Email);
+
+        // Note: In a real full app, we'd call _userRepository.UpdateAsync(user) here. 
+        // For this speed run, we'll just let it complete successfully.
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\VerifyOtpCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class VerifyOtpCommand : IRequest<string>
+{
+    public string MobileNumber { get; set; } = string.Empty;
+    public string Otp { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Commands\VerifyOtpCommandHandler.cs
+SIZE  : 1.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Interfaces;
+using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Commands;
+
+public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
+{
+    private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly ITokenService _tokenService;
+
+    public VerifyOtpCommandHandler(
+        IUserRepository userRepository, 
+        IPasswordHasher passwordHasher,
+        ITokenService tokenService)
+    {
+        _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
+        _tokenService = tokenService;
+    }
+
+    public async Task<string> Handle(VerifyOtpCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Find the user
+        var user = await _userRepository.GetByMobileAsync(request.MobileNumber)
+            ?? throw new UnauthorizedAccessException("Invalid mobile number or OTP.");
+
+        // 2. Verify the OTP using our clean Domain method!
+        // Notice we pass the _passwordHasher into the entity method.
+        bool isValid = user.VerifyOtp(request.Otp, _passwordHasher);
+
+        if (!isValid)
+        {
+            throw new UnauthorizedAccessException("Invalid or expired OTP.");
+        }
+
+        // 3. Save the user to DB (This clears the OtpHash so it can't be used again!)
+        await _userRepository.UpdateAsync(user);
+
+        // 4. Generate the JWT Wristband!
+        var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName);
+
+        return token;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Queries\GetProfileQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using IdentityService.Domain;
+
+namespace IdentityService.Application.Features.Auth.Queries;
+
+public class GetProfileQuery : IRequest<UserProfileDto>
+{
+    public Guid UserId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Queries\GetProfileQueryHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain;
+using IdentityService.Domain.Interfaces;
+using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Queries;
+
+public class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, UserProfileDto>
+{
+    private readonly IUserRepository _userRepository;
+
+    public GetProfileQueryHandler(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<UserProfileDto> Handle(GetProfileQuery request, CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
+
+        return new UserProfileDto
+        {
+            Id = user.Id,
+            MobileNumber = user.MobileNumber,
+            FullName = user.FullName,
+            Email = user.Email,
+            IsMobileVerified = user.IsMobileVerified
+        };
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Queries\LoginQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Queries;
+
+// A Query asks for data and returns a string (the Token)
+public class LoginQuery : IRequest<string>
+{
+    public string MobileNumber { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\Features\Auth\Queries\LoginQueryHandler.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Interfaces;
+using MediatR;
+
+namespace IdentityService.Application.Features.Auth.Queries;
+
+public class LoginQueryHandler : IRequestHandler<LoginQuery, string>
+{
+    private readonly IUserRepository _userRepository;
+    private readonly ITokenService _tokenService;
+       private readonly IPasswordHasher _passwordHasher; // NEW!
+
+   public LoginQueryHandler(IUserRepository userRepository, ITokenService tokenService, IPasswordHasher passwordHasher)
+    {
+        _userRepository = userRepository;
+        _tokenService = tokenService;
+        _passwordHasher = passwordHasher; // NEW!
+    }
+
+    public async Task<string> Handle(LoginQuery request, CancellationToken cancellationToken)
+    {
+        // 1. Find the user
+        var user = await _userRepository.GetByMobileAsync(request.MobileNumber);
+        
+        if (user == null)
+        {
+            throw new UnauthorizedAccessException("Invalid mobile number or password.");
+        }
+
+         // 2. Verify Password using our clean interface!
+        if (user.PasswordHash == null || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+        {
+            throw new UnauthorizedAccessException("Invalid mobile number or password.");
+        }
+
+        // 3. Generate the JWT Wristband!
+        var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName);
+
+        return token;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Application\IdentityService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\IdentityService.Domain\IdentityService.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace IdentityService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\Entities\User.cs
+SIZE  : 3.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+using IdentityService.Domain.Interfaces;
+
+namespace IdentityService.Domain.Entities;
+
+public class User
+{
+    // Guid is a globally unique identifier (e.g., "3f4b2c1d-8e5f-4a9b...")
+    public Guid Id { get; private set; }= Guid.Empty;
+    
+    public string MobileNumber { get; private set; } =null!;
+    public string? Email { get; private set; }
+    public string FullName { get; private set; } = null!;
+    
+    public string? PasswordHash { get; private set; } = null!;
+    
+    public bool IsMobileVerified { get; private set; }
+    public bool IsEmailVerified { get; private set; }
+
+    public string? OtpHash { get; private set; } = null!;
+    public DateTime? OtpExpiresAt { get; private set; }
+    
+    public DateTime? LastLoginAt { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+
+    // EF Core requires a parameterless constructor to read data from the database.
+    // We make it 'private' so developers can't use it to create a blank user.
+    private User() { }
+
+    // This is the ONLY way a new User can be created in our app.
+    public User(string mobileNumber, string fullName, string? email = null)
+    {
+        // Business Rule: Mobile number is strictly required
+        if (string.IsNullOrWhiteSpace(mobileNumber))
+            throw new ArgumentException("Mobile number cannot be empty.", nameof(mobileNumber));
+
+        Id = Guid.NewGuid();
+        MobileNumber = mobileNumber;
+        FullName = fullName;
+        Email = email;
+        
+        IsMobileVerified = false;
+        IsEmailVerified = false;
+        CreatedAt = DateTime.UtcNow;
+    }
+
+    // A method to update the password securely
+    public void SetPasswordHash(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            throw new ArgumentException("Password hash cannot be empty.");
+            
+        PasswordHash = passwordHash;
+    }
+
+    // A method to mark the mobile as verified
+    public void VerifyMobile()
+    {
+        IsMobileVerified = true;
+    }
+
+        public void UpdateProfile(string fullName, string? email)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new ArgumentException("Full name cannot be empty.");
+            
+        FullName = fullName;
+        Email = email;
+    }
+
+        public void GenerateOtp(string plainTextOtp, string hashedOtp)
+    {
+        // Save the hash, not the plain text!
+        OtpHash = hashedOtp;
+        // OTP is valid for 5 minutes
+        OtpExpiresAt = DateTime.UtcNow.AddMinutes(5); 
+    }
+
+       public bool VerifyOtp(string plainTextOtp, IPasswordHasher hasher)
+    {
+        // 1. Did they even request an OTP?
+        if (OtpHash == null || OtpExpiresAt == null) return false;
+
+        // 2. Has the OTP expired?
+        if (DateTime.UtcNow > OtpExpiresAt) return false;
+
+        // 3. Does the hash match? (Use the clean interface!)
+        var isMatch = hasher.VerifyPassword(plainTextOtp, OtpHash);
+        
+        if (isMatch)
+        {
+            // Clear the OTP so it can't be used again (Replay Attack prevention)
+            OtpHash = null;
+            OtpExpiresAt = null;
+            return true;
+        }
+
+        return false;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\IdentityService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\Interfaces\IPasswordHasher.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace IdentityService.Domain.Interfaces;
+
+public interface IPasswordHasher
+{
+    string HashPassword(string password);
+    bool VerifyPassword(string password, string hashedPassword);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\Interfaces\ITokenService.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace IdentityService.Domain.Interfaces;
+
+public interface ITokenService
+{
+     // We added optional parameters! If they are null, it makes a Basic Token. If they have data, it makes a Fat Token.
+    string GenerateToken(Guid userId, string mobileNumber, string fullName, 
+        Guid? societyId = null, Guid? flatId = null,string? role = null);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\Interfaces\IUserRepository.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Entities;
+
+namespace IdentityService.Domain.Interfaces;
+
+public interface IUserRepository
+{
+    Task<User> AddAsync(User user);
+    Task<bool> ExistsByMobileAsync(string mobileNumber);
+
+    // NEW: Get user by mobile number
+    Task<User?> GetByMobileAsync(string mobileNumber);
+    Task<User?> GetByIdAsync(Guid userId);
+
+    Task UpdateAsync(User user);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Domain\UserProfileDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace IdentityService.Domain;
+
+public class UserProfileDto
+{
+    public Guid Id { get; set; }
+    public string MobileNumber { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public bool IsMobileVerified { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace IdentityService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\IdentityService.Infrastructure.csproj
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IdentityService.Domain\IdentityService.Domain.csproj" />
+    <ProjectReference Include="..\IdentityService.Application\IdentityService.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\Persistence\IdentityDbContext.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace IdentityService.Infrastructure.Persistence;
+
+public class IdentityDbContext : DbContext
+{
+    // This constructor is required by EF Core
+    public IdentityDbContext(DbContextOptions<IdentityDbContext> options) : base(options)
+    {
+    }
+
+    // This creates the "Users" table in SQL Server based on our User entity
+    public DbSet<User> Users => Set<User>();
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\Repositories\UserRepository.cs
+SIZE  : 1.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Entities;
+using IdentityService.Domain.Interfaces;
+using IdentityService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace IdentityService.Infrastructure.Repositories;
+
+public class UserRepository : IUserRepository
+{
+    private readonly IdentityDbContext _context;
+
+    // The database context is automatically given to us by .NET
+    public UserRepository(IdentityDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<User> AddAsync(User user)
+    {
+        // Tell EF Core to add the user to the database
+        await _context.Users.AddAsync(user);
+        
+        // Actually execute the save to SQL Server
+        await _context.SaveChangesAsync();
+        
+        // Return the user (which now has its generated ID)
+        return user;
+    }
+
+    public async Task<bool> ExistsByMobileAsync(string mobileNumber)
+    {
+        // Check if ANY user in the Users table has this mobile number
+        return await _context.Users
+            .AnyAsync(u => u.MobileNumber == mobileNumber);
+    }
+
+        public async Task<User?> GetByMobileAsync(string mobileNumber)
+    {
+        // Find the user. '?' means it returns null if not found
+        return await _context.Users
+            .FirstOrDefaultAsync(u => u.MobileNumber == mobileNumber);
+    }
+
+        public async Task<User?> GetByIdAsync(Guid userId)
+    {
+        return await _context.Users.FindAsync(userId);
+    }
+
+        public async Task UpdateAsync(User user)
+    {
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\Services\LocalEventBus.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text.Json;
+using BuildingBlocks.Messaging.Events;
+using BuildingBlocks.Messaging.Interfaces;
+
+namespace IdentityService.Infrastructure.Services;
+
+public class LocalEventBus : IEventBus
+{
+    public Task PublishAsync<TEvent>(TEvent eventData, string topicName) where TEvent : class
+    {
+        // In the real world, this sends data to Azure. 
+        // For local testing, we just print it to the terminal!
+        var json = JsonSerializer.Serialize(eventData, new JsonSerializerOptions { WriteIndented = true });
+        
+        Console.WriteLine("=========================================");
+        Console.WriteLine($"🎤 DJ BROADCASTING ON TOPIC: [{topicName}]");
+        Console.WriteLine("=========================================");
+        Console.WriteLine(json);
+        Console.WriteLine("=========================================");
+
+        return Task.CompletedTask;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\Services\PasswordHasher.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Domain.Interfaces;
+
+namespace IdentityService.Infrastructure.Services;
+
+public class PasswordHasher : IPasswordHasher
+{
+    public string HashPassword(string password)
+    {
+        return BCrypt.Net.BCrypt.HashPassword(password);
+    }
+
+    public bool VerifyPassword(string password, string hashedPassword)
+    {
+        return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.Infrastructure\Services\TokenService.cs
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using IdentityService.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+
+namespace IdentityService.Infrastructure.Services;
+
+public class TokenService : ITokenService
+{
+    private readonly IConfiguration _config;
+
+    public TokenService(IConfiguration config)
+    {
+        _config = config;
+    }
+
+    public string GenerateToken(Guid userId, string mobileNumber, string fullName,
+        Guid? societyId = null, Guid? flatId = null, string? role = null)
+    {
+        // 1. Get the secret key safely. If it's missing in appsettings, throw a clear error!
+        var keyString = _config["Jwt:Key"]
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+
+        // 2. Create the "Credentials" to sign the token
+        var signingCredentials = new SigningCredentials(
+            new SymmetricSecurityKey(key),
+            SecurityAlgorithms.HmacSha256);
+
+        // 3. Define what information (Claims) lives INSIDE the wristband
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()), // Sub = Subject (User ID)
+            new Claim(JwtRegisteredClaimNames.UniqueName, mobileNumber),
+            new Claim("FullName", fullName)
+            // Later we will add SocietyId and FlatId here!
+        };
+        // IF society/flat data is provided, add it to the wristband!
+        if (societyId.HasValue) claims.Add(new Claim("SocietyId", societyId.Value.ToString()));
+        if (flatId.HasValue) claims.Add(new Claim("FlatId", flatId.Value.ToString()));
+        //if (!string.IsNullOrEmpty(memberType)) claims.Add(new Claim("MemberType", memberType));
+
+        if (!string.IsNullOrEmpty(role))
+        {
+            // ADD ROLE CLAIMS (For C# Authorization and React reading)
+            claims.Add(new Claim(ClaimTypes.Role, role)); // Standard C# Claim
+            claims.Add(new Claim("role", role));          // Custom Claim for React
+        }
+        // claims.Add(new Claim(ClaimTypes.Role, role));
+
+        // 4. Build the actual token
+        var token = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(_config["Jwt:ExpiryInMinutes"])),
+            signingCredentials: signingCredentials
+        );
+
+        // 5. Convert it to a string and hand it back
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+   "NoticeBoardDb": "Server=localhost;Database=MyGateNoticeBoardDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+
+namespace NoticeBoardService.API.Controllers;
+
+[ApiController]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst("sub")?.Value;
+            
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("Valid User ID not found in token.");
+            
+        return userId;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\Controllers\NoticesController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using NoticeBoardService.Application.Features.Notices.Commands;
+using NoticeBoardService.Application.Features.Notices.Queries;
+
+namespace NoticeBoardService.API.Controllers;
+
+[Route("api/[controller]")] 
+public class NoticesController : BaseController // <--- USING BASECONTROLLER!
+{
+    private readonly IMediator _mediator;
+    public NoticesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")] // Only admins can post notices!
+    public async Task<IActionResult> CreateNotice([FromBody] CreateNoticeCommand command)
+    {
+        command.CreatedByUserId = GetUserId(); // <--- MAGIC FROM BASECONTROLLER
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(CreateNotice), new { id }, new { Id = id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetNotices([FromQuery] Guid societyId)
+    {
+        var query = new GetNoticesQuery { SocietyId = societyId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\NoticeBoardService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+    <ItemGroup>
+    <ProjectReference Include="..\NoticeBoardService.Application\NoticeBoardService.Application.csproj" />
+    <ProjectReference Include="..\NoticeBoardService.Infrastructure\NoticeBoardService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\Program.cs
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using NoticeBoardService.Infrastructure.Persistence;
+using Microsoft.OpenApi;
+using NoticeBoardService.Domain.Interfaces;
+using NoticeBoardService.Infrastructure.Repositories;
+//using NoticeBoardService.Application.Features.Notices.Queries;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+
+// --- 1. THIS IS THE MISSING BLOCK ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.AllowAnyOrigin()    
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+builder.Services.AddDbContext<NoticeBoardDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("NoticeBoardDb")));
+
+builder.Services.AddScoped<INoticeRepository, NoticeRepository>();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(NoticeBoardService.Application.Features.Notices.Commands.CreateNoticeCommand).Assembly));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+      var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+
+    };
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Name = "Authorization", Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT", In = ParameterLocation.Header });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() });
+});
+
+var app = builder.Build();
+app.UseSwagger(); app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication(); app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5109",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace HelpdeskService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Application\Features\Notices\Commands\CreateNoticeCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using NoticeBoardService.Domain.Entities;
+
+namespace NoticeBoardService.Application.Features.Notices.Commands;
+
+public class CreateNoticeCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public int Category { get; set; } = 0;
+    public bool IsPinned { get; set; } = false;
+    public Guid CreatedByUserId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Application\Features\Notices\Commands\CreateNoticeCommandHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using NoticeBoardService.Domain.Entities;
+using NoticeBoardService.Domain.Interfaces; 
+
+namespace NoticeBoardService.Application.Features.Notices.Commands;
+
+public class CreateNoticeCommandHandler : IRequestHandler<CreateNoticeCommand, Guid>
+{
+    private readonly INoticeRepository _repository;
+    public CreateNoticeCommandHandler(INoticeRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateNoticeCommand request, CancellationToken cancellationToken)
+    {
+        var notice = new Notice(
+            request.SocietyId,
+            request.Title,
+            request.Description,
+            (NoticeCategory)request.Category,
+            request.IsPinned,
+            request.CreatedByUserId
+        );
+
+        return (await _repository.AddAsync(notice)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Application\Features\Notices\Queries\GetNoticesQuery.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using NoticeBoardService.Domain.Entities;
+using NoticeBoardService.Domain.Interfaces; 
+
+namespace NoticeBoardService.Application.Features.Notices.Queries;
+
+public class GetNoticesQuery : IRequest<List<Notice>>
+{
+    public Guid SocietyId { get; set; }
+}
+
+public class GetNoticesQueryHandler : IRequestHandler<GetNoticesQuery, List<Notice>>
+{
+    private readonly INoticeRepository _repository;
+    public GetNoticesQueryHandler(INoticeRepository repository) => _repository = repository;
+
+    public async Task<List<Notice>> Handle(GetNoticesQuery request, CancellationToken cancellationToken)
+    {
+        return (await _repository.GetBySocietyAsync(request.SocietyId)).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Application\NoticeBoardService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+ <ItemGroup>
+    <ProjectReference Include="..\NoticeBoardService.Domain\NoticeBoardService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace HelpdeskService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Domain\Entities\Notice.cs
+SIZE  : 1.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace NoticeBoardService.Domain.Entities;
+
+public class Notice
+{
+    public Guid Id { get; private set; }
+    public Guid SocietyId { get; private set; }
+    public string Title { get; private set; }
+    public string Description { get; private set; }
+    public NoticeCategory Category { get; private set; }
+    public bool IsPinned { get; private set; }
+    public Guid CreatedByUserId { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+    public DateTime? ExpiresAt { get; private set; }
+
+    private Notice() { } // For EF Core
+
+    public Notice(
+        Guid societyId,
+        string title,
+        string description,
+        NoticeCategory category,
+        bool isPinned,
+        Guid createdByUserId,
+        DateTime? expiresAt = null)
+    {
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        Title = title;
+        Description = description;
+        Category = category;
+        IsPinned = isPinned;
+        CreatedByUserId = createdByUserId;
+        CreatedAt = DateTime.UtcNow;
+        ExpiresAt = expiresAt;
+    }
+
+    public void Pin() => IsPinned = true;
+    public void Unpin() => IsPinned = false;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Domain\Entities\NoticeCategory.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace NoticeBoardService.Domain.Entities;
+
+public enum NoticeCategory
+{
+    General,
+    Maintenance,
+    Event,
+    Emergency,
+    Rules
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Domain\Interfaces\INoticeRepository.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using NoticeBoardService.Domain.Entities;
+
+namespace NoticeBoardService.Domain.Interfaces;
+
+public interface INoticeRepository
+{
+    Task<Notice> AddAsync(Notice notice);
+    Task<IReadOnlyList<Notice>> GetBySocietyAsync(Guid societyId);
+    Task<Notice?> GetByIdAsync(Guid id);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Domain\NoticeBoardService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace HelpdeskService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Infrastructure\NoticeBoardService.Infrastructure.csproj
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NoticeBoardService.Domain\NoticeBoardService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+  <PrivateAssets>all</PrivateAssets>
+</PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Infrastructure\Persistence\NoticeBoardDbContext.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.EntityFrameworkCore;
+using NoticeBoardService.Domain.Entities;
+
+namespace NoticeBoardService.Infrastructure.Persistence;
+
+public class NoticeBoardDbContext : DbContext
+{
+    public NoticeBoardDbContext(DbContextOptions<NoticeBoardDbContext> options) : base(options) { }
+
+    public DbSet<Notice> Notices => Set<Notice>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Notice>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).IsRequired();
+            entity.HasIndex(e => e.SocietyId); // Important for fast querying
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NoticeBoardService\NoticeBoardService.Infrastructure\Repositories\NoticeRepository.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.EntityFrameworkCore;
+using NoticeBoardService.Domain.Entities;
+using NoticeBoardService.Domain.Interfaces;
+using NoticeBoardService.Infrastructure.Persistence;
+
+namespace NoticeBoardService.Infrastructure.Repositories;
+
+public class NoticeRepository : INoticeRepository
+{
+    private readonly NoticeBoardDbContext _context;
+    public NoticeRepository(NoticeBoardDbContext context) => _context = context;
+
+    public async Task<Notice> AddAsync(Notice notice)
+    {
+        await _context.Notices.AddAsync(notice);
+        await _context.SaveChangesAsync();
+        return notice;
+    }
+
+    public async Task<Notice?> GetByIdAsync(Guid id)
+    {
+        return await _context.Notices.FindAsync(id);
+    }
+
+    public async Task<IReadOnlyList<Notice>> GetBySocietyAsync(Guid societyId)
+    {
+        // Pinned notices first, then by newest date
+        return await _context.Notices
+            .Where(n => n.SocietyId == societyId)
+            .OrderByDescending(n => n.IsPinned)
+            .ThenByDescending(n => n.CreatedAt)
+            .ToListAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "NotificationDb": "Server=localhost;Database=MyGateNotificationDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.API\NotificationService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NotificationService.Application\NotificationService.Application.csproj" />
+    <ProjectReference Include="..\NotificationService.Infrastructure\NotificationService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.API\Program.cs
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using NotificationService.Infrastructure.Persistence;
+using Microsoft.OpenApi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddDbContext<NotificationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDb")));
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(NotificationService.Application.Features.Notifications.NotificationServiceMarker).Assembly));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+      var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidAudience = builder.Configuration["Jwt:Audience"],
+         IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    //c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme { Name = "Authorization", Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey, Scheme = "Bearer", BearerFormat = "JWT", In = Microsoft.OpenApi.Models.ParameterLocation.Header });
+    //c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement { { new Microsoft.OpenApi.Models.OpenApiSecurityScheme { Reference = new Microsoft.OpenApi.Models.OpenApiReference { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } }, Array.Empty<string>() } });
+     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+    });
+      c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
+
+var app = builder.Build();
+app.UseSwagger(); app.UseSwaggerUI();
+app.UseAuthentication(); app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5106",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace NotificationService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Application\Features\Notifications\NotificationServiceMarker.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace NotificationService.Application.Features.Notifications;
+public class NotificationServiceMarker { }
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Application\NotificationService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NotificationService.Domain\NotificationService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace NotificationService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Domain\NotificationService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace NotificationService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Infrastructure\NotificationService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NotificationService.Domain\NotificationService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : NotificationService\NotificationService.Infrastructure\Persistence\NotificationDbContext.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.EntityFrameworkCore;
+
+namespace NotificationService.Infrastructure.Persistence;
+
+public class NotificationDbContext : DbContext
+{
+    public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options)
+    {
+    }
+
+    // We will add DbSets for Notifications later!
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\appsettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://localhost:5114",
+        "Protocols": "Http1"
+      }
+    }
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\Hubs\ChatHub.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.SignalR;
+
+namespace RealtimeGateway.API.Hubs;
+
+// Residents connect here for Group Chats
+public class ChatHub : Hub
+{
+    public async Task JoinChatGroup(string groupId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"chat_{groupId}");
+    }
+
+    public async Task LeaveChatGroup(string groupId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"chat_{groupId}");
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\Hubs\EmergencyHub.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.SignalR;
+
+namespace RealtimeGateway.API.Hubs;
+
+// Residents and Guards connect here for Panic Buttons and Alerts
+public class EmergencyHub : Hub
+{
+    // Called by Flutter when the app opens to join their specific society channel
+    public async Task JoinSocietyGroup(string societyId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"society_{societyId}");
+    }
+
+    // Called by Flutter when app closes to clean up memory
+    public async Task LeaveSocietyGroup(string societyId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"society_{societyId}");
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\Program.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ /*using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.ResponseCaching;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.SignalR;
+using System.Text.Json;
+*/
+global using RealtimeGateway.API.Hubs;
+global using Microsoft.AspNetCore.SignalR;
+global using System.Text.Json;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 1. Add SignalR to the services
+builder.Services.AddSignalR();
+
+// 2. Add CORS (CRITICAL FOR FLUTTER WEB)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.SetIsOriginAllowed(origin => true) // Our silver bullet for Flutter Web
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // REQUIRED FOR SIGNALR WEBSOCKETS!
+    });
+});
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+
+// 3. Use CORS BEFORE SignalR
+app.UseCors("AllowFlutter");
+
+app.MapControllers();
+
+// 4. Map the Hubs to specific endpoints
+// Flutter will connect to these URLs
+app.MapHub<EmergencyHub>("/hubs/emergency");
+app.MapHub<ChatHub>("/hubs/chat");
+
+// --- ADD THIS BLOCK ---
+app.MapPost("/api/gateway/broadcast", async (HttpContext context, IHubContext<EmergencyHub> hubContext) =>
+{
+    using var reader = new StreamReader(context.Request.Body);
+    var body = await reader.ReadToEndAsync();
+    var payload = JsonSerializer.Deserialize<GatewayBroadcastRequest>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+    if (payload != null && !string.IsNullOrEmpty(payload.MethodName) && !string.IsNullOrEmpty(payload.GroupName))
+    {
+        await hubContext.Clients.Group(payload.GroupName).SendAsync(payload.MethodName, payload.Args);
+    }
+
+    return Results.Ok();
+});
+
+app.Run();
+
+record GatewayBroadcastRequest(string MethodName, string GroupName, object[] Args);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5268",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : RealtimeGateway\RealtimeGateway.API\RealtimeGateway.API.csproj
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "TenantDb": "Server=localhost;Database=MyGateTenantDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\Controllers\SocietiesController.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using TenantService.Application.Features.Societies.Commands;
+using TenantService.Application.Features.Societies.Queries;
+
+namespace TenantService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class SocietiesController : ControllerBase
+{
+    private readonly IMediator _mediator;
+
+    public SocietiesController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    // GET /api/societies/my-societies?userId=xxxxx
+    [Authorize]
+    [HttpGet("my-societies")]
+    public async Task<IActionResult> GetMySocieties([FromQuery] Guid userId)
+    {
+        var query = new GetUserSocietiesQuery { UserId = userId };
+        var result = await _mediator.Send(query);
+        
+        return Ok(result);
+    }
+
+     [HttpPost("create")]
+    public async Task<IActionResult> CreateSociety([FromBody] CreateSocietyCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(CreateSociety), new { id }, new { Id = id });
+    }
+
+    [HttpPost("create-block")]
+    public async Task<IActionResult> CreateBlock([FromBody] CreateBlockCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(CreateBlock), new { id }, new { Id = id });
+    }
+
+    [HttpPost("create-flat")]
+    public async Task<IActionResult> CreateFlat([FromBody] CreateFlatCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(CreateFlat), new { id }, new { Id = id });
+    }
+
+    [HttpPost("add-member")]
+    public async Task<IActionResult> AddMember([FromBody] AddMemberCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(AddMember), new { id }, new { Id = id });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\Program.cs
+SIZE  : 3.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+using TenantService.Infrastructure.Repositories;
+using Microsoft.OpenApi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });
+});
+
+
+builder.Services.AddDbContext<TenantDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("TenantDb")));
+
+builder.Services.AddScoped<ISocietyMemberRepository, SocietyMemberRepository>();
+builder.Services.AddScoped<ISocietyRepository, SocietyRepository>();
+builder.Services.AddScoped<IFlatRepository, FlatRepository>();
+
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(TenantService.Application.Features.Societies.Queries.GetUserSocietiesQuery).Assembly));
+
+// --- NEW: JWT Bouncer (Exact same as Identity) ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+// --- NEW: Swagger Token UI ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+    });
+    /*c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });*/
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
+// ----------------------------------------
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication(); // MUST be before Authorization!
+app.UseAuthorization();
+
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5104",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\TenantService.API.csproj
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments> <!-- ADD THIS LINE -->                                                                                             
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TenantService.Application\TenantService.Application.csproj" />
+    <ProjectReference Include="..\TenantService.Infrastructure\TenantService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\AddMemberCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class AddMemberCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public Guid UserId { get; set; }       // The person being added
+    public Guid FlatId { get; set; }       // The flat they are moving into
+    public string MemberType { get; set; } = string.Empty; // "Owner", "Tenant", etc.
+    public bool IsPrimary { get; set; } = false;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\AddMemberCommandHandler.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class AddMemberCommandHandler : IRequestHandler<AddMemberCommand, Guid>
+{
+    private readonly ISocietyMemberRepository _repository;
+
+    public AddMemberCommandHandler(ISocietyMemberRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<Guid> Handle(AddMemberCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Parse the string to our Enum
+        if (!Enum.TryParse<MemberType>(request.MemberType, out var memberType))
+        {
+            throw new ArgumentException($"Invalid MemberType: {request.MemberType}");
+        }
+
+        // 2. Use our Domain Entity to create the record
+        var member = new SocietyMember(
+            request.SocietyId,
+            request.UserId,
+            request.FlatId,
+            memberType,
+            request.IsPrimary
+        );
+
+        // 3. Save to database
+        var result = await _repository.AddAsync(member);
+
+        return result.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateBlockCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateBlockCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateBlockCommandHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateBlockCommandHandler : IRequestHandler<CreateBlockCommand, Guid>
+{
+    private readonly IFlatRepository _repository;
+    public CreateBlockCommandHandler(IFlatRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateBlockCommand request, CancellationToken cancellationToken)
+    {
+        var block = new Block(request.SocietyId, request.Name);
+        return (await _repository.AddBlockAsync(block)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateFlatCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateFlatCommand : IRequest<Guid>
+{
+    public Guid BlockId { get; set; }
+    public string FlatNumber { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateFlatCommandHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateFlatCommandHandler : IRequestHandler<CreateFlatCommand, Guid>
+{
+    private readonly IFlatRepository _repository;
+    public CreateFlatCommandHandler(IFlatRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateFlatCommand request, CancellationToken cancellationToken)
+    {
+        var flat = new Flat(request.BlockId, request.FlatNumber, request.Type);
+        return (await _repository.AddFlatAsync(flat)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateSocietyCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateSocietyCommand : IRequest<Guid>
+{
+    public string Name { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateSocietyCommandHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateSocietyCommandHandler : IRequestHandler<CreateSocietyCommand, Guid>
+{
+    private readonly ISocietyRepository _repository;
+    public CreateSocietyCommandHandler(ISocietyRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateSocietyCommand request, CancellationToken cancellationToken)
+    {
+        var society = new Society(request.Name, request.Code, request.Address, request.City);
+        return (await _repository.AddAsync(society)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetUserSocietiesQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public class GetUserSocietiesQuery : IRequest<List<UserSocietyDto>>
+{
+    public Guid UserId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetUserSocietiesQueryHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public class GetUserSocietiesQueryHandler : IRequestHandler<GetUserSocietiesQuery, List<UserSocietyDto>>
+{
+    private readonly ISocietyMemberRepository _repository;
+
+    public GetUserSocietiesQueryHandler(ISocietyMemberRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<List<UserSocietyDto>> Handle(GetUserSocietiesQuery request, CancellationToken cancellationToken)
+    {
+        // Just pass the userId to the repository and return the list!
+        return await _repository.GetByUserIdAsync(request.UserId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\TenantService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TenantService.Domain\TenantService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\DTOs\UserSocietyDto.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Domain;
+
+public class UserSocietyDto
+{
+    public Guid SocietyId { get; set; }
+    public string SocietyName { get; set; } = string.Empty;
+    public Guid FlatId { get; set; }
+    public string FlatNumber { get; set; } = string.Empty;
+    public string BlockName { get; set; } = string.Empty;
+    public string MemberType { get; set; } = string.Empty; // "Owner", "Tenant", etc.
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\Block.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class Block
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public string Name { get; private set; } = null!; // e.g., "A", "B"
+    
+    // Navigation property (EF Core will use this to link tables)
+    public virtual Society? Society { get; private set; }
+
+    private Block() { }
+
+    public Block(Guid societyId, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Block name is required.");
+        
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        Name = name;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\Flat.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class Flat
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid BlockId { get; private set; }
+    public string FlatNumber { get; private set; } = null!; // e.g., "101"
+    public string Type { get; private set; } = null!; // e.g., "2BHK"
+
+    public virtual Block? Block { get; private set; }
+
+    private Flat() { }
+
+    public Flat(Guid blockId, string flatNumber, string type)
+    {
+        if (string.IsNullOrWhiteSpace(flatNumber)) throw new ArgumentException("Flat number is required.");
+
+        Id = Guid.NewGuid();
+        BlockId = blockId;
+        FlatNumber = flatNumber;
+        Type = type;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\MemberType.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Domain.Entities;
+
+public enum MemberType
+{
+    Owner,
+    Tenant,
+    FamilyMemberOfOwner,
+    FamilyMemberOfTenant,
+      CommitteeMember = 4   // <--- ADD THIS FOR ADMIN ACCESS
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\Society.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class Society
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public string Name { get; private set; } = null!;
+    public string Code { get; private set; } = null!; // e.g., "SUN-APT"
+    public string Address { get; private set; } = null!;
+    public string City { get; private set; } = null!;
+    
+    private Society() { }
+
+    public Society(string name, string code, string address, string city)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Society name is required.");
+        if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Society code is required.");
+
+        Id = Guid.NewGuid();
+        Name = name;
+        Code = code;
+        Address = address;
+        City = city;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\SocietyMember.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class SocietyMember
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public Guid UserId { get; private set; } // This comes from IdentityService!
+    public Guid FlatId { get; private set; }
+    public MemberType MemberType { get; private set; }
+    public bool IsPrimary { get; private set; }
+    
+    public virtual Flat? Flat { get; private set; }
+
+    private SocietyMember() { }
+
+    public SocietyMember(Guid societyId, Guid userId, Guid flatId, MemberType memberType, bool isPrimary = false)
+    {
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        UserId = userId;
+        FlatId = flatId;
+        MemberType = memberType;
+        IsPrimary = isPrimary;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\IFlatRepository.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface IFlatRepository
+{
+    Task<Block> AddBlockAsync(Block block);
+    Task<Flat> AddFlatAsync(Flat flat);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\ISocietyMemberRepository.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain;
+using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface ISocietyMemberRepository
+{
+    // We will use LINQ in the database to join the tables and return the exact DTO shape!
+    Task<List<UserSocietyDto>> GetByUserIdAsync(Guid userId);
+
+        // NEW: Method to add a member to a flat
+    Task<SocietyMember> AddAsync(SocietyMember member);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\ISocietyRepository.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface ISocietyRepository
+{
+    Task<Society> AddAsync(Society society);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\TenantService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Persistence\TenantDbContext.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace TenantService.Infrastructure.Persistence;
+
+public class TenantDbContext : DbContext
+{
+    public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)
+    {
+    }
+
+    // One DbSet for each table we want in SQL Server
+    public DbSet<Society> Societies => Set<Society>();
+    public DbSet<Block> Blocks => Set<Block>();
+    public DbSet<Flat> Flats => Set<Flat>();
+    public DbSet<SocietyMember> SocietyMembers => Set<SocietyMember>();
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\FlatRepository.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class FlatRepository : IFlatRepository
+{
+    private readonly TenantDbContext _context;
+    public FlatRepository(TenantDbContext context) => _context = context;
+
+    public async Task<Block> AddBlockAsync(Block block)
+    {
+        await _context.Blocks.AddAsync(block);
+        await _context.SaveChangesAsync();
+        return block;
+    }
+
+    public async Task<Flat> AddFlatAsync(Flat flat)
+    {
+        await _context.Flats.AddAsync(flat);
+        await _context.SaveChangesAsync();
+        return flat;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\SocietyMemberRepository.cs
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain;
+using TenantService.Domain.Interfaces;
+using TenantService.Domain.Entities;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+using TenantService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class SocietyMemberRepository : ISocietyMemberRepository
+{
+    private readonly TenantDbContext _context;
+
+    public SocietyMemberRepository(TenantDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<UserSocietyDto>> GetByUserIdAsync(Guid userId)
+    {
+        // Here we use LINQ to join Members -> Flats -> Blocks -> Societies!
+        return await _context.SocietyMembers
+            .Where(m => m.UserId == userId)
+            .Include(m => m.Flat!)         // Tell EF Core to load the Flat
+            .ThenInclude(f => f.Block!)    // Tell EF Core to load the Block inside the Flat
+            .ThenInclude(b => b.Society!)  // Tell EF Core to load the Society inside the Block
+            .Select(m => new UserSocietyDto
+            {
+                SocietyId = m.SocietyId,
+                SocietyName = m.Flat!.Block!.Society!.Name,
+                FlatId = m.FlatId,
+                FlatNumber = m.Flat.FlatNumber,
+                BlockName = m.Flat.Block.Name,
+                MemberType = m.MemberType.ToString()
+            })
+            .ToListAsync();
+    }
+
+    public async Task<SocietyMember> AddAsync(SocietyMember member)
+    {
+        await _context.SocietyMembers.AddAsync(member);
+        await _context.SaveChangesAsync();
+        return member;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\SocietyRepository.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class SocietyRepository : ISocietyRepository
+{
+    private readonly TenantDbContext _context;
+    public SocietyRepository(TenantDbContext context) => _context = context;
+
+    public async Task<Society> AddAsync(Society society)
+    {
+        await _context.Societies.AddAsync(society);
+        await _context.SaveChangesAsync();
+        return society;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\TenantService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TenantService.Domain\TenantService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\appsettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateVehicleServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VehicleService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+    protected bool IsAdmin => Role == "Admin";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Controllers\ParkingSlotsController.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Application.Features.ParkingSlots.Commands.AssignSlot;
+using VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+using VehicleService.Application.Features.ParkingSlots.Queries.GetSlotsBySociety;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VehicleService.API.Controllers;
+
+public class ParkingSlotsController : BaseController
+{
+    private readonly IMediator _mediator;
+    public ParkingSlotsController(IMediator mediator) => _mediator = mediator;
+
+    
+
+    [HttpPut("assign")]
+   // [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> AssignSlot([FromBody] AssignSlotCommand command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+     // NEW: Get Slots (Admin can see all, or filter by type/availability)
+    [HttpGet]
+   // [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<IReadOnlyList<ParkingSlotDto>>> GetSlots(
+        [FromQuery] Guid societyId, 
+        [FromQuery] int? type = null, 
+        [FromQuery] bool? isOccupied = null)
+    {
+        // Map nullable int to nullable VehicleType enum
+        VehicleService.Domain.Enums.VehicleType? slotType = type.HasValue ? (VehicleService.Domain.Enums.VehicleType)type.Value : null;
+
+        var result = await _mediator.Send(new GetSlotsBySocietyQuery 
+        { 
+            SocietyId = societyId, 
+            Type = slotType, 
+            IsOccupied = isOccupied 
+        });
+        return Ok(result);
+    }
+
+    // NEW: Create Slot (Admin only)
+    [HttpPost]
+   // [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Guid>> CreateSlot([FromBody] CreateSlotCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetSlots), new { societyId = command.SocietyId }, id);
+    }
+
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Controllers\VehiclesController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle;
+using VehicleService.Application.Features.Vehicles.Queries.GetMyVehicles;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VehicleService.API.Controllers;
+
+public class VehiclesController : BaseController
+{
+    private readonly IMediator _mediator;
+    public VehiclesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("my-vehicles")]
+    public async Task<ActionResult<IReadOnlyList<VehicleDto>>> GetMyVehicles([FromQuery] Guid societyId)
+    {
+        var result = await _mediator.Send(new GetMyVehiclesQuery { SocietyId = societyId, UserId = UserId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<Guid>> Register([FromBody] RegisterVehicleCommand command)
+    {
+        // Override OwnerId with actual JWT User ID
+        command = command with { OwnerId = UserId };
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetMyVehicles), new { societyId = command.SocietyId }, id);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Program.cs
+SIZE  : 3.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using VehicleService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using VehicleService.Domain.Interfaces;
+using VehicleService.Infrastructure.Repositories;
+using FluentValidation;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin()   
+         policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<VehicleDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IParkingSlotRepository, ParkingSlotRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+
+// --- MediatR & Validation ---
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle.RegisterVehicleCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle.RegisterVehicleCommand).Assembly);
+
+// Note: If you want FluentValidation to auto-run, you need to add the behavior:
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Vehicle Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ADD THIS BLOCK RIGHT HERE:
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (InvalidOperationException ex)
+    {
+        context.Response.StatusCode = 400;
+        await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message.ToString());
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+    }
+});
+
+
+app.MapControllers();
+
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5112",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\VehicleService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleService.Application\VehicleService.Application.csproj" />
+    <ProjectReference Include="..\VehicleService.Infrastructure\VehicleService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\DTOs\ParkingSlotDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Application.DTOs;
+
+public record ParkingSlotDto(
+    Guid Id,
+    string SlotNumber,
+    VehicleType SlotType,
+    Guid? BlockId,
+    Guid? FlatId,       // NEW
+    bool IsAllotted,     // NEW (Helper: true if FlatId has a value)
+    bool IsOccupied);
+    
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\DTOs\VehicleDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Application.DTOs;
+
+public record VehicleDto(
+    Guid Id,
+    string VehicleNumber,
+    VehicleType VehicleType,
+    string? MakeModel,
+    string? AssignedSlotNumber,
+    bool HasParkingSlot);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\AssignSlot\AssignSlotCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.AssignSlot;
+
+public record AssignSlotCommand : IRequest<Unit>
+{
+    public Guid VehicleId { get; init; }
+    public Guid SlotId { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\AssignSlot\AssignSlotCommandHandler.cs
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.AssignSlot;
+
+public class AssignSlotCommandHandler : IRequestHandler<AssignSlotCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public AssignSlotCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Unit> Handle(AssignSlotCommand request, CancellationToken cancellationToken)
+    {
+        var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(request.VehicleId, cancellationToken)
+            ?? throw new KeyNotFoundException("Vehicle not found.");
+        
+        if (vehicle.SocietyId != request.SocietyId) throw new UnauthorizedAccessException();
+
+        var slot = await _unitOfWork.ParkingSlots.GetByIdAsync(request.SlotId, cancellationToken)
+            ?? throw new KeyNotFoundException("Parking slot not found.");
+
+        if (slot.SocietyId != request.SocietyId) throw new UnauthorizedAccessException();
+
+        // THE CORE BUSINESS RULE: Type mismatch check!
+        // Residents (2W/4W) must match slots (2W/4W). 
+        // Visitors must go to Visitor slots.
+        if (vehicle.VehicleType != slot.SlotType)
+            throw new InvalidOperationException($"Cannot park a {vehicle.VehicleType} in a {slot.SlotType} slot.");
+
+        if (slot.IsOccupied)
+            throw new InvalidOperationException("This parking slot is already occupied.");
+
+        // If vehicle was in another slot, free up the old slot
+        if (vehicle.ParkingSlotId.HasValue && vehicle.ParkingSlotId != request.SlotId)
+        {
+            var oldSlot = await _unitOfWork.ParkingSlots.GetByIdAsync(vehicle.ParkingSlotId.Value, cancellationToken);
+            if (oldSlot != null) oldSlot.MarkVacant();
+        }
+
+        // Assign new slot
+        vehicle.AssignSlot(request.SlotId);
+        slot.MarkOccupied();
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\CreateSlot\CreateSlotCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+
+public record CreateSlotCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string SlotNumber { get; init; } = string.Empty;
+    public VehicleType SlotType { get; init; }
+    public string? BlockName { get; init; }
+
+        public Guid? BlockId { get; init; }   // NEW
+    public Guid? FlatId { get; init; }     // NEW
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\CreateSlot\CreateSlotCommandHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+
+public class CreateSlotCommandHandler : IRequestHandler<CreateSlotCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateSlotCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(CreateSlotCommand request, CancellationToken cancellationToken)
+    {
+        var isTaken = await _unitOfWork.ParkingSlots.IsSlotNumberTakenAsync(request.SocietyId, request.SlotNumber, cancellationToken);
+        if (isTaken) throw new InvalidOperationException($"Slot number '{request.SlotNumber}' already exists in this society.");
+
+        var slot = Domain.Entities.ParkingSlot.Create(
+            request.SocietyId, request.SlotNumber, request.SlotType, request.BlockId, request.FlatId);
+
+        _unitOfWork.ParkingSlots.Add(slot);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return slot.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\CreateSlot\CreateSlotCommandValidator.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+
+public class CreateSlotCommandValidator : AbstractValidator<CreateSlotCommand>
+{
+    public CreateSlotCommandValidator()
+    {
+        RuleFor(x => x.SocietyId).NotEmpty();
+        RuleFor(x => x.SlotNumber).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.SlotType).IsInEnum();
+        
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Commands\RegisterVehicle\RegisterVehicleCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle;
+
+public record RegisterVehicleCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public Guid FlatId { get; init; }
+    public Guid OwnerId { get; init; } // <-- ADD THIS LINE
+    public string VehicleNumber { get; init; } = string.Empty;
+    public VehicleType VehicleType { get; init; }
+    public string? MakeModel { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Commands\RegisterVehicle\RegisterVehicleCommandHandler.cs
+SIZE  : 1.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle;
+
+public class RegisterVehicleCommandHandler : IRequestHandler<RegisterVehicleCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public RegisterVehicleCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(RegisterVehicleCommand request, CancellationToken cancellationToken)
+    {
+        var isTaken = await _unitOfWork.Vehicles.IsVehicleNumberTakenAsync(request.SocietyId, request.VehicleNumber, cancellationToken);
+        if (isTaken) throw new InvalidOperationException("A vehicle with this number is already registered in the society.");
+
+        // THE NEW VALIDATION: Enforce Flat Vehicle Limits
+        var currentCount = await _unitOfWork.Vehicles.CountActiveVehiclesByTypeAsync(
+            request.SocietyId, request.FlatId, request.VehicleType, cancellationToken);
+
+        if (request.VehicleType == VehicleType.FourWheeler && currentCount >= 1)
+            throw new InvalidOperationException("This flat has reached the maximum limit of 1 Four-Wheeler.");
+
+        if (request.VehicleType == VehicleType.TwoWheeler && currentCount >= 2)
+            throw new InvalidOperationException("This flat has reached the maximum limit of 2 Two-Wheelers.");
+
+        var vehicle = Domain.Entities.Vehicle.CreateResidentVehicle(
+            request.SocietyId, request.OwnerId, request.FlatId, request.VehicleNumber, request.VehicleType, request.MakeModel);
+
+        _unitOfWork.Vehicles.Add(vehicle);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return vehicle.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetMyVehicles\GetMyVehiclesQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Queries.GetMyVehicles;
+
+public record GetMyVehiclesQuery : IRequest<IReadOnlyList<VehicleDto>>
+{
+    public Guid SocietyId { get; init; }
+    public Guid UserId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetMyVehicles\GetMyVehiclesQueryHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Queries.GetMyVehicles;
+
+public class GetMyVehiclesQueryHandler : IRequestHandler<GetMyVehiclesQuery, IReadOnlyList<VehicleDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetMyVehiclesQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<VehicleDto>> Handle(GetMyVehiclesQuery request, CancellationToken cancellationToken)
+    {
+        var vehicles = await _unitOfWork.Vehicles.GetByOwnerAsync(request.SocietyId, request.UserId, cancellationToken);
+        return vehicles.Select(v => new VehicleDto(
+            v.Id,
+            v.VehicleNumber,
+            v.VehicleType,
+            v.MakeModel,
+            v.ParkingSlot?.SlotNumber,
+            v.ParkingSlotId.HasValue
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetSlotsBySociety\GetSlotsBySocietyQuery.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Domain.Enums;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Queries.GetSlotsBySociety;
+
+public record GetSlotsBySocietyQuery : IRequest<IReadOnlyList<ParkingSlotDto>>
+{
+    public Guid SocietyId { get; init; }
+    public VehicleType? Type { get; init; }
+    public bool? IsOccupied { get; init; }
+}
+

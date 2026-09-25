@@ -17,11 +17,18 @@ builder.Services.AddControllers();
 // --- CORS ---
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFlutter", policy =>
+  /*  options.AddPolicy("AllowFlutter", policy =>
     {
         // policy.WithOrigins("http://localhost:5110", "http://localhost:3000", "http://localhost:54251") // Added 5110 for Swagger
         policy.AllowAnyOrigin()   
          //policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });*/
+      options.AddPolicy("AllowFlutter", policy =>
+    {
+        // policy.AllowAnyOrigin()   
+        policy.SetIsOriginAllowed(origin => true) // THE MAGIC LINE
               .AllowAnyMethod()    
               .AllowAnyHeader();   
     });

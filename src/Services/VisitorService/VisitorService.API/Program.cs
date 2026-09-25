@@ -14,9 +14,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFlutter", policy =>
+   /* options.AddPolicy("AllowFlutter", policy =>
     {
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });*/
+     options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.SetIsOriginAllowed(origin => true) // THE MAGIC LINE
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
     });
 });
 

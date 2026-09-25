@@ -1,4 +1,15 @@
-import 'dart:convert';
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — Flutter  (continued — Part 2)
+║  Generated : 2026-09-25 21:06:54
+║  Root      : C:\MyGateApp\mygate_app
+║  Max part  : 150 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\main.dart
+SIZE  : 152.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,72 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isOtpSent = false;
   String? _jwtToken;
 
-  Future<void> _navigateToGuardWithContext(String basicToken) async {
-    try {
-      // 1. Extract User ID from the basic token
-      final parts = basicToken.split('.');
-      if (parts.length != 3) throw Exception('Invalid token');
-      
-      final normalized = base64Url.normalize(parts[1]);
-      final decoded = utf8.decode(base64Url.decode(normalized));
-      final userId = jsonDecode(decoded)['sub'];
-
-      // 2. Fetch societies for this user
-      final response = await http.get(
-        Uri.parse('http://localhost:5104/api/societies/my-societies?userId=$userId'),
-        headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final societies = jsonDecode(response.body) as List;
-        if (societies.isEmpty) throw Exception('No society assigned to this guard.');
-
-        // 3. Auto-select the first society/flat for the guard
-        final society = societies[0];
-        final contextResponse = await http.post(
-          Uri.parse('http://localhost:5103/api/auth/select-context'),
-          headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'userId': userId,
-            'societyId': society['societyId'],
-            'flatId': society['flatId'],
-            'memberType': society['memberType'],
-          }),
-        );
-
-        if (contextResponse.statusCode == 200) {
-          final data = jsonDecode(contextResponse.body);
-          final fatToken = data['token'];
-
-          // 4. Save everything locally
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('jwt_token', fatToken);
-          await prefs.setString('society_id', society['societyId']);
-          await prefs.setString('flat_id', society['flatId']);
-
-          // 5. Navigate to Guard Screen (Removed 'const', checked 'mounted')
-          if (mounted) {
-            Navigator.pushReplacement(
-              context, 
-              MaterialPageRoute(builder: (ctx) => GuardScreen(token: fatToken))
-            );
-          }
-        } else {
-          throw Exception('Failed to generate guard context token.');
-        }
-      } else {
-        throw Exception('Failed to fetch guard societies.');
-      }
-    } catch (e) {
-      // Safely show error only if the widget is still on the screen
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Guard Login Error: $e'))
-        );
-      }
-    }
-  }
-
   Future<void> _requestOtp() async {
     setState(() => _isLoading = true);
     try {
@@ -159,10 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('jwt_token', _jwtToken!);
 
         if (_isGuardMode) {
-         // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const GuardScreen(token: '')));
-           // OLD: Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const GuardScreen(token: '')));
-          // NEW: Fetch Fat Token before going to Guard Screen
-          _navigateToGuardWithContext(_jwtToken!);
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const GuardScreen(token: '')));
         } else {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => SocietySelectionScreen(token: _jwtToken!)));
         }
@@ -179,8 +121,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -681,22 +621,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
- /* @override
+  @override
   void dispose() {
     _hubConnection.stop(); // ADD THIS
-    super.dispose();
-  }*/
-    @override
-  void dispose() {
-    // Safe check: Only stop the connection if it was successfully initialized
-    try {
-      if (_hubConnection.state != HubConnectionState.Disconnected) {
-        _hubConnection.stop();
-      }
-    } catch (e) {
-      // Connection was never initialized, ignore dispose error
-      debugPrint("SignalR dispose skipped: $e");
-    }
     super.dispose();
   }
 
@@ -835,7 +762,92 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 }
 
 // ==========================================
-// 5. GUARD MODE SCREEN (FULLY FIXED)
+// 5. GUARD MODE SCREEN
+// ==========================================
+/*class GuardScreen extends StatefulWidget {
+  final String token;
+  const GuardScreen({super.key, required this.token});
+
+  @override
+  State<GuardScreen> createState() => _GuardScreenState();
+}
+
+class _GuardScreenState extends State<GuardScreen> {
+  final _approvalIdController = TextEditingController();
+  final _otpController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _verifyEntry() async {
+    setState(() => _isLoading = true);
+    try {
+      // Using the saved token for authentication
+      final prefs = await SharedPreferences.getInstance();
+      final realToken = prefs.getString('jwt_token') ?? '';
+
+      final response = await http.post(
+        Uri.parse('http://localhost:5105/api/visitors/verify-otp'),
+        headers: {'Authorization': 'Bearer $realToken', 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'preApprovalId': _approvalIdController.text,
+          'otp': _otpController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Visitor allowed inside!'), backgroundColor: Colors.green));
+        _approvalIdController.clear();
+        _otpController.clear();
+      } else {
+        _showError('Invalid OTP or ID');
+      }
+    } catch (e) { _showError('Error: $e'); } finally { setState(() => _isLoading = false); }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Guard Portal', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.orange,
+        actions: [
+          IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('jwt_token');
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          })
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.shield, size: 100, color: Colors.orange),
+            const SizedBox(height: 30),
+            const Text('Verify Visitor Entry', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 40),
+            TextField(controller: _approvalIdController, decoration: const InputDecoration(labelText: 'Visitor Approval ID (Guid)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.qr_code))),
+            const SizedBox(height: 20),
+            TextField(controller: _otpController, keyboardType: TextInputType.number, maxLength: 4, decoration: const InputDecoration(labelText: 'Gate OTP', border: OutlineInputBorder(), prefixIcon: Icon(Icons.password))),
+            const SizedBox(height: 30),
+            SizedBox(width: double.infinity, height: 60, child: ElevatedButton(
+              onPressed: _isLoading ? null : _verifyEntry,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('ALLOW ENTRY', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+}*/
+/*
+// ==========================================
+// 5. GUARD MODE SCREEN (UPDATED WITH EXIT!)
 // ==========================================
 class GuardScreen extends StatefulWidget {
   final String token;
@@ -845,56 +857,163 @@ class GuardScreen extends StatefulWidget {
   State<GuardScreen> createState() => _GuardScreenState();
 }
 
-class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  
+class _GuardScreenState extends State<GuardScreen> {
+  final _approvalIdController = TextEditingController();
+  final _otpController = TextEditingController();
+  final _exitLogIdController = TextEditingController(); // NEW!
+  bool _isLoading = false;
+
+  Future<void> _verifyEntry() async {
+    setState(() => _isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final realToken = prefs.getString('jwt_token') ?? '';
+
+      final response = await http.post(
+        Uri.parse('http://localhost:5105/api/visitors/verify-otp'),
+        headers: {'Authorization': 'Bearer $realToken', 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'preApprovalId': _approvalIdController.text,
+          'otp': _otpController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Extract the Log ID from the response and auto-fill the exit box!
+        final data = jsonDecode(response.body);
+        setState(() {
+          _exitLogIdController.text = data['visitorId'].toString();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Visitor allowed inside! (Log ID copied below)'),
+          backgroundColor: Colors.green,
+        ));
+        _approvalIdController.clear();
+        _otpController.clear();
+      } else {
+        _showError('Invalid OTP or ID');
+      }
+    } catch (e) { _showError('Error: $e'); } finally { setState(() => _isLoading = false); }
+  }
+
+  // NEW: Mark Exit Method
+  Future<void> _markExit() async {
+    if (_exitLogIdController.text.isEmpty) return _showError('Please enter the Log ID');
+    
+    setState(() => _isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final realToken = prefs.getString('jwt_token') ?? '';
+
+      final response = await http.post(
+        Uri.parse('http://localhost:5105/api/visitors/mark-exit'),
+        headers: {'Authorization': 'Bearer $realToken', 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'logId': _exitLogIdController.text, // The ID we got from the Entry step
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('🚪 Visitor marked as exited!'),
+          backgroundColor: Colors.red,
+        ));
+        _exitLogIdController.clear();
+      } else {
+        _showError('Failed to mark exit');
+      }
+    } catch (e) { _showError('Error: $e'); } finally { setState(() => _isLoading = false); }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Guard Portal', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.orange,
+        actions: [
+          IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('jwt_token');
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          })
+        ],
+      ),
+      body: SingleChildScrollView( // Added scrollview in case keyboard covers buttons
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start, // Changed to start so we can scroll
+          children: [
+            const SizedBox(height: 40),
+            const Icon(Icons.shield, size: 80, color: Colors.orange),
+            const SizedBox(height: 20),
+            const Text('Verify Visitor Entry', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            TextField(controller: _approvalIdController, decoration: const InputDecoration(labelText: 'Visitor Approval ID', border: OutlineInputBorder(), prefixIcon: Icon(Icons.qr_code))),
+            const SizedBox(height: 16),
+            TextField(controller: _otpController, keyboardType: TextInputType.number, maxLength: 4, decoration: const InputDecoration(labelText: 'Gate OTP', border: OutlineInputBorder(), prefixIcon: Icon(Icons.password))),
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
+              onPressed: _isLoading ? null : _verifyEntry,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('ALLOW ENTRY', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            )),
+            
+            // ==========================================
+            // NEW: MARK EXIT SECTION
+            // ==========================================
+            const Padding(
+              padding: EdgeInsets.only(top: 40, bottom: 20),
+              child: Divider(thickness: 2, color: Colors.grey),
+            ),
+            const Text('Mark Visitor Exit', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _exitLogIdController, 
+              decoration: const InputDecoration(
+                labelText: 'Log ID (Auto-filled after entry)',
+                border: OutlineInputBorder(), 
+                prefixIcon: Icon(Icons.exit_to_app)
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
+              onPressed: _isLoading ? null : _markExit,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('MARK EXIT', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            )),
+            const SizedBox(height: 40), // Bottom padding
+          ],
+        ),
+      ),
+    );
+  }
+}
+*/
+/*
+// ==========================================
+// 5. GUARD MODE SCREEN (FIXED)
+// ==========================================
+class GuardScreen extends StatefulWidget {
+  final String token;
+  const GuardScreen({super.key, required this.token});
+
+  @override
+  State<GuardScreen> createState() => _GuardScreenState();
+}
+
+class _GuardScreenState extends State<GuardScreen> {
   final _approvalIdController = TextEditingController();
   final _otpController = TextEditingController();
   final _exitVisitorIdController = TextEditingController();
-  final _walkInNameController = TextEditingController();
-  final _walkInMobileController = TextEditingController();
-  final _walkInPurposeController = TextEditingController();
-  
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _approvalIdController.dispose();
-    _otpController.dispose();
-    _exitVisitorIdController.dispose();
-    _walkInNameController.dispose();
-    _walkInMobileController.dispose();
-    _walkInPurposeController.dispose();
-    super.dispose();
-  }
-
-    // Reads the SocietyId and FlatId directly from the JWT claims
-  Map<String, String> _extractContextFromToken(String token) {
-    final parts = token.split('.');
-    if (parts.length != 3) return {'societyId': '', 'flatId': ''};
-    
-    final normalized = base64Url.normalize(parts[1]);
-    final decoded = utf8.decode(base64Url.decode(normalized));
-    final payload = jsonDecode(decoded);
-    
-    return {
-      'societyId': payload['SocietyId'] ?? '',
-      'flatId': payload['FlatId'] ?? '',
-    };
-  }
-
   Future<void> _verifyEntry() async {
-    if (_approvalIdController.text.isEmpty || _otpController.text.isEmpty) {
-      return _showError('Please enter Approval ID and OTP');
-    }
-
     setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -913,12 +1032,12 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
       );
 
       if (response.statusCode == 200) {
-        _exitVisitorIdController.text = _approvalIdController.text;
-        _tabController.animateTo(1); 
-        
+        setState(() {
+          _exitVisitorIdController.text = _approvalIdController.text;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Visitor allowed inside! Switched to Exit tab.'),
+            content: Text('✅ Visitor allowed inside!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -941,7 +1060,7 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
 
   Future<void> _markExit() async {
     if (_exitVisitorIdController.text.isEmpty) {
-      return _showError('Visitor ID is missing. Cannot mark exit.');
+      return _showError('Please enter the Visitor ID');
     }
 
     setState(() => _isLoading = true);
@@ -977,162 +1096,225 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
       setState(() => _isLoading = false);
     }
   }
-/*
-  Future<void> _walkInEntry() async {
-    if (_walkInNameController.text.isEmpty || _walkInMobileController.text.isEmpty) {
-      return _showError('Name and Mobile are required for walk-ins');
-    }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Guard Portal',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.orange,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('jwt_token');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const SizedBox(height: 40),
+            const Icon(Icons.shield, size: 80, color: Colors.orange),
+            const SizedBox(height: 20),
+            const Text(
+              'Verify Visitor Entry',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+
+            // Approval ID field
+            TextField(
+              controller: _approvalIdController,
+              decoration: const InputDecoration(
+                labelText: 'Visitor Approval ID',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.qr_code),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // OTP field
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              decoration: const InputDecoration(
+                labelText: 'Gate OTP',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.password),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Allow Entry button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _verifyEntry,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'ALLOW ENTRY',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+            ),
+
+            // ─── Divider ───
+            const Padding(
+              padding: EdgeInsets.only(top: 40, bottom: 20),
+              child: Divider(thickness: 2, color: Colors.grey),
+            ),
+
+            // Mark Exit section
+            const Text(
+              'Mark Visitor Exit',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+
+            TextField(
+              controller: _exitVisitorIdController,
+              decoration: const InputDecoration(
+                labelText: 'Visitor Approval ID (Auto-filled after entry)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.exit_to_app),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Mark Exit button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _markExit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'MARK EXIT',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+            ),
+
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+}
+*/
+
+// ==========================================
+// 5. GUARD MODE SCREEN (WITH WALK-IN ENTRY)
+// ==========================================
+class GuardScreen extends StatefulWidget {
+  final String token;
+  const GuardScreen({super.key, required this.token});
+
+  @override
+  State<GuardScreen> createState() => _GuardScreenState();
+}
+
+class _GuardScreenState extends State<GuardScreen> {
+  // Verify Entry fields
+  final _approvalIdController = TextEditingController();
+  final _otpController = TextEditingController();
+
+  // Walk-in Entry fields
+  final _walkInNameController = TextEditingController();
+  final _walkInMobileController = TextEditingController();
+  final _walkInPurposeController = TextEditingController();
+
+  // Mark Exit fields
+  final _exitVisitorIdController = TextEditingController();
+
+  bool _isLoading = false;
+  int _selectedTab = 0; // 0=Verify, 1=Walk-in, 2=Exit
+
+  // --- Verify Entry ---
+  Future<void> _verifyEntry() async {
+    if (_approvalIdController.text.isEmpty || _otpController.text.isEmpty) {
+      return _showError('Please enter both Approval ID and OTP');
+    }
     setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final realToken = prefs.getString('jwt_token') ?? '';
-      final societyId = prefs.getString('society_id') ?? '';
-      final flatId = prefs.getString('flat_id') ?? '';
-      final userId = _extractUserId(realToken);
+      final realSocietyId = prefs.getString('society_id') ?? '';
+      final realFlatId = prefs.getString('flat_id') ?? '';
 
-       // Debug: Check if we have the required IDs
-      if (societyId.isEmpty || flatId.isEmpty) {
-        return _showError('Missing Society/Flat ID. Please log out and log back in as a Guard.');
-      }
-    // Step 1: Pre-Approve
-      final preApproveResponse = await http.post(
-        Uri.parse('http://localhost:5105/api/visitors/pre-approve'),
+      final response = await http.post(
+        Uri.parse('http://localhost:5105/api/visitors/verify-otp'),
         headers: {
           'Authorization': 'Bearer $realToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'societyId': societyId,
-          'flatId': flatId,
-          'visitorName': _walkInNameController.text,
-          'visitorMobile': _walkInMobileController.text,
-          'purpose': _walkInPurposeController.text.isEmpty ? 'Walk-in' : _walkInPurposeController.text,
-          'expectedDate': DateTime.now().toIso8601String(),
-          'invitedByUserId': userId,
+          'preApprovalId': _approvalIdController.text,
+          'otp': _otpController.text,
         }),
       );
 
-      if (preApproveResponse.statusCode == 200 || preApproveResponse.statusCode == 201) {
-        final data = jsonDecode(preApproveResponse.body);
-        final visitorId = data['id'];
-        
-        // Step 2: Manual Entry Override
-        final manualEntryResponse = await http.post(
-          Uri.parse('http://localhost:5105/api/visitors/$visitorId/manual-entry'),
-          headers: {
-            'Authorization': 'Bearer $realToken',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'preApprovalId': visitorId,
-            'reason': 'Walk-in entry at gate by Security Guard',
-          }),
-        );
-
-        if (manualEntryResponse.statusCode == 200) {
-          _exitVisitorIdController.text = visitorId;
-          _tabController.animateTo(1); 
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Walk-in allowed inside! Switched to Exit tab.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _walkInNameController.clear();
-          _walkInMobileController.clear();
-          _walkInPurposeController.clear();
-        } else {
-          _showError('Pre-approved, but Manual Entry failed.');
-        }
+      if (response.statusCode == 200) {
+        // Auto-fill exit field with the approval ID
+        setState(() {
+          _exitVisitorIdController.text = _approvalIdController.text;
+        });
+        _showSuccess('✅ Visitor allowed inside!');
+        _approvalIdController.clear();
+        _otpController.clear();
+        setState(() => _selectedTab = 2); // Switch to Exit tab
       } else {
-        _showError('Failed to pre-approve walk-in');
-      }
-    } catch (e) {
-      _showError('Error: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }*/
-
-  Future<void> _walkInEntry() async {
-    if (_walkInNameController.text.isEmpty || _walkInMobileController.text.isEmpty) {
-      return _showError('Name and Mobile are required for walk-ins');
-    }
-
-    setState(() => _isLoading = true);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final realToken = prefs.getString('jwt_token') ?? '';
-      final userId = _extractUserId(realToken);
-      
-       // CHANGED: Renamed 'context' to 'tokenContext' to avoid shadowing BuildContext
-      final tokenContext = _extractContextFromToken(realToken);
-      final societyId = tokenContext['societyId'] ?? '';
-      final flatId = tokenContext['flatId'] ?? '';
-
-      // SAFETY CHECK: Prevent the API call if IDs are missing
-      if (societyId.isEmpty || flatId.isEmpty) {
-        setState(() => _isLoading = false);
-        return _showError('Missing Society/Flat in token. Please log out and log back in.');
-      }
-
-      // Step 1: Pre-Approve
-      final preApproveResponse = await http.post(
-        Uri.parse('http://localhost:5105/api/visitors/pre-approve'),
-        headers: {
-          'Authorization': 'Bearer $realToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'societyId': societyId,
-          'flatId': flatId,
-          'visitorName': _walkInNameController.text,
-          'visitorMobile': _walkInMobileController.text,
-          'purpose': _walkInPurposeController.text.isEmpty ? 'Walk-in' : _walkInPurposeController.text,
-          'expectedDate': DateTime.now().toIso8601String(),
-          'invitedByUserId': userId,
-        }),
-      );
-
-      if (preApproveResponse.statusCode == 200 || preApproveResponse.statusCode == 201) {
-        final data = jsonDecode(preApproveResponse.body);
-        final visitorId = data['id'];
-
-        // Step 2: Manual Entry Override
-        final manualEntryResponse = await http.post(
-          Uri.parse('http://localhost:5105/api/visitors/$visitorId/manual-entry'),
-          headers: {
-            'Authorization': 'Bearer $realToken',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'preApprovalId': visitorId,
-            'reason': 'Walk-in entry at gate by Security Guard',
-          }),
-        );
-
-        if (manualEntryResponse.statusCode == 200) {
-          _exitVisitorIdController.text = visitorId;
-          _tabController.animateTo(1); 
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Walk-in allowed inside! Switched to Exit tab.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _walkInNameController.clear();
-          _walkInMobileController.clear();
-          _walkInPurposeController.clear();
-        } else {
-          final error = jsonDecode(manualEntryResponse.body);
-          _showError('Manual Entry Failed: ${error['message'] ?? manualEntryResponse.body}');
+        try {
+          final errorData = jsonDecode(response.body);
+          _showError(errorData['message'] ?? 'Verification failed');
+        } catch (_) {
+          _showError('Invalid OTP or ID');
         }
-      } else {
-        final error = jsonDecode(preApproveResponse.body);
-        _showError('Pre-Approve Failed: ${error['message'] ?? preApproveResponse.body}');
       }
     } catch (e) {
       _showError('Error: $e');
@@ -1141,16 +1323,122 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
     }
   }
 
-  String _extractUserId(String token) {
-    final parts = token.split('.');
-    if (parts.length != 3) return '';
-    final normalized = base64Url.normalize(parts[1]);
-    final decoded = utf8.decode(base64Url.decode(normalized));
-    return jsonDecode(decoded)['sub'];
+  // --- Walk-in Entry ---
+  Future<void> _walkInEntry() async {
+    if (_walkInNameController.text.isEmpty || _walkInMobileController.text.isEmpty) {
+      return _showError('Please enter visitor name and mobile');
+    }
+    setState(() => _isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final realToken = prefs.getString('jwt_token') ?? '';
+      final realSocietyId = prefs.getString('society_id') ?? '';
+      final realFlatId = prefs.getString('flat_id') ?? '';
+
+      // Step 1: Pre-approve (creates visitor record)
+      final preApproveResponse = await http.post(
+        Uri.parse('http://localhost:5105/api/visitors/pre-approve'),
+        headers: {
+          'Authorization': 'Bearer $realToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'societyId': realSocietyId,
+          'flatId': realFlatId,
+          'visitorName': _walkInNameController.text,
+          'visitorMobile': _walkInMobileController.text,
+          'purpose': _walkInPurposeController.text.isEmpty
+              ? 'Walk-in'
+              : _walkInPurposeController.text,
+          'expectedDate': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (preApproveResponse.statusCode == 200 ||
+          preApproveResponse.statusCode == 201) {
+        final data = jsonDecode(preApproveResponse.body);
+        final visitorId = data['id'];
+
+        // Step 2: Manual entry (marks as Entered without OTP)
+        final manualEntryResponse = await http.post(
+          Uri.parse('http://localhost:5105/api/visitors/$visitorId/manual-entry'),
+          headers: {
+            'Authorization': 'Bearer $realToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'preApprovalId': visitorId,
+            'reason': 'Walk-in entry at gate',
+          }),
+        );
+
+        if (manualEntryResponse.statusCode == 200) {
+          // Auto-fill exit field
+          setState(() {
+            _exitVisitorIdController.text = visitorId;
+          });
+          _showSuccess('✅ Walk-in visitor registered & allowed inside!');
+          _walkInNameController.clear();
+          _walkInMobileController.clear();
+          _walkInPurposeController.clear();
+          setState(() => _selectedTab = 2); // Switch to Exit tab
+        } else {
+          _showError('Pre-approved but failed to mark entry. Use Manual Entry from Admin portal.');
+        }
+      } else {
+        _showError('Failed to register visitor: ${preApproveResponse.body}');
+      }
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // --- Mark Exit ---
+  Future<void> _markExit() async {
+    if (_exitVisitorIdController.text.isEmpty) {
+      return _showError('Please enter the Visitor ID');
+    }
+    setState(() => _isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final realToken = prefs.getString('jwt_token') ?? '';
+
+      final response = await http.post(
+        Uri.parse('http://localhost:5105/api/visitors/mark-exit'),
+        headers: {
+          'Authorization': 'Bearer $realToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'preApprovalId': _exitVisitorIdController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        _showSuccess('🚪 Visitor marked as exited!');
+        _exitVisitorIdController.clear();
+      } else {
+        _showError('Failed to mark exit');
+      }
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
   }
 
   @override
@@ -1159,16 +1447,9 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
       appBar: AppBar(
         title: const Text('Guard Portal', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.orange,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.login), text: 'Entry'),
-            Tab(icon: Icon(Icons.logout), text: 'Exit'),
-          ],
-        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('jwt_token');
@@ -1177,140 +1458,285 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
-          )
+          ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // ==================== TAB 1: ENTRY ====================
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+          // Tab Bar
+          Container(
+            color: Colors.orange.shade50,
+            child: Row(
               children: [
-                // --- Section A: Verify Pre-Approved Visitor ---
-                const Text('Verify Pre-Approval', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _approvalIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'Visitor Approval ID',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.qr_code),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Gate OTP',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.password),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _verifyEntry,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                    child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.white) 
-                        : const Text('ALLOW ENTRY', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
-                ),
-
-                // --- Section B: Walk-in Entry ---
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Divider(thickness: 2, color: Colors.grey),
-                ),
-                const Text('Walk-in Entry (No OTP)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _walkInNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Visitor Name',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _walkInMobileController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Visitor Mobile',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.phone),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _walkInPurposeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Purpose (Optional)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.comment),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _walkInEntry,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.white) 
-                        : const Text('WALK-IN ENTRY', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
-                ),
+                _buildTab(0, Icons.check_circle, 'Verify Entry'),
+                _buildTab(1, Icons.person_add, 'Walk-in'),
+                _buildTab(2, Icons.exit_to_app, 'Mark Exit'),
               ],
             ),
           ),
-
-          // ==================== TAB 2: EXIT ====================
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.exit_to_app, size: 80, color: Colors.red),
-                const SizedBox(height: 20),
-                const Text('Mark Visitor Exit', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _exitVisitorIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'Visitor ID (Auto-filled after entry)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.vpn_key),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _markExit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.white) 
-                        : const Text('MARK EXIT', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
-                ),
-              ],
+          // Tab Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: _selectedTab == 0
+                  ? _buildVerifyEntryForm()
+                  : _selectedTab == 1
+                      ? _buildWalkInEntryForm()
+                      : _buildMarkExitForm(),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTab(int index, IconData icon, String label) {
+    final isSelected = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.orange : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? Colors.orange : Colors.orange.shade200,
+                width: isSelected ? 3 : 1,
+              ),
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : Colors.orange, size: 24),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.orange.shade700,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize:; FontWeight.normal,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVerifyEntryForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        const Center(
+          child: Icon(Icons.verified_user, size: 60, color: Colors.orange),
+        ),
+        const SizedBox(height: 16),
+        const Center(
+          child: Text(
+            'Verify Pre-Approved Visitor',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Center(
+          child: Text(
+            'Enter the Approval ID and OTP shown by the visitor',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _approvalIdController,
+          decoration: const InputDecoration(
+            labelText: 'Visitor Approval ID',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.qr_code),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _otpController,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          decoration: const InputDecoration(
+            labelText: 'Gate OTP',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.password),
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _verifyEntry,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'ALLOW ENTRY',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWalkInEntryForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        const Center(
+          child: Icon(Icons.person_add, size: 60, color: Colors.green),
+        ),
+        const SizedBox(height: 16),
+        const Center(
+          child: Text(
+            'Walk-in Visitor Entry',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Center(
+          child: Text(
+            'Register unexpected visitor and allow entry directly',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.orange, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'No OTP needed. Visitor will be marked as Entered directly.',
+                  style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _walkInNameController,
+          decoration: const InputDecoration(
+            labelText: 'Visitor Name *',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.person),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _walkInMobileController,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Visitor Mobile *',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.phone),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _walkInPurposeController,
+          decoration: const InputDecoration(
+            labelText: 'Purpose (e.g., Delivery, Meeting, Repair)',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.comment),
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _walkInEntry,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'ALLOW WALK-IN ENTRY',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMarkExitForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        const Center(
+          child: Icon(Icons.exit_to_app, size: 60, color: Colors.red),
+        ),
+        const SizedBox(height: 16),
+        const Center(
+          child: Text(
+            'Mark Visitor Exit',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Center(
+          child: Text(
+            'Enter the Visitor ID to mark them as exited',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _exitVisitorIdController,
+          decoration: const InputDecoration(
+            labelText: 'Visitor Approval ID',
+            hintText: 'Auto-filled after entry, or paste manually',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.badge),
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _markExit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'MARK EXIT',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -3484,3 +3910,4 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     );
   }
 }
+

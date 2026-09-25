@@ -31,4 +31,13 @@ public class VisitorLogRepository : IVisitorLogRepository
         _context.VisitorLogs.Update(log);
         await _context.SaveChangesAsync();
     }
+
+     // NEW: Find the active log for a pre-approval
+    public async Task<VisitorLog?> GetActiveByPreApprovalIdAsync(Guid preApprovalId)
+    {
+        return await _context.VisitorLogs
+            .Where(l => l.PreApprovalId == preApprovalId &&  l.Status == VisitorStatus.Inside)
+            .OrderByDescending(l => l.EntryTime)
+            .FirstOrDefaultAsync();
+    }
 }

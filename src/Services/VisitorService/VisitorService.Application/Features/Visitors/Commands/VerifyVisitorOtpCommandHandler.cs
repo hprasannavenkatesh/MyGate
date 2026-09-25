@@ -54,7 +54,7 @@ public class VerifyVisitorOtpCommandHandler : IRequestHandler<VerifyVisitorOtpCo
     private readonly IPasswordHasher _passwordHasher;
 
     public VerifyVisitorOtpCommandHandler(
-        IPreApprovedVisitorRepository visitorRepo, 
+        IPreApprovedVisitorRepository visitorRepo,
         IVisitorLogRepository logRepo, // NEW!
         IPasswordHasher passwordHasher)
     {
@@ -63,40 +63,40 @@ public class VerifyVisitorOtpCommandHandler : IRequestHandler<VerifyVisitorOtpCo
         _passwordHasher = passwordHasher;
     }
 
-   /* public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
-    {
-        // 1. Find the pre-approved visitor
-        var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
-            ?? throw new KeyNotFoundException("Visitor not found.");
+    /* public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
+     {
+         // 1. Find the pre-approved visitor
+         var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+             ?? throw new KeyNotFoundException("Visitor not found.");
 
-        // 2. Verify the OTP
-        bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
+         // 2. Verify the OTP
+         bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
 
-        if (!isValid)
-            throw new UnauthorizedAccessException("Invalid or expired OTP.");
+         if (!isValid)
+             throw new UnauthorizedAccessException("Invalid or expired OTP.");
 
-        // 3. Clear the OTP in the domain entity
-        visitor.ClearOtp();
+         // 3. Clear the OTP in the domain entity
+         visitor.ClearOtp();
 
-        // 4. CREATE THE REAL DATABASE LOG!
-        var log = new VisitorLog(
-            visitor.SocietyId,
-            visitor.Id, // Link the log to the pre-approval
-            visitor.VisitorName,
-            visitor.VisitorMobile,
-            visitor.FlatId,
-            visitor.Purpose
-        );
+         // 4. CREATE THE REAL DATABASE LOG!
+         var log = new VisitorLog(
+             visitor.SocietyId,
+             visitor.Id, // Link the log to the pre-approval
+             visitor.VisitorName,
+             visitor.VisitorMobile,
+             visitor.FlatId,
+             visitor.Purpose
+         );
 
-        // 5. Save the log to the database
-        var savedLog = await _logRepo.AddAsync(log);
+         // 5. Save the log to the database
+         var savedLog = await _logRepo.AddAsync(log);
 
-        Console.WriteLine($"🚪 GATE LOG SAVED: {visitor.VisitorName} entered. Log ID: {savedLog.Id}");
+         Console.WriteLine($"🚪 GATE LOG SAVED: {visitor.VisitorName} entered. Log ID: {savedLog.Id}");
 
-        // We return the Log ID, because the guard needs it to mark them as "Exited" later!
-        return savedLog.Id; 
-    }*/
-        public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
+         // We return the Log ID, because the guard needs it to mark them as "Exited" later!
+         return savedLog.Id; 
+     }*/
+    public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
     {
         // 1. Find the pre-approved visitor
         var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
@@ -108,19 +108,43 @@ public class VerifyVisitorOtpCommandHandler : IRequestHandler<VerifyVisitorOtpCo
             throw new UnauthorizedAccessException("OTP has expired.");
         }
 
-        // 3. Verify the OTP hash
-        bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
+if (DateTime.UtcNow > visitor.OtpExpiresAt.Value)
+            throw new UnauthorizedAccessException("OTP has expired. Please pre-approve again to get a new OTP.");
 
-        if (!isValid)
+        // 3. Verify the OTP hash
+       // bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
+
+        //if (!isValid)
+            //throw new UnauthorizedAccessException("Invalid or expired OTP.");
+
+              // 3. Verify the OTP hash (WITH SAFE NULL CHECK & MVP BYPASS)
+      /*  if (request.Otp != "1234") // <--- TEMP MVP BYPASS: "1234" always works for testing
+        {
+           // REAL PRODUCTION LOGIC (Only runs if OTP is NOT 1234)
+        if (visitor.OtpExpiresAt == null || DateTime.UtcNow > visitor.OtpExpiresAt.Value)
+        {
+            throw new UnauthorizedAccessException("OTP has expired.");
+        }
+
+        if (string.IsNullOrEmpty(visitor.OtpHash) || !_passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash))
+        {
             throw new UnauthorizedAccessException("Invalid or expired OTP.");
+        }
+        }*/
+         // 3. Verify OTP hash
+        if (string.IsNullOrEmpty(visitor.OtpHash) || !_passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash))
+            throw new UnauthorizedAccessException("Invalid OTP.");
 
         // 4. Clear the OTP in the domain entity
         visitor.ClearOtp();
+               // 5.3 NEW: Update status to Inside
+        visitor.MarkAsEntered();
+         await _visitorRepo.UpdateAsync(visitor);
 
         // 5. Create the real database log
         var log = new VisitorLog(
             visitor.SocietyId,
-            visitor.Id, 
+            visitor.Id,
             visitor.VisitorName,
             visitor.VisitorMobile,
             visitor.FlatId,
@@ -129,7 +153,11 @@ public class VerifyVisitorOtpCommandHandler : IRequestHandler<VerifyVisitorOtpCo
 
         var savedLog = await _logRepo.AddAsync(log);
         Console.WriteLine($"🚪 GATE LOG SAVED: {visitor.VisitorName} entered. Log ID: {savedLog.Id}");
+         Console.WriteLine("==========================================================");
+        Console.WriteLine($"GATE ENTRY: {visitor.VisitorName} entered the society.");
+        Console.WriteLine($"Log ID: {savedLog.Id}");
+        Console.WriteLine("==========================================================");
 
-        return savedLog.Id; 
+        return savedLog.Id;
     }
 }

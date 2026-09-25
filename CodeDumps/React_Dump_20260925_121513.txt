@@ -1,0 +1,2165 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — React
+║  Generated : 2026-09-25 12:15:31
+║  Root      : C:\MyGateApp\src\Client
+║  Files     : 28
+╚══════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\.gitignore
+SIZE  : 0.2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\eslint.config.js
+SIZE  : 0.6 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+])
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\index.html
+SIZE  : 0.4 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mygateadminportal</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\package.json
+SIZE  : 0.9 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "name": "mygateadminportal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.41.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "autoprefixer": "^10.5.5",
+    "eslint": "^10.9.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "globals": "^17.11.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.67.0",
+    "vite": "^8.2.2"
+  }
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\postcss.config.js
+SIZE  : 0.1 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\README.md
+SIZE  : 2.3 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+
+```
+
+You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+
+```
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\client.ts
+SIZE  : 0.9 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import axios from 'axios';
+
+// Create an instance
+const apiClient = axios.create({
+  baseURL: '/api', // Uses the Vite proxy defined earlier
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 1. Request Interceptor: Add JWT Token automatically
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token'); // Save JWT here after login
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// 2. Response Interceptor: Handle 401/500 errors globally
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Redirect to login or refresh token logic
+      console.error("Unauthorized access");
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\mockData.ts
+SIZE  : 4 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/api/mockData.ts
+import { Users, DollarSign, Car, Activity } from 'lucide-react';
+
+export interface DashboardStats {
+  totalResidents: number;
+  pendingDues: number;
+  parkingOccupancy: number;
+  activeNotices: number;
+}
+
+export interface Activity {
+  id: number;
+  time: string;
+  service: string;
+  event: string;
+  user: string;
+}
+
+// Fake data to mimic a backend API response
+export const getDashboardData = (): { stats: DashboardStats; activities: Activity[] } => {
+  return {
+    stats: {
+      totalResidents: 124,
+      pendingDues: 45000,
+      parkingOccupancy: 65,
+      activeNotices: 3
+    },
+    activities: [
+      { id: 1, time: '10:42 AM', service: 'VisitorService', event: 'Created Pre-approval', user: 'Res-101' },
+      { id: 2, time: '10:30 AM', service: 'VehicleService', event: 'Entry Gate Opened', user: 'Guard-02' },
+      { id: 3, time: '09:15 AM', service: 'BillingService', event: 'Invoice Generated', user: 'System' },
+      { id: 4, time: '08:00 AM', service: 'AmenityService', event: 'Pool Booking', user: 'Res-204' },
+    ]
+  };
+};
+
+// src/api/mockData.ts
+
+// ... existing code (DashboardStats, Activity, getDashboardData) ...
+
+// ADD THIS NEW CODE:
+
+export interface Visitor {
+  id: number;
+  name: string;
+  type: string; // Guest, Delivery, Cab
+  purpose: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  time: string;
+}
+
+export const initialVisitors: Visitor[] = [
+  { id: 1, name: "John Doe", type: "Guest", purpose: "Meeting", status: "Pending", time: "10:30 AM" },
+  { id: 2, name: "Alice Smith", type: "Delivery", purpose: "Amazon Package", status: "Approved", time: "09:15 AM" },
+  { id: 3, name: "Bob Wilson", type: "Cab", purpose: "Uber Drop", status: "Pending", time: "10:45 AM" },
+  { id: 4, name: "Charlie Brown", type: "Service", purpose: "Plumber", status: "Rejected", time: "Yesterday" },
+];
+
+// src/api/mockData.ts
+
+// ... existing code ...
+
+// ADD THIS NEW CODE:
+
+export interface Vehicle {
+  id: number;
+  plate: string;
+  model: string;
+  type: string; // Sedan, SUV, Bike
+  flat: string;
+  slotId: string | null; // If null, the car is parked nowhere
+}
+
+export interface ParkingSlot {
+  id: string;
+  isOccupied: boolean;
+  vehicle: Vehicle | null;
+}
+
+// Mock Vehicles
+export const vehiclesData: Vehicle[] = [
+  { id: 1, plate: "KA-01-AB-1234", model: "Honda City", type: "Sedan", flat: "B-204", slotId: "A-1" },
+  { id: 2, plate: "MH-02-XY-5678", model: "Swift", type: "Hatchback", flat: "A-101", slotId: "A-2" },
+  { id: 3, plate: "TN-07-ZZ-9999", model: "Innova", type: "SUV", flat: "C-305", slotId: null }, // No slot!
+  { id: 4, plate: "KA-05-QQ-1111", model: "Baleno", type: "Hatchback", flat: "D-102", slotId: "B-1" },
+];
+
+// Mock Parking Slots (The 2D Map)
+export const parkingSlotsData: ParkingSlot[] = [
+  { id: "A-1", isOccupied: true, vehicle: vehiclesData[0] },
+  { id: "A-2", isOccupied: true, vehicle: vehiclesData[1] },
+  { id: "A-3", isOccupied: false, vehicle: null },
+  { id: "A-4", isOccupied: false, vehicle: null },
+  { id: "B-1", isOccupied: true, vehicle: vehiclesData[3] },
+  { id: "B-2", isOccupied: false, vehicle: null },
+  { id: "B-3", isOccupied: false, vehicle: null },
+  { id: "B-4", isOccupied: false, vehicle: null },
+];
+
+// src/api/mockData.ts
+
+// ... existing code ...
+
+// ADD THIS NEW CODE:
+
+export interface Bill {
+  id: number;
+  invoiceId: string;
+  flat: string;
+  month: string;
+  amount: number;
+  status: 'Paid' | 'Unpaid';
+  dueDate: string;
+}
+
+export const billsData: Bill[] = [
+  { id: 1, invoiceId: "INV-001", flat: "B-204", month: "October 2023", amount: 2500, status: "Unpaid", dueDate: "2023-10-10" },
+  { id: 2, invoiceId: "INV-002", flat: "A-101", month: "October 2023", amount: 3200, status: "Paid", dueDate: "2023-10-10" },
+  { id: 3, invoiceId: "INV-003", flat: "C-305", month: "September 2023", amount: 1500, status: "Unpaid", dueDate: "2023-09-10" },
+  { id: 4, invoiceId: "INV-004", flat: "D-102", month: "October 2023", amount: 2800, status: "Unpaid", dueDate: "2023-10-10" },
+];
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\visitor.ts
+SIZE  : 2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/api/visitor.ts
+import apiClient from './client';
+
+// --- Interfaces matching your C# Classes ---
+
+// Matches: PreApproveVisitorCommand
+export interface PreApproveVisitorCommand {
+  visitorName: string;
+  visitorMobile: string;
+  vehicleNumber?: string;
+  purpose: string;
+  //inviterId: string; // Guid
+  invitedByUserId: string;   // Match C# InvitedByUserId
+  //expectedArrival: string; // DateTime
+   expectedDate: string;      // Match C# ExpectedDate
+  societyId: string; // <--- ADD THIS
+  flatId: string; // <--- ADD THIS
+}
+
+// Matches: VisitorDto (The result of GetMyVisitors)
+export interface VisitorDto {
+  id: string; // Guid in C#
+  visitorName: string;
+  visitorMobile: string;
+  vehicleNumber?: string;
+  purpose: string;
+  status: string; // e.g., "PreApproved", "Entered", "Exited"
+  createdDate: string; // DateTime
+}
+
+// Matches: VerifyVisitorOtpCommand
+export interface VerifyVisitorOtpCommand {
+  //visitorId: string;
+  preApprovalId:string;
+  otp: string;
+}
+
+// Matches: MarkVisitorExitCommand
+export interface MarkVisitorExitCommand {
+  visitorId: string;
+}
+
+// --- API Functions ---
+
+// 1. GET: api/Visitors/my-visitors?inviterId=...
+export const getMyVisitors = async (inviterId: string): Promise<VisitorDto[]> => {
+  const response = await apiClient.get<VisitorDto[]>('/Visitors/my-visitors', {
+    params: { inviterId }
+  });
+  return response.data;
+};
+
+// 2. POST: api/Visitors/pre-approve
+export const preApproveVisitor = async (command: PreApproveVisitorCommand) => {
+  const response = await apiClient.post<any>('/Visitors/pre-approve', command);
+  return response.data; // Returns { Id: "..." }
+};
+
+// 3. POST: api/Visitors/verify-otp
+export const verifyVisitorOtp = async (command: VerifyVisitorOtpCommand) => {
+  const response = await apiClient.post<any>('/Visitors/verify-otp', command);
+  return response.data;
+};
+
+// 4. POST: api/Visitors/mark-exit
+export const markVisitorExit = async (command: MarkVisitorExitCommand) => {
+  await apiClient.post('/Visitors/mark-exit', command);
+};
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\App.css
+SIZE  : 2.8 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\App.tsx
+SIZE  : 3.1 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/App.tsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext'; // Import Context
+import Sidebar from './components/layout/Sidebar';
+import Dashboard from './pages/Dashboard';
+import Visitors from './pages/Visitors';
+import Vehicles from './pages/Vehicles';
+import Billing from './pages/Billing';
+
+function AppContent() {
+  // 1. Get userList from Context (This works for both TEST_USERS and API data)
+  //const { currentUser, setCurrentUser, loading, userList, switchContext } = useAuth();
+   const { currentUser, loading, isInitializing,userList, switchContext } = useAuth();
+  // FIX: Wait for AuthContext to finish reading the token
+  if (isInitializing) {
+    return <div className="p-8 text-center text-slate-500">Initializing App...</div>;
+  }
+
+  // 2. Handle Dropdown Change
+  const handleUserChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+
+    // Find the user object from the Context list
+    // (The Context automatically handles whether this list is Hardcoded or from API)
+    const userToSwitch = userList.find(u => u.id === selectedId);
+
+    if (userToSwitch) {
+      await switchContext(userToSwitch);
+    }
+  };
+
+  return (
+    <div className="flex bg-slate-50 min-h-screen">
+      <Sidebar />
+      <main className="flex-1 ml-64">
+        {/* --- Header --- */}
+        <div className="h-16 bg-white border-b flex items-center px-8 justify-between shadow-sm">
+          <h2 className="font-semibold text-slate-700">Admin Portal</h2>
+          
+          <div className="flex items-center gap-4">
+            {loading && <span className="text-xs text-blue-500 animate-pulse">Switching Context...</span>}
+            
+            <div className="text-sm text-slate-500">Acting As:</div>
+            
+            <select 
+              disabled={loading} 
+              value={currentUser?.id || ''} 
+              onChange={handleUserChange}
+              className="border border-slate-300 rounded px-3 py-1 text-sm bg-slate-50 focus:outline-none focus:border-blue-500"
+            >
+              {/* 
+                 NOTE: We map over 'userList' from AuthContext. 
+                 Currently, this uses TEST_USERS.
+                 In the future, when you uncomment the API fetch in AuthContext.tsx,
+                 this dropdown will automatically populate with Database users.
+              */}
+              {userList.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/visitors" element={<Visitors />} />
+          <Route path="/vehicles" element={<Vehicles />} />
+          <Route path="/billing" element={<Billing />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\components\layout\Sidebar.tsx
+SIZE  : 1.7 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Users, Car, FileText } from 'lucide-react'; // Removed 'Settings' and 'React'
+
+const Sidebar = () => {
+  const location = useLocation();
+
+  const menuItems = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Visitors', path: '/visitors', icon: Users },
+    { name: 'Vehicles', path: '/vehicles', icon: Car },
+    { name: 'Billing', path: '/billing', icon: FileText },
+    // If you want a Settings button later, add it here and import the icon above
+  ];
+
+  return (
+    <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col">
+      <div className="h-16 flex items-center px-6 font-bold text-xl border-b border-slate-700">
+        MYGATE <span className="text-blue-500 ml-1">ADMIN</span>
+      </div>
+      
+      <nav className="flex-1 py-4">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          return (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              className={`flex items-center px-6 py-3 transition-colors ${
+                isActive ? 'bg-blue-600 text-white border-l-4 border-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Icon className="w-5 h-5 mr-3" />
+              {item.name}
+            </NavLink>
+          );
+        })}
+      </nav>
+      
+      <div className="p-6 text-xs text-slate-500 border-t border-slate-700">
+        Ver 2.0.4 (React Build)
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\context\AuthContext.tsx
+SIZE  : 4.9 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/context/AuthContext.tsx
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { parseJwt } from '../utils/jwt';
+
+interface User {
+  id: string;
+  name: string;
+  flat: string;
+  societyId: string;
+  flatId: string;
+  role: string; // Changed from memberType to role
+  token?: string;
+}
+
+interface AuthContextType {
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+  loading: boolean;
+  isInitializing: boolean;
+  userList: User[];
+  switchContext: (user: User) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// NOTE: We still use TEST_USERS just to populate the Dropdown UI 
+// until we build a "GetMySocieties" endpoint in TenantService.
+const TEST_USERS: User[] = [
+  { 
+    id: 'ddd44444-4444-4444-4444-444444444444', 
+    name: 'Super Admin', 
+    flat: 'OFFICE', 
+    societyId: 'aaa11111-1111-1111-1111-111111111111', 
+    flatId: 'fdd11111-1111-1111-1111-111111111111',
+    role: 'Admin' 
+  },
+  { 
+    id: 'eee55555-5555-5555-5555-555555555555', 
+    name: 'John Doe (B-204)', 
+    flat: 'B-204', 
+    societyId: 'aaa11111-1111-1111-1111-111111111111', 
+    flatId: 'fbb11111-1111-1111-1111-111111111111', 
+    role: 'Resident' 
+  },
+  { 
+    id: 'fff66666-6666-667666-6666-666666666666', 
+    name: 'Alice Smith (A-101)', 
+    flat: 'A-101', 
+    societyId: 'aaa11111-1111-1111-1111-111111111111', 
+    flatId: 'faa11111-1111-1111-1111-111111111111', 
+    role: 'Resident' 
+  },
+];
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [userList, _setUserList] = useState<User[]>(TEST_USERS); 
+
+  // 1. INITIAL LOAD: Read Token from Storage
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    
+    if (token) {
+      const decoded = parseJwt(token);
+        console.log("📝 DECODED TOKEN (Initial Load):", decoded); 
+      if (decoded) {
+        // TRUST THE TOKEN CLAIMS DIRECTLY (No more hardcoded fallbacks)
+        setCurrentUser({
+          id: decoded.sub || "",
+          name: decoded.FullName || "Unknown",
+          flat: decoded.FlatId ? `Flat ${decoded.FlatId}` : "No Context", // UI display logic
+          societyId: decoded.SocietyId || "",
+          flatId: decoded.FlatId || "",
+          role: decoded.role ||decoded.Role || "",
+          token: token
+        });
+      }
+    }
+    setIsInitializing(false); 
+  }, []);
+
+  // 2. SWITCH CONTEXT: Call API to get Fat Token
+  const switchContext = async (userToSwitchTo: User) => {
+    setLoading(true);
+    try {
+      const currentToken = localStorage.getItem('auth_token');
+
+      const response = await fetch('http://localhost:5103/api/auth/select-context', {
+        method:'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: userToSwitchTo.id,
+          societyId: userToSwitchTo.societyId,
+          flatId: userToSwitchTo.flatId,
+          memberType: userToSwitchTo.role === "Admin" ? "4" : "1" // Map Role back to Enum int
+        })
+      });
+
+      if (response.ok) {
+        // Backend returns the token string directly
+             // FIX: Parse the JSON wrapper first
+        const data = await response.json(); 
+        const newToken = data.token; // Extract the actual string
+         // Save New Token
+        localStorage.setItem('auth_token', newToken);
+
+        // Re-Parse the new token to update state instantly (No page reload!)
+        const decoded = parseJwt(newToken);
+        console.log("📝 DECODED TOKEN (Switch Context):", decoded); // <--- ADD THIS
+        setCurrentUser({
+          id: decoded.sub || "",
+          name: decoded.FullName || "Unknown",
+          flat: userToSwitchTo.flat, // Keep UI flat name from dropdown
+          societyId: decoded.SocietyId || "",
+          flatId: decoded.FlatId || "",
+          role: decoded.role || "",
+          token: newToken
+        });
+
+      } else {
+        throw new Error('Failed to switch context');
+      }
+    } catch (error) {
+      console.error('Context Switch Error:', error);
+      alert('Failed to switch context. Is IdentityService running?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ currentUser, setCurrentUser, loading, isInitializing, userList, switchContext }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\index.css
+SIZE  : 0.1 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\main.tsx
+SIZE  : 0.2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Billing.tsx
+SIZE  : 4 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/pages/Billing.tsx
+import React, { useState } from 'react';
+import { billsData, type Bill } from '../api/mockData';
+import { FileText, CheckCircle, AlertCircle } from 'lucide-react';
+
+const Billing = () => {
+  const [bills, setBills] = useState<Bill[]>(billsData);
+
+  // Function to mark a bill as paid
+  const handleMarkPaid = (id: number) => {
+    const updatedBills = bills.map(bill => {
+      if (bill.id === id) {
+        return { ...bill, status: 'Paid' as const };
+      }
+      return bill;
+    });
+    setBills(updatedBills);
+  };
+
+  // Helper for currency formatting
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Billing & Invoices</h1>
+        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">
+          + Generate Invoice
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+              <tr>
+                <th className="px-6 py-4 font-medium">Invoice ID</th>
+                <th className="px-6 py-4 font-medium">Flat</th>
+                <th className="px-6 py-4 font-medium">Month</th>
+                <th className="px-6 py-4 font-medium">Amount</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {bills.map((bill) => (
+                <tr key={bill.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-mono text-sm text-slate-600">
+                    {bill.invoiceId}
+                  </td>
+                  
+                  <td className="px-6 py-4 font-medium text-slate-800">
+                    {bill.flat}
+                  </td>
+                  
+                  <td className="px-6 py-4 text-slate-600">
+                    {bill.month}
+                  </td>
+                  
+                  <td className="px-6 py-4 font-semibold text-slate-700">
+                    {formatCurrency(bill.amount)}
+                  </td>
+                  
+                  <td className="px-6 py-4">
+                    {bill.status === 'Paid' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <CheckCircle size={12} />
+                        Paid
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                        <AlertCircle size={12} />
+                        Unpaid
+                      </span>
+                    )}
+                  </td>
+                  
+                  <td className="px-6 py-4">
+                    {bill.status === 'Unpaid' ? (
+                      <button 
+                        onClick={() => handleMarkPaid(bill.id)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                      >
+                        Mark as Paid
+                      </button>
+                    ) : (
+                      <span className="text-slate-400 text-sm">Receipt Sent</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Billing;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Dashboard.tsx
+SIZE  : 4.9 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/pages/Dashboard.tsx
+import { useState, useEffect } from 'react';
+import { Users, DollarSign, Car, Activity as ActivityIcon } from 'lucide-react';
+// NEW (Correct)
+import { getDashboardData, type DashboardStats, type Activity } from '../api/mockData';
+
+const Dashboard = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Simulate fetching data from an API
+  useEffect(() => {
+    setTimeout(() => {
+      const data = getDashboardData();
+      setStats(data.stats);
+      setActivities(data.activities);
+      setLoading(false);
+    }, 1000); // Fake 1-second delay to show a loading state
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-slate-500">Loading Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Card 1 */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500">Total Residents</p>
+              <h3 className="text-2xl font-bold mt-1">{stats?.totalResidents}</h3>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-full text-blue-600">
+              <Users size={24} />
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2 */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500">Pending Dues (₹)</p>
+              <h3 className="text-2xl font-bold mt-1">{stats?.pendingDues.toLocaleString()}</h3>
+            </div>
+            <div className="p-3 bg-red-50 rounded-full text-red-600">
+              <DollarSign size={24} />
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3 */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500">Parking Occupancy</p>
+              <h3 className="text-2xl font-bold mt-1">{stats?.parkingOccupancy}%</h3>
+            </div>
+            <div className="p-3 bg-green-50 rounded-full text-green-600">
+              <Car size={24} />
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4 */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500">Active Notices</p>
+              <h3 className="text-2xl font-bold mt-1">{stats?.activeNotices}</h3>
+            </div>
+            <div className="p-3 bg-purple-50 rounded-full text-purple-600">
+              <ActivityIcon size={24} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-lg font-semibold">Recent Activity (Audit Log)</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-slate-500 text-sm uppercase">
+              <tr>
+                <th className="px-6 py-3 font-medium">Time</th>
+                <th className="px-6 py-3 font-medium">Service</th>
+                <th className="px-6 py-3 font-medium">Event</th>
+                <th className="px-6 py-3 font-medium">User</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {activities.map((activity) => (
+                <tr key={activity.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-slate-600">{activity.time}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-slate-700">{activity.service}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{activity.event}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{activity.user}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Vehicles.tsx
+SIZE  : 4.1 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/pages/Vehicles.tsx
+import React from 'react';
+import { vehiclesData, parkingSlotsData, type Vehicle } from '../api/mockData';
+import { Car, MapPin } from 'lucide-react';
+
+const Vehicles = () => {
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Vehicles & Parking</h1>
+      
+      {/* SECTION 1: The 2D Parking Visualizer */}
+      <div className="mb-10">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <MapPin className="text-blue-600" size={20} />
+          Basement Level 1 (Live View)
+        </h2>
+        
+        {/* THE GRID */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {parkingSlotsData.map((slot) => (
+            <div
+              key={slot.id}
+              className={`
+                relative border-2 rounded-lg flex flex-col items-center justify-center p-4 transition-all
+                ${slot.isOccupied 
+                  ? 'bg-green-50 border-green-200 hover:border-green-400' 
+                  : 'bg-slate-50 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50'
+                }
+              `}
+            >
+              {/* Slot ID */}
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                {slot.id}
+              </span>
+
+              {/* Car Icon or Placeholder */}
+              {slot.isOccupied && slot.vehicle ? (
+                <div className="text-center">
+                  <Car className="mx-auto text-green-600 mb-2" size={32} />
+                  <div className="font-bold text-slate-800 text-sm">{slot.vehicle.plate}</div>
+                  <div className="text-xs text-slate-500">{slot.vehicle.model}</div>
+                </div>
+              ) : (
+                <div className="text-slate-300">
+                  <Car size={32} />
+                  <div className="text-xs mt-1 font-medium">Empty</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SECTION 2: Registered Vehicles List */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Registered Vehicles</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Flat</th>
+                  <th className="px-6 py-3 font-medium">Model</th>
+                  <th className="px-6 py-3 font-medium">Plate Number</th>
+                  <th className="px-6 py-3 font-medium">Type</th>
+                  <th className="px-6 py-3 font-medium">Current Slot</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vehiclesData.map((vehicle) => (
+                  <tr key={vehicle.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium text-slate-700">{vehicle.flat}</td>
+                    <td className="px-6 py-4 text-slate-600">{vehicle.model}</td>
+                    <td className="px-6 py-4 text-slate-800 font-mono">{vehicle.plate}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500">{vehicle.type}</td>
+                    <td className="px-6 py-4">
+                      {vehicle.slotId ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                          {vehicle.slotId}
+                        </span>
+                      ) : (
+                        <span className="text-red-500 text-xs font-medium">No Slot Allocated</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Vehicles;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Visitors.tsx
+SIZE  : 19.1 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/pages/Visitors.tsx
+import React, { useState, useEffect } from "react";
+import { Plus, LogOut } from "lucide-react";
+import {
+  getMyVisitors,
+  preApproveVisitor,
+  markVisitorExit,
+  verifyVisitorOtp,
+  type VisitorDto,
+  type PreApproveVisitorCommand,
+} from "../api/visitor";
+import { useAuth } from "../context/AuthContext";
+
+// TODO: Replace this with the actual ID of the logged-in user from your Context
+//const MOCK_INVITER_ID = "00000000-0000-0000-0000-000000000000";
+
+// Helper to handle C# sending Integers OR Strings
+const normalizeStatus = (status: any) => {
+  if (status === null || status === undefined) return "Unknown";
+
+  const statusStr = String(status).toLowerCase().trim();
+  const statusNum = parseInt(statusStr);
+
+  // Check Integers first (0, 1, 2)
+  if (statusNum === 1) return "Entered";
+  if (statusNum === 2) return "Exited";
+  if (statusNum === 0) return "Pending";
+
+  // Check common Strings second
+  if (statusStr === "inside" || statusStr === "entered") return "Entered";
+  if (statusStr === "exited" || statusStr === "exit") return "Exited";
+  if (
+    statusStr === "pending" ||
+    statusStr === "preapproved" ||
+    statusStr === "pre-approved"
+  )
+    return "Pending";
+
+  return "Unknown";
+};
+
+const Visitors = () => {
+  // Get the current user from Context
+  const { currentUser } = useAuth();
+
+  const [visitors, setVisitors] = useState<VisitorDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // State for the "Add Visitor" Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newVisitor, setNewVisitor] = useState<PreApproveVisitorCommand>({
+    visitorName: "",
+    visitorMobile: "",
+    vehicleNumber: "",
+    purpose: "",
+    //inviterId: currentUser?.id || '',
+    invitedByUserId: currentUser?.id || "", // Pre-fill
+    societyId: currentUser?.societyId || "", // Pre-fill
+    flatId: currentUser?.flatId || "", // Pre-fill
+    //expectedArrival: new Date().toISOString()
+    expectedDate: new Date().toISOString().split("T")[0], // "2024-05-20"
+  });
+
+  // ✅ NEW: Verify OTP Modal state
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [verifyVisitorId, setVerifyVisitorId] = useState("");
+  const [verifyVisitorName, setVerifyVisitorName] = useState("");
+  const [otpInput, setOtpInput] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
+  // ✅ NEW: Mark Exit confirmation
+  const [exitLoading, setExitLoading] = useState<string | null>(null);
+
+  const fetchVisitors = async () => {
+    // console.log("1. fetchVisitors was called");
+    //console.log("2. Current User is:", currentUser);
+    if (!currentUser?.id) {
+      //console.log("3. No user ID found. Stopping spinner.");
+      setVisitors([]); // Clear visitors if no user
+      setLoading(false);
+      return;
+    }
+    //console.log("4. User ID found! Starting API call for:", currentUser.id);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getMyVisitors(currentUser.id);
+      setVisitors(data);
+    } catch (err: any) {
+      console.error("6. API FAILED:", err);
+      console.error(err);
+      setError("Failed to load visitors. Check console.");
+      alert("Error: " + (err.response?.data?.message || err.message));
+    } finally {
+      //console.log("7. Turning off spinner.");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVisitors();
+  }, [currentUser?.id]); // ✅ Re-fetch when user context changes
+
+  // Handle Pre-Approve (Create)
+  const handlePreApprove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    // ADD THIS LINE TO INSPECT THE STATE:
+    console.log("🔍 CURRENT USER CONTEXT:", currentUser);
+    try {
+      // Merge form data with Context data
+      const commandToSend: PreApproveVisitorCommand = {
+        ...newVisitor,
+        societyId: currentUser.societyId, // Auto-inject from User
+        flatId: currentUser.flatId, // Auto-inject from User
+        //inviterId: currentUser.id,        // Auto-inject from User
+        invitedByUserId: currentUser.id,
+      };
+      console.log("SENDING PAYLOAD:", commandToSend); // Verify payload before sending
+      await preApproveVisitor(commandToSend);
+      setIsModalOpen(false);
+      // Reset form
+      setNewVisitor({
+        visitorName: "",
+        visitorMobile: "",
+        vehicleNumber: "",
+        purpose: "",
+        //inviterId: currentUser.id,
+        invitedByUserId: currentUser.id,
+        societyId: currentUser.societyId,
+        flatId: currentUser.flatId,
+        //expectedArrival: new Date().toISOString()
+        expectedDate: new Date().toISOString().split("T")[0],
+      });
+      fetchVisitors(); // Refresh list
+    } catch (err: any) {
+      alert(
+        "Failed to pre-approve visitor: " +
+          (err.response?.data?.message || err.message),
+      );
+    }
+  };
+
+
+  // ✅ NEW: Open Verify OTP Modal (prompts for OTP input)
+  const handleOpenVerifyModal = (visitorId: string, visitorName: string) => {
+    setVerifyVisitorId(visitorId);
+    setVerifyVisitorName(visitorName);
+    setOtpInput("");
+    setIsVerifyModalOpen(true);
+  };
+
+    // Handle Verify Entry (Simulates Guard checking OTP)
+ /* const handleVerifyEntry = async (visitorId: string) => {
+    try {
+      // Send dummy OTP "1234" for testing
+      await verifyVisitorOtp({ preApprovalId:visitorId, otp: "1234" });
+      fetchVisitors(); // Refresh list
+    } catch (err: any) {
+      alert("Failed to verify entry: " + (err.response?.data?.message || err.message));
+    }
+  };*/
+
+   // ✅ NEW: Verify Entry with user-entered OTP
+  const handleVerifyEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpInput.trim()) {
+      alert("Please enter the OTP");
+      return;
+    }
+    setVerifyLoading(true);
+    try {
+      await verifyVisitorOtp({ preApprovalId: verifyVisitorId, otp: otpInput.trim() });
+      setIsVerifyModalOpen(false);
+      setOtpInput("");
+      fetchVisitors(); // Refresh list
+    } catch (err: any) {
+      console.error("Verify OTP failed:", err);
+      const msg = err.response?.data?.message || err.response?.data || err.message;
+      alert("Verification failed: " + msg);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  // Handle Mark Exit
+ /* const handleMarkExit = async (visitorId: string) => {
+    if (!confirm("Are you sure you want to mark this visitor as exited?"))
+      return;
+
+    try {
+      await markVisitorExit({ visitorId });
+      fetchVisitors();
+    } catch (err: any) {
+      alert(
+        "Failed to mark exit: " + (err.response?.data?.message || err.message),
+      );
+    }
+  };*/
+
+   // Handle Mark Exit
+  const handleMarkExit = async (visitorId: string) => {
+    if (!confirm("Mark this visitor as exited?")) return;
+    setExitLoading(visitorId);
+    try {
+      await markVisitorExit({ visitorId });
+      fetchVisitors();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data || err.message;
+      alert("Failed to mark exit: " + msg);
+    } finally {
+      setExitLoading(null);
+    }
+  };
+
+  /*const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'entered': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'exited': return 'bg-slate-100 text-slate-600';
+      case 'preapproved': return 'bg-green-100 text-green-700 border-green-200';
+      default: return 'bg-orange-100 text-orange-700';
+    }
+  };*/
+  // Handle both Numbers (C# Enums) and Strings
+  /* const getStatusBadge = (status: any) => {
+    // 1. Handle Numbers (0: Pending, 1: Entered, 2: Exited)
+    if (typeof status === "number") {
+      switch (status) {
+        case 1:
+          return "bg-blue-100 text-blue-700 border-blue-200"; // Entered
+        case 2:
+          return "bg-slate-100 text-slate-600"; // Exited
+        default:
+          return "bg-green-100 text-green-700 border-green-200"; // Pending/PreApproved
+      }
+    }
+
+    // 2. Handle Strings (if backend is fixed later)
+    const s = String(status || "").toLowerCase();
+    switch (s) {
+      case "entered":
+        case "inside":  
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "exited":
+         case "exit": 
+        return "bg-slate-100 text-slate-600";
+      case "preapproved":
+         case "pending":  
+        return "bg-green-100 text-green-700 border-green-200";
+      default:
+        return "bg-orange-100 text-orange-700";
+    }
+  };*/
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Entered":
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "Exited":
+        return "bg-slate-100 text-slate-600 border-slate-200";
+      case "Pending":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      default:
+        return "bg-red-100 text-red-700 border-red-200";
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Visitor Management</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+        >
+          <Plus size={18} />
+          Pre-Approve Visitor
+        </button>
+      </div>
+ {/* ✅ NEW: Helpful hint about OTP */}
+      <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-md mb-4 text-sm">
+        💡 <strong>OTP Source:</strong> When a visitor is pre-approved, the .NET backend prints a random 4-digit OTP to the VisitorService terminal console. Use that OTP to verify entry.
+      </div>
+
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-10 text-slate-500">
+          Loading visitors...
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4 font-medium">Name</th>
+                  <th className="px-6 py-4 font-medium">Contact</th>
+                  <th className="px-6 py-4 font-medium">Purpose</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visitors.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-500">
+                      No visitors found.
+                    </td>
+                  </tr>
+                ) : (
+                  visitors.map((visitor) => {
+                  // 1. Normalize the messy backend data into clean strings
+                  const currentStatus = normalizeStatus(visitor.status);
+
+                  return (
+                    <tr key={visitor.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-800">
+                        {visitor.visitorName || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {visitor.visitorMobile || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {visitor.purpose}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(currentStatus)}`}>
+                          {currentStatus} {/* Just display the clean string */}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {currentStatus === "Pending" && (
+                          <button
+                            onClick={() => handleOpenVerifyModal(visitor.id, visitor.visitorName)}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 transition"
+                          >
+                            Verify Entry
+                          </button>
+                        )}
+
+                        {currentStatus === "Entered" && (
+                          <button
+                            onClick={() => handleMarkExit(visitor.id)}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition"
+                          >
+                             {exitLoading === visitor.id ? "..." : <><LogOut size={14} /> Mark Exit</>}
+                          </button>
+                        )}
+
+                        {currentStatus === "Exited" && (
+                          <span className="text-xs text-slate-400">Complete</span>
+                        )}
+                      </td>
+                     
+                    </tr>
+                  );
+                })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Simple Modal for Pre-Approval */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold mb-4">Pre-Approve Visitor</h2>
+            <form onSubmit={handlePreApprove} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Visitor Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={newVisitor.visitorName}
+                  onChange={(e) =>
+                    setNewVisitor({
+                      ...newVisitor,
+                      visitorName: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Visitor Mobile
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={newVisitor.visitorMobile}
+                  onChange={(e) =>
+                    setNewVisitor({
+                      ...newVisitor,
+                      visitorMobile: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Purpose
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={newVisitor.purpose}
+                  onChange={(e) =>
+                    setNewVisitor({ ...newVisitor, purpose: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Vehicle (Optional)
+                </label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={newVisitor.vehicleNumber}
+                  onChange={(e) =>
+                    setNewVisitor({
+                      ...newVisitor,
+                      vehicleNumber: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Pre-Approve
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+ {/* ============ ✅ NEW: VERIFY OTP MODAL ============ */}
+      {isVerifyModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold mb-2">Verify Visitor Entry</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Enter the 4-digit OTP provided by visitor <strong>{verifyVisitorName}</strong>
+            </p>
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded mb-4">
+              ⚠️ The OTP is printed in the <strong>VisitorService .NET terminal console</strong> when the visitor was pre-approved.
+            </p>
+            <form onSubmit={handleVerifyEntry} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Gate OTP</label>
+                <input
+                  required
+                  type="text"
+                  maxLength={4}
+                  className="w-full border rounded p-3 text-center text-2xl tracking-widest font-mono"
+                  placeholder="Enter 4-digit OTP"
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))} // Only digits
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsVerifyModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyLoading || otpInput.length < 4}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {verifyLoading ? "Verifying..." : "Allow Entry"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default Visitors;
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\visitors_DummyData.tsx
+SIZE  : 4.8 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+// src/pages/Visitors.tsx
+import  { useState } from 'react';
+import { initialVisitors, type Visitor } from '../api/mockData';
+import { Check, X, Plus } from 'lucide-react';
+
+const Visitors = () => {
+  // 1. Initialize state with the mock data
+  const [visitors, setVisitors] = useState<Visitor[]>(initialVisitors);
+
+  // 2. Function to handle Approval
+  const handleApprove = (id: number) => {
+    // We create a NEW array (don't modify the old one directly!)
+    const updatedVisitors = visitors.map(visitor => {
+      if (visitor.id === id) {
+        return { ...visitor, status: 'Approved' as const };
+      }
+      return visitor;
+    });
+    setVisitors(updatedVisitors);
+  };
+
+  // 3. Function to handle Rejection
+  const handleReject = (id: number) => {
+    const updatedVisitors = visitors.map(visitor => {
+      if (visitor.id === id) {
+        return { ...visitor, status: 'Rejected' as const };
+      }
+      return visitor;
+    });
+    setVisitors(updatedVisitors);
+  };
+
+  // Helper to pick badge colors
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Approved': return 'bg-green-100 text-green-700';
+      case 'Rejected': return 'bg-red-100 text-red-700';
+      default: return 'bg-orange-100 text-orange-700'; // Pending
+    }
+  };
+
+  return (
+    <div className="p-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Visitor Management</h1>
+        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">
+          <Plus size={18} />
+          Pre-approve Visitor
+        </button>
+      </div>
+
+      {/* Table Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+              <tr>
+                <th className="px-6 py-4 font-medium">Time</th>
+                <th className="px-6 py-4 font-medium">Visitor Name</th>
+                <th className="px-6 py-4 font-medium">Type</th>
+                <th className="px-6 py-4 font-medium">Purpose</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {visitors.map((visitor) => (
+                <tr key={visitor.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-slate-600">{visitor.time}</td>
+                  
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-slate-800">{visitor.name}</div>
+                  </td>
+                  
+                  <td className="px-6 py-4 text-sm text-slate-600">{visitor.type}</td>
+                  
+                  <td className="px-6 py-4 text-sm text-slate-600">{visitor.purpose}</td>
+                  
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(visitor.status)}`}>
+                      {visitor.status}
+                    </span>
+                  </td>
+                  
+                  <td className="px-6 py-4 text-right">
+                    {/* Show buttons only if Pending */}
+                    {visitor.status === 'Pending' ? (
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleApprove(visitor.id)}
+                          className="p-2 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition"
+                          title="Approve"
+                        >
+                          <Check size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleReject(visitor.id)}
+                          className="p-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition"
+                          title="Reject"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">Processed</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {visitors.length === 0 && (
+          <div className="p-8 text-center text-slate-500">No visitors found.</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Visitors;
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\types\index.ts
+SIZE  : 0.3 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface User {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface Society {
+  id: string;
+  name: string;
+}
+
+export interface Visitor {
+  id: number;
+  name: string;
+  type: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  purpose: string;
+}
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\utils\jwt.ts
+SIZE  : 0.4 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// src/utils/jwt.ts
+export const parseJwt = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tailwind.config.js
+SIZE  : 0.2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tsconfig.app.json
+SIZE  : 0.6 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tsconfig.json
+SIZE  : 0.1 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tsconfig.node.json
+SIZE  : 0.5 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "module": "nodenext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\vite.config.ts
+SIZE  : 0.5 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+   server: {
+    port: 3000, // Run React on port 3000 (Standard React port)
+    proxy: {
+      // Any request starting with /api will be forwarded to your services
+      '/api': {
+        target: 'http://localhost:5105', // Your IdentityService/Gateway
+        changeOrigin: true//,
+        //rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
+})
+
+
+
+

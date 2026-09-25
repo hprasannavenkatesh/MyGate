@@ -1,0 +1,3598 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET
+║  Generated : 2026-09-25 21:07:21
+║  Root      : C:\MyGateApp\src\Services
+║  Files     : 401
+║  Max part  : 150 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\AmenityService.API.csproj
+SIZE  : 1.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+     <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AmenityService.Application\AmenityService.Application.csproj" />
+    <ProjectReference Include="..\AmenityService.Infrastructure\AmenityService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\appsettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateAmenityServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\Controllers\AmenitiesController.cs
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using AmenityService.Application.DTOs;
+using MediatR;
+using AmenityService.Application.Features.Amenities.Commands.CreateAmenity;
+using AmenityService.Application.Features.Amenities.Commands.DeleteAmenity;
+using AmenityService.Application.Features.Amenities.Commands.UpdateAmenity;
+using AmenityService.Application.Features.Amenities.Queries.GetAmenityById;
+using AmenityService.Application.Features.Amenities.Queries.GetAmenitiesBySociety;
+using Microsoft.AspNetCore.Mvc;
+
+namespace AmenityService.API.Controllers;
+
+public class AmenitiesController : BaseController
+{
+    private readonly IMediator _mediator;
+
+    public AmenitiesController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    /// <summary>
+    /// Get all amenities for a society
+    /// </summary>
+    [HttpGet("society/{societyId}")]
+    public async Task<ActionResult<IReadOnlyList<AmenityDto>>> GetBySociety(
+        Guid societyId, 
+        [FromQuery] bool activeOnly = true)
+    {
+        var query = new GetAmenitiesBySocietyQuery 
+        { 
+            SocietyId = societyId, 
+            ActiveOnly = activeOnly 
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get a specific amenity by ID
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<ActionResult<AmenityDto>> GetById(Guid id, [FromQuery] Guid societyId)
+    {
+        var query = new GetAmenityByIdQuery { Id = id, SocietyId = societyId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Create a new amenity (Admin only)
+    /// </summary>
+    [HttpPost]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateAmenityCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id, societyId = command.SocietyId }, id);
+    }
+
+    /// <summary>
+    /// Update an existing amenity (Admin only)
+    /// </summary>
+    [HttpPut("{id}")]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Update(Guid id, [FromBody] UpdateAmenityCommand command)
+    {
+        if (id != command.Id)
+            return BadRequest("ID in route must match ID in body.");
+
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Deactivate an amenity (Admin only - soft delete)
+    /// </summary>
+    [HttpDelete("{id}")]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Delete(Guid id, [FromQuery] Guid societyId)
+    {
+        var command = new DeleteAmenityCommand { Id = id, SocietyId = societyId };
+        await _mediator.Send(command);
+        return NoContent();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace AmenityService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+
+    protected bool IsAdmin => Role == "Admin";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\Controllers\BookingsController.cs
+SIZE  : 5.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Application.Features.Bookings.Commands.ApproveBooking;
+using AmenityService.Application.Features.Bookings.Commands.CancelBooking;
+using AmenityService.Application.Features.Bookings.Commands.CreateBooking;
+using AmenityService.Application.Features.Bookings.Commands.RejectBooking;
+using AmenityService.Application.Features.Bookings.Queries.GetAvailableSlots;
+using AmenityService.Application.Features.Bookings.Queries.GetBookingsByAmenity;
+using AmenityService.Application.Features.Bookings.Queries.GetMyBookings;
+using AmenityService.Application.Features.Bookings.Queries.GetPendingBookings;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace AmenityService.API.Controllers;
+
+public class BookingsController : BaseController
+{
+    private readonly IMediator _mediator;
+
+    public BookingsController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    /// <summary>
+    /// Get available time slots for an amenity on a specific date
+    /// </summary>
+    [HttpGet("slots/available")]
+    public async Task<ActionResult<IReadOnlyList<AvailableSlotDto>>> GetAvailableSlots(
+        [FromQuery] Guid amenityId, 
+        [FromQuery] Guid societyId, 
+        [FromQuery] string date)
+    {
+        var query = new GetAvailableSlotsQuery 
+        { 
+            AmenityId = amenityId, 
+            SocietyId = societyId, 
+            Date = date 
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get current user's bookings
+    /// </summary>
+    [HttpGet("my-bookings")]
+    public async Task<ActionResult<IReadOnlyList<AmenityBookingDto>>> GetMyBookings(
+        [FromQuery] Guid societyId)
+    {
+        var query = new GetMyBookingsQuery 
+        { 
+            UserId = UserId, 
+            SocietyId = societyId 
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get all bookings for a specific amenity (Admin)
+    /// </summary>
+    [HttpGet("amenity/{amenityId}")]
+   // [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<IReadOnlyList<AmenityBookingDto>>> GetByAmenity(
+        Guid amenityId, 
+        [FromQuery] Guid societyId, 
+        [FromQuery] string? date = null)
+    {
+        var query = new GetBookingsByAmenityQuery 
+        { 
+            AmenityId = amenityId, 
+            SocietyId = societyId, 
+            Date = date 
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get all pending bookings for a society (Admin)
+    /// </summary>
+    [HttpGet("pending")]
+   // [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<IReadOnlyList<AmenityBookingDto>>> GetPendingBookings(
+        [FromQuery] Guid societyId)
+    {
+        var query = new GetPendingBookingsQuery { SocietyId = societyId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Create a new booking
+    /// </summary>
+    [HttpPost]
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateBookingCommand command)
+    {
+        // Override with authenticated user's ID
+        command = command with { UserId = UserId };
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetMyBookings), new { societyId = command.SocietyId }, id);
+    }
+
+    /// <summary>
+    /// Cancel own booking
+    /// </summary>
+    [HttpPut("{id}/cancel")]
+    public async Task<ActionResult> Cancel(Guid id, [FromQuery] Guid societyId)
+    {
+        var command = new CancelBookingCommand 
+        { 
+            Id = id, 
+            SocietyId = societyId, 
+            UserId = UserId 
+        };
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Approve a booking (Admin only)
+    /// </summary>
+    [HttpPut("{id}/approve")]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Approve(Guid id, [FromQuery] Guid societyId)
+    {
+        var command = new ApproveBookingCommand 
+        { 
+            Id = id, 
+            SocietyId = societyId, 
+            AdminUserId = UserId 
+        };
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Reject a booking (Admin only)
+    /// </summary>
+    [HttpPut("{id}/reject")]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Reject(
+        Guid id, 
+        [FromQuery] Guid societyId, 
+        [FromBody] RejectBookingRequest request)
+    {
+        var command = new RejectBookingCommand 
+        { 
+            Id = id, 
+            SocietyId = societyId, 
+            AdminUserId = UserId, 
+            Reason = request.Reason 
+        };
+        await _mediator.Send(command);
+        return NoContent();
+    }
+}
+
+// Request model for reject endpoint (not a MediatR command, just API payload)
+public record RejectBookingRequest(string Reason);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\Program.cs
+SIZE  : 3.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using AmenityService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Repositories;
+using AmenityService.Application.Features.Amenities.Commands.CreateAmenity;
+using AmenityService.Application.Common.Behaviors;
+using FluentValidation;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        // policy.WithOrigins("http://localhost:5110", "http://localhost:3000", "http://localhost:54251") // Added 5110 for Swagger
+        policy.AllowAnyOrigin()   
+         //policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<AmenityDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IAmenityRepository, AmenityRepository>();
+builder.Services.AddScoped<IAmenityBookingRepository, AmenityBookingRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(CreateAmenityCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(CreateAmenityCommand).Assembly);
+// Note: If you want FluentValidation to auto-run, you need to add the behavior:
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Amenity Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.API\Properties\launchSettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5110",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "https://localhost:7165;http://localhost:5110",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\AmenityService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AmenityService.Domain\AmenityService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+     <PackageReference Include="FluentValidation" Version="11.3.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\DTOs\AmenityBookingDto.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Enums;
+
+namespace AmenityService.Application.DTOs;
+
+public record AmenityBookingDto(
+    Guid Id,
+    Guid AmenityId,
+    string AmenityName,
+    Guid SocietyId,
+    Guid UserId,
+    string FlatNumber,
+    DateOnly BookingDate,
+    string StartTime,
+    string EndTime,
+    BookingStatus Status,
+    string? Notes,
+    Guid? ApprovedBy,
+    DateTimeOffset? ApprovedAt,
+    string? RejectionReason,
+    DateTimeOffset CreatedAt);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\DTOs\AmenityDto.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Application.DTOs;
+
+public record AmenityDto(
+    Guid Id,
+    Guid SocietyId,
+    string Name,
+    string? Description,
+    string? Location,
+    bool IsActive,
+    bool IsBookable,
+    int SlotDurationMinutes,
+    int MaxBookingsPerDayPerUser,
+    int AdvanceBookingDaysAllowed,
+    string OperatingHoursStart,
+    string OperatingHoursEnd,
+    DateTimeOffset CreatedAt);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\DTOs\AvailableSlotDto.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Application.DTOs;
+
+public record AvailableSlotDto(
+    string StartTime,
+    string EndTime,
+    bool IsAvailable);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\DTOs\Common\Interfaces\Behaviors\ValidationBehavior.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+using MediatR;
+
+namespace AmenityService.Application.Common.Behaviors;
+
+public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+{
+    private readonly IEnumerable<IValidator<TRequest>> _validators;
+
+    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
+    {
+        _validators = validators;
+    }
+
+    public async Task<TResponse> Handle(
+        TRequest request, 
+        RequestHandlerDelegate<TResponse> next, 
+        CancellationToken cancellationToken)
+    {
+        if (!_validators.Any())
+            return await next();
+
+        var context = new ValidationContext<TRequest>(request);
+        var validationResults = await Task.WhenAll(
+            _validators.Select(v => v.ValidateAsync(context, cancellationToken)));
+
+        var failures = validationResults
+            .SelectMany(r => r.Errors)
+            .Where(f => f != null)
+            .ToList();
+
+        if (failures.Count != 0)
+            throw new ValidationException(failures);
+
+        return await next();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\DTOs\Common\Interfaces\ICurrentUserService.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Application.Common.Interfaces;
+
+public interface ICurrentUserService
+{
+    Guid UserId { get; }
+    string? Role { get; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\ApproveBooking\ApproveBookingCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.ApproveBooking;
+
+public record ApproveBookingCommand : IRequest<Unit>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+    public Guid AdminUserId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\ApproveBooking\ApproveBookingCommandHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.ApproveBooking;
+
+public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public ApproveBookingCommandHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Unit> Handle(ApproveBookingCommand request, CancellationToken cancellationToken)
+    {
+        var booking = await _unitOfWork.AmenityBookings.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Booking with ID {request.Id} not found.");
+
+        if (booking.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("You do not have access to this booking.");
+
+        booking.Approve(request.AdminUserId);
+        _unitOfWork.AmenityBookings.Update(booking);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CancelBooking\CancelBookingCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.CancelBooking;
+
+public record CancelBookingCommand : IRequest<Unit>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+    public Guid UserId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CancelBooking\CancelBookingCommandHandler.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.CancelBooking;
+
+public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CancelBookingCommandHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Unit> Handle(CancelBookingCommand request, CancellationToken cancellationToken)
+    {
+        var booking = await _unitOfWork.AmenityBookings.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Booking with ID {request.Id} not found.");
+
+        if (booking.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("You do not have access to this booking.");
+
+        if (booking.UserId != request.UserId)
+            throw new UnauthorizedAccessException("You can only cancel your own bookings.");
+
+        // Check if booking is in the past
+        var bookingDateTime = booking.BookingDate.ToDateTime(booking.StartTime);
+        if (bookingDateTime < DateTime.UtcNow)
+            throw new InvalidOperationException("Cannot cancel a booking that has already passed.");
+
+        booking.Cancel();
+        _unitOfWork.AmenityBookings.Update(booking);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CreateAmenity\CreateAmenityCommand.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Commands.CreateAmenity;
+
+public record CreateAmenityCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public string? Location { get; init; }
+    public bool IsBookable { get; init; } = true;
+    public int SlotDurationMinutes { get; init; } = 60;
+    public int MaxBookingsPerDayPerUser { get; init; } = 1;
+    public int AdvanceBookingDaysAllowed { get; init; } = 7;
+    public string OperatingHoursStart { get; init; } = "06:00";
+    public string OperatingHoursEnd { get; init; } = "22:00";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CreateAmenity\CreateAmenityCommandHandler.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Commands.CreateAmenity;
+
+public class CreateAmenityCommandHandler : IRequestHandler<CreateAmenityCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateAmenityCommandHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Guid> Handle(CreateAmenityCommand request, CancellationToken cancellationToken)
+    {
+        var operatingStart = TimeOnly.Parse(request.OperatingHoursStart);
+        var operatingEnd = TimeOnly.Parse(request.OperatingHoursEnd);
+
+        var amenity = Amenity.Create(
+            societyId: request.SocietyId,
+            name: request.Name,
+            description: request.Description,
+            location: request.Location,
+            isBookable: request.IsBookable,
+            slotDurationMinutes: request.SlotDurationMinutes,
+            maxBookingsPerDayPerUser: request.MaxBookingsPerDayPerUser,
+            advanceBookingDaysAllowed: request.AdvanceBookingDaysAllowed,
+            operatingHoursStart: operatingStart,
+            operatingHoursEnd: operatingEnd);
+
+        _unitOfWork.Amenities.Add(amenity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return amenity.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CreateAmenity\CreateAmenityCommandValidator.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace AmenityService.Application.Features.Amenities.Commands.CreateAmenity;
+
+public class CreateAmenityCommandValidator : AbstractValidator<CreateAmenityCommand>
+{
+    public CreateAmenityCommandValidator()
+    {
+        RuleFor(x => x.SocietyId)
+            .NotEmpty().WithMessage("Society ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Amenity name is required.")
+            .MaximumLength(100).WithMessage("Amenity name cannot exceed 100 characters.");
+
+        RuleFor(x => x.Description)
+            .MaximumLength(500).WithMessage("Description cannot exceed 500 characters.");
+
+        RuleFor(x => x.Location)
+            .MaximumLength(200).WithMessage("Location cannot exceed 200 characters.");
+
+        RuleFor(x => x.SlotDurationMinutes)
+            .InclusiveBetween(15, 480).WithMessage("Slot duration must be between 15 and 480 minutes.");
+
+        RuleFor(x => x.MaxBookingsPerDayPerUser)
+            .GreaterThanOrEqualTo(1).WithMessage("Max bookings per day must be at least 1.");
+
+        RuleFor(x => x.AdvanceBookingDaysAllowed)
+            .InclusiveBetween(0, 30).WithMessage("Advance booking days must be between 0 and 30.");
+
+        RuleFor(x => x.OperatingHoursStart)
+            .Matches(@"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+            .WithMessage("Invalid operating hours start format. Use HH:mm.");
+
+        RuleFor(x => x.OperatingHoursEnd)
+            .Matches(@"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+            .WithMessage("Invalid operating hours end format. Use HH:mm.");
+
+        RuleFor(x => x)
+            .Custom((cmd, context) =>
+            {
+                var start = TimeOnly.Parse(cmd.OperatingHoursStart);
+                var end = TimeOnly.Parse(cmd.OperatingHoursEnd);
+                if (start >= end)
+                    context.AddFailure("Operating hours start must be before end.");
+            });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CreateBooking\CreateBookingCommand.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.CreateBooking;
+
+public record CreateBookingCommand : IRequest<Guid>
+{
+    public Guid AmenityId { get; init; }
+    public Guid SocietyId { get; init; }
+    public Guid UserId { get; init; }
+    public string FlatNumber { get; init; } = string.Empty;
+    public string BookingDate { get; init; } = string.Empty; // YYYY-MM-DD
+    public string StartTime { get; init; } = string.Empty;   // HH:mm
+    public string EndTime { get; init; } = string.Empty;     // HH:mm
+    public string? Notes { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CreateBooking\CreateBookingCommandHandler.cs
+SIZE  : 3.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.CreateBooking;
+
+public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateBookingCommandHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Guid> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Validate amenity exists, is active, is bookable, and belongs to society
+        var amenity = await _unitOfWork.Amenities.GetByIdAsync(request.AmenityId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Amenity with ID {request.AmenityId} not found.");
+
+        if (amenity.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("Amenity does not belong to the specified society.");
+
+        if (!amenity.IsActive)
+            throw new InvalidOperationException("This amenity is currently inactive.");
+
+        if (!amenity.IsBookable)
+            throw new InvalidOperationException("This amenity does not support bookings.");
+
+        // 2. Parse and validate date/time
+        var bookingDate = DateOnly.ParseExact(request.BookingDate, "yyyy-MM-dd");
+        var startTime = TimeOnly.Parse(request.StartTime);
+        var endTime = TimeOnly.Parse(request.EndTime);
+
+        // 3. Check booking date is within allowed range
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var maxDate = today.AddDays(amenity.AdvanceBookingDaysAllowed);
+
+        if (bookingDate < today)
+            throw new InvalidOperationException("Cannot book a slot in the past.");
+
+        if (bookingDate > maxDate)
+            throw new InvalidOperationException($"Bookings can only be made up to {amenity.AdvanceBookingDaysAllowed} days in advance.");
+
+        // 4. Check time is within operating hours
+        if (startTime < amenity.OperatingHoursStart || endTime > amenity.OperatingHoursEnd)
+            throw new InvalidOperationException($"Booking must be within operating hours: {amenity.OperatingHoursStart:HH:mm} - {amenity.OperatingHoursEnd:HH:mm}.");
+
+        // 5. Check slot duration matches amenity config
+        var requestedDuration = endTime - startTime;
+        if (requestedDuration.TotalMinutes != amenity.SlotDurationMinutes)
+            throw new InvalidOperationException($"Slot duration must be exactly {amenity.SlotDurationMinutes} minutes.");
+
+        // 6. Check for overlapping bookings
+        var hasOverlap = await _unitOfWork.AmenityBookings.HasOverlappingBookingAsync(
+            request.AmenityId, bookingDate, startTime, endTime, cancellationToken);
+
+        if (hasOverlap)
+            throw new InvalidOperationException("This time slot is already booked.");
+
+        // 7. Check user's daily booking limit
+        var userBookingsCount = await _unitOfWork.AmenityBookings.CountUserBookingsForDateAsync(
+            request.UserId, request.AmenityId, bookingDate, cancellationToken);
+
+        if (userBookingsCount >= amenity.MaxBookingsPerDayPerUser)
+            throw new InvalidOperationException($"You can only book this amenity {amenity.MaxBookingsPerDayPerUser} time(s) per day.");
+
+        // 8. Create booking
+        var booking = Domain.Entities.AmenityBooking.Create(
+            amenityId: request.AmenityId,
+            societyId: request.SocietyId,
+            userId: request.UserId,
+            flatNumber: request.FlatNumber,
+            bookingDate: bookingDate,
+            startTime: startTime,
+            endTime: endTime,
+            notes: request.Notes);
+
+        _unitOfWork.AmenityBookings.Add(booking);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return booking.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\CreateBooking\CreateBookingCommandValidator.cs
+SIZE  : 2.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace AmenityService.Application.Features.Bookings.Commands.CreateBooking;
+
+public class CreateBookingCommandValidator : AbstractValidator<CreateBookingCommand>
+{
+    public CreateBookingCommandValidator()
+    {
+        RuleFor(x => x.AmenityId)
+            .NotEmpty().WithMessage("Amenity ID is required.");
+
+        RuleFor(x => x.SocietyId)
+            .NotEmpty().WithMessage("Society ID is required.");
+
+        RuleFor(x => x.UserId)
+            .NotEmpty().WithMessage("User ID is required.");
+
+        RuleFor(x => x.FlatNumber)
+            .NotEmpty().WithMessage("Flat number is required.")
+            .MaximumLength(20).WithMessage("Flat number cannot exceed 20 characters.");
+
+        RuleFor(x => x.BookingDate)
+            .NotEmpty().WithMessage("Booking date is required.")
+            .Matches(@"^\d{4}-\d{2}-\d{2}$").WithMessage("Booking date must be in YYYY-MM-DD format.")
+            .Must(BeValidDate).WithMessage("Invalid booking date.");
+
+        RuleFor(x => x.StartTime)
+            .NotEmpty().WithMessage("Start time is required.")
+            .Matches(@"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+            .WithMessage("Start time must be in HH:mm format.");
+
+        RuleFor(x => x.EndTime)
+            .NotEmpty().WithMessage("End time is required.")
+            .Matches(@"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+            .WithMessage("End time must be in HH:mm format.");
+
+        RuleFor(x => x.Notes)
+            .MaximumLength(500).WithMessage("Notes cannot exceed 500 characters.");
+
+        RuleFor(x => x)
+            .Custom((cmd, context) =>
+            {
+                if (!TimeOnly.TryParse(cmd.StartTime, out var start) || 
+                    !TimeOnly.TryParse(cmd.EndTime, out var end))
+                    return;
+
+                if (start >= end)
+                    context.AddFailure("Start time must be before end time.");
+            });
+    }
+
+    private static bool BeValidDate(string date)
+    {
+        return DateOnly.TryParseExact(date, "yyyy-MM-dd", out _);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\DeleteAmenity\DeleteAmenityCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Commands.DeleteAmenity;
+
+public record DeleteAmenityCommand : IRequest<Unit>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\DeleteAmenity\DeleteAmenityCommandHandler.cs
+SIZE  : 0 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ 
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\RejectBooking\RejectBookingCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.RejectBooking;
+
+public record RejectBookingCommand : IRequest<Unit>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+    public Guid AdminUserId { get; init; }
+    public string Reason { get; init; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\RejectBooking\RejectBookingCommandHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Commands.RejectBooking;
+
+public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public RejectBookingCommandHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Unit> Handle(RejectBookingCommand request, CancellationToken cancellationToken)
+    {
+        var booking = await _unitOfWork.AmenityBookings.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Booking with ID {request.Id} not found.");
+
+        if (booking.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("You do not have access to this booking.");
+
+        booking.Reject(request.AdminUserId, request.Reason);
+        _unitOfWork.AmenityBookings.Update(booking);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\RejectBooking\RejectBookingCommandValidator.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace AmenityService.Application.Features.Bookings.Commands.RejectBooking;
+
+public class RejectBookingCommandValidator : AbstractValidator<RejectBookingCommand>
+{
+    public RejectBookingCommandValidator()
+    {
+        RuleFor(x => x.Id)
+            .NotEmpty().WithMessage("Booking ID is required.");
+
+        RuleFor(x => x.SocietyId)
+            .NotEmpty().WithMessage("Society ID is required.");
+
+        RuleFor(x => x.AdminUserId)
+            .NotEmpty().WithMessage("Admin user ID is required.");
+
+        RuleFor(x => x.Reason)
+            .NotEmpty().WithMessage("Rejection reason is required.")
+            .MaximumLength(300).WithMessage("Rejection reason cannot exceed 300 characters.");
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\UpdateAmenity\UpdateAmenityCommand.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Commands.UpdateAmenity;
+
+public record UpdateAmenityCommand : IRequest<Unit>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public string? Location { get; init; }
+    public bool IsBookable { get; init; } = true;
+    public int SlotDurationMinutes { get; init; } = 60;
+    public int MaxBookingsPerDayPerUser { get; init; } = 1;
+    public int AdvanceBookingDaysAllowed { get; init; } = 7;
+    public string OperatingHoursStart { get; init; } = "06:00";
+    public string OperatingHoursEnd { get; init; } = "22:00";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\UpdateAmenity\UpdateAmenityCommandHandler.cs
+SIZE  : 0 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ 
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Commands\UpdateAmenity\UpdateAmenityCommandValidator.cs
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace AmenityService.Application.Features.Amenities.Commands.UpdateAmenity;
+
+public class UpdateAmenityCommandValidator : AbstractValidator<UpdateAmenityCommand>
+{
+    public UpdateAmenityCommandValidator()
+    {
+        RuleFor(x => x.Id)
+            .NotEmpty().WithMessage("Amenity ID is required.");
+
+        RuleFor(x => x.SocietyId)
+            .NotEmpty().WithMessage("Society ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Amenity name is required.")
+            .MaximumLength(100).WithMessage("Amenity name cannot exceed 100 characters.");
+
+        RuleFor(x => x.Description)
+            .MaximumLength(500).WithMessage("Description cannot exceed 500 characters.");
+
+        RuleFor(x => x.Location)
+            .MaximumLength(200).WithMessage("Location cannot exceed 200 characters.");
+
+        RuleFor(x => x.SlotDurationMinutes)
+            .InclusiveBetween(15, 480).WithMessage("Slot duration must be between 15 and 480 minutes.");
+
+        RuleFor(x => x.MaxBookingsPerDayPerUser)
+            .GreaterThanOrEqualTo(1).WithMessage("Max bookings per day must be at least 1.");
+
+        RuleFor(x => x.AdvanceBookingDaysAllowed)
+            .InclusiveBetween(0, 30).WithMessage("Advance booking days must be between 0 and 30.");
+
+        RuleFor(x => x.OperatingHoursStart)
+            .Matches(@"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+            .WithMessage("Invalid operating hours start format. Use HH:mm.");
+
+        RuleFor(x => x.OperatingHoursEnd)
+            .Matches(@"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+            .WithMessage("Invalid operating hours end format. Use HH:mm.");
+
+        RuleFor(x => x)
+            .Custom((cmd, context) =>
+            {
+                var start = TimeOnly.Parse(cmd.OperatingHoursStart);
+                var end = TimeOnly.Parse(cmd.OperatingHoursEnd);
+                if (start >= end)
+                    context.AddFailure("Operating hours start must be before end.");
+            });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAmenitiesBySociety\GetAmenitiesBySocietyQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Queries.GetAmenitiesBySociety;
+
+public record GetAmenitiesBySocietyQuery : IRequest<IReadOnlyList<AmenityDto>>
+{
+    public Guid SocietyId { get; init; }
+    public bool ActiveOnly { get; init; } = true;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAmenitiesBySociety\GetAmenitiesBySocietyQueryHandler.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Queries.GetAmenitiesBySociety;
+
+public class GetAmenitiesBySocietyQueryHandler : IRequestHandler<GetAmenitiesBySocietyQuery, IReadOnlyList<AmenityDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetAmenitiesBySocietyQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IReadOnlyList<AmenityDto>> Handle(GetAmenitiesBySocietyQuery request, CancellationToken cancellationToken)
+    {
+        var amenities = request.ActiveOnly
+            ? await _unitOfWork.Amenities.GetActiveBySocietyIdAsync(request.SocietyId, cancellationToken)
+            : await _unitOfWork.Amenities.GetBySocietyIdAsync(request.SocietyId, cancellationToken);
+
+        return amenities.Select(MapToDto).ToList();
+    }
+
+    private static AmenityDto MapToDto(Domain.Entities.Amenity a) => new(
+        a.Id,
+        a.SocietyId,
+        a.Name,
+        a.Description,
+        a.Location,
+        a.IsActive,
+        a.IsBookable,
+        a.SlotDurationMinutes,
+        a.MaxBookingsPerDayPerUser,
+        a.AdvanceBookingDaysAllowed,
+        a.OperatingHoursStart.ToString("HH:mm"),
+        a.OperatingHoursEnd.ToString("HH:mm"),
+        a.CreatedAt);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAmenityById\GetAmenityByIdQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Queries.GetAmenityById;
+
+public record GetAmenityByIdQuery : IRequest<AmenityDto>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAmenityById\GetAmenityByIdQueryHandler.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Amenities.Queries.GetAmenityById;
+
+public class GetAmenityByIdQueryHandler : IRequestHandler<GetAmenityByIdQuery, AmenityDto>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetAmenityByIdQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<AmenityDto> Handle(GetAmenityByIdQuery request, CancellationToken cancellationToken)
+    {
+        var amenity = await _unitOfWork.Amenities.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Amenity with ID {request.Id} not found.");
+
+        if (amenity.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("You do not have access to this amenity.");
+
+        return new AmenityDto(
+            amenity.Id,
+            amenity.SocietyId,
+            amenity.Name,
+            amenity.Description,
+            amenity.Location,
+            amenity.IsActive,
+            amenity.IsBookable,
+            amenity.SlotDurationMinutes,
+            amenity.MaxBookingsPerDayPerUser,
+            amenity.AdvanceBookingDaysAllowed,
+            amenity.OperatingHoursStart.ToString("HH:mm"),
+            amenity.OperatingHoursEnd.ToString("HH:mm"),
+            amenity.CreatedAt);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAvailableSlots\GetAvailableSlotsQuery.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetAvailableSlots;
+
+public record GetAvailableSlotsQuery : IRequest<IReadOnlyList<AvailableSlotDto>>
+{
+    public Guid AmenityId { get; init; }
+    public Guid SocietyId { get; init; }
+    public string Date { get; init; } = string.Empty; // YYYY-MM-DD
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAvailableSlots\GetAvailableSlotsQueryHandler.cs
+SIZE  : 2.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetAvailableSlots;
+
+public class GetAvailableSlotsQueryHandler : IRequestHandler<GetAvailableSlotsQuery, IReadOnlyList<AvailableSlotDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetAvailableSlotsQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IReadOnlyList<AvailableSlotDto>> Handle(GetAvailableSlotsQuery request, CancellationToken cancellationToken)
+    {
+        // 1. Get amenity with slot configuration
+        var amenity = await _unitOfWork.Amenities.GetByIdAsync(request.AmenityId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Amenity with ID {request.AmenityId} not found.");
+
+        if (amenity.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("Amenity does not belong to the specified society.");
+
+        if (!amenity.IsActive || !amenity.IsBookable)
+            return Array.Empty<AvailableSlotDto>();
+
+        // 2. Parse date and validate
+        var bookingDate = DateOnly.ParseExact(request.Date, "yyyy-MM-dd");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var maxDate = today.AddDays(amenity.AdvanceBookingDaysAllowed);
+
+        if (bookingDate < today || bookingDate > maxDate)
+            throw new InvalidOperationException("Selected date is outside the allowed booking range.");
+
+        // 3. Get existing bookings for that date
+        var existingBookings = await _unitOfWork.AmenityBookings.GetByAmenityAndDateAsync(
+            request.AmenityId, bookingDate, cancellationToken);
+
+        var activeBookings = existingBookings
+            .Where(b => b.Status is Domain.Enums.BookingStatus.Pending or Domain.Enums.BookingStatus.Approved)
+            .ToList();
+
+        // 4. Generate all possible slots
+        var slots = new List<AvailableSlotDto>();
+        var currentTime = amenity.OperatingHoursStart;
+        var slotDuration = TimeSpan.FromMinutes(amenity.SlotDurationMinutes);
+
+        while (currentTime.Add(slotDuration) <= amenity.OperatingHoursEnd)
+        {
+            var slotEnd = currentTime.Add(slotDuration);
+            var isAvailable = !activeBookings.Any(b => b.IsTimeOverlapping(currentTime, slotEnd));
+
+            // Additional check: if date is today, past slots are not available
+            if (bookingDate == today)
+            {
+                var nowTime = TimeOnly.FromDateTime(DateTime.UtcNow);
+                if (currentTime <= nowTime)
+                    isAvailable = false;
+            }
+
+            slots.Add(new AvailableSlotDto(
+                StartTime: currentTime.ToString("HH:mm"),
+                EndTime: slotEnd.ToString("HH:mm"),
+                IsAvailable: isAvailable));
+
+            currentTime = slotEnd;
+        }
+
+        return slots;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetAvailableSlots\GetAvailableSlotsQueryValidator.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetAvailableSlots;
+
+public class GetAvailableSlotsQueryValidator : AbstractValidator<GetAvailableSlotsQuery>
+{
+    public GetAvailableSlotsQueryValidator()
+    {
+        RuleFor(x => x.AmenityId)
+            .NotEmpty().WithMessage("Amenity ID is required.");
+
+        RuleFor(x => x.SocietyId)
+            .NotEmpty().WithMessage("Society ID is required.");
+
+        RuleFor(x => x.Date)
+            .NotEmpty().WithMessage("Date is required.")
+            .Matches(@"^\d{4}-\d{2}-\d{2}$").WithMessage("Date must be in YYYY-MM-DD format.")
+            .Must(BeValidDate).WithMessage("Invalid date.");
+    }
+
+    private static bool BeValidDate(string date)
+    {
+        return DateOnly.TryParseExact(date, "yyyy-MM-dd", out _);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetBookingsByAmenity\GetBookingsByAmenityQuery.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetBookingsByAmenity;
+
+public record GetBookingsByAmenityQuery : IRequest<IReadOnlyList<AmenityBookingDto>>
+{
+    public Guid AmenityId { get; init; }
+    public Guid SocietyId { get; init; }
+    public string? Date { get; init; } // Optional: YYYY-MM-DD filter
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetBookingsByAmenity\GetBookingsByAmenityQueryHandler.cs
+SIZE  : 2.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetBookingsByAmenity;
+
+public class GetBookingsByAmenityQueryHandler : IRequestHandler<GetBookingsByAmenityQuery, IReadOnlyList<AmenityBookingDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetBookingsByAmenityQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IReadOnlyList<AmenityBookingDto>> Handle(GetBookingsByAmenityQuery request, CancellationToken cancellationToken)
+    {
+        // Verify amenity belongs to society
+        var belongsToSociety = await _unitOfWork.Amenities.IsOwnedBySocietyAsync(
+            request.AmenityId, request.SocietyId, cancellationToken);
+
+        if (!belongsToSociety)
+            throw new UnauthorizedAccessException("Amenity does not belong to the specified society.");
+
+        IReadOnlyList<Domain.Entities.AmenityBooking> bookings;
+
+        if (!string.IsNullOrWhiteSpace(request.Date) && 
+            DateOnly.TryParseExact(request.Date, "yyyy-MM-dd", out var date))
+        {
+            bookings = await _unitOfWork.AmenityBookings.GetByAmenityAndDateAsync(
+                request.AmenityId, date, cancellationToken);
+        }
+        else
+        {
+            // Get bookings for next 7 days if no date specified
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var weekLater = today.AddDays(7);
+            bookings = await _unitOfWork.AmenityBookings.GetByAmenityAndDateRangeAsync(
+                request.AmenityId, today, weekLater, cancellationToken);
+        }
+
+        return bookings.Select(MapToDto).ToList();
+    }
+
+    private static AmenityBookingDto MapToDto(Domain.Entities.AmenityBooking b) => new(
+        b.Id,
+        b.AmenityId,
+        b.Amenity?.Name ?? string.Empty,
+        b.SocietyId,
+        b.UserId,
+        b.FlatNumber,
+        b.BookingDate,
+        b.StartTime.ToString("HH:mm"),
+        b.EndTime.ToString("HH:mm"),
+        b.Status,
+        b.Notes,
+        b.ApprovedBy,
+        b.ApprovedAt,
+        b.RejectionReason,
+        b.CreatedAt);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetMyBookings\GetMyBookingsQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetMyBookings;
+
+public record GetMyBookingsQuery : IRequest<IReadOnlyList<AmenityBookingDto>>
+{
+    public Guid UserId { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetMyBookings\GetMyBookingsQueryHandler.cs
+SIZE  : 1.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetMyBookings;
+
+public class GetMyBookingsQueryHandler : IRequestHandler<GetMyBookingsQuery, IReadOnlyList<AmenityBookingDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetMyBookingsQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IReadOnlyList<AmenityBookingDto>> Handle(GetMyBookingsQuery request, CancellationToken cancellationToken)
+    {
+        var bookings = await _unitOfWork.AmenityBookings.GetByUserAndSocietyAsync(
+            request.UserId, request.SocietyId, cancellationToken);
+
+        return bookings.Select(MapToDto).ToList();
+    }
+
+    private static AmenityBookingDto MapToDto(Domain.Entities.AmenityBooking b) => new(
+        b.Id,
+        b.AmenityId,
+        b.Amenity?.Name ?? string.Empty,
+        b.SocietyId,
+        b.UserId,
+        b.FlatNumber,
+        b.BookingDate,
+        b.StartTime.ToString("HH:mm"),
+        b.EndTime.ToString("HH:mm"),
+        b.Status,
+        b.Notes,
+        b.ApprovedBy,
+        b.ApprovedAt,
+        b.RejectionReason,
+        b.CreatedAt);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetPendingBookings\GetPendingBookingsQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetPendingBookings;
+
+public record GetPendingBookingsQuery : IRequest<IReadOnlyList<AmenityBookingDto>>
+{
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Application\Features\Amenties\Queries\GetPendingBookings\GetPendingBookingsQueryHandler.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Application.DTOs;
+using AmenityService.Domain.Interfaces;
+using MediatR;
+
+namespace AmenityService.Application.Features.Bookings.Queries.GetPendingBookings;
+
+public class GetPendingBookingsQueryHandler : IRequestHandler<GetPendingBookingsQuery, IReadOnlyList<AmenityBookingDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetPendingBookingsQueryHandler(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IReadOnlyList<AmenityBookingDto>> Handle(GetPendingBookingsQuery request, CancellationToken cancellationToken)
+    {
+        var bookings = await _unitOfWork.AmenityBookings.GetPendingBySocietyAsync(
+            request.SocietyId, cancellationToken);
+
+        return bookings.Select(MapToDto).ToList();
+    }
+
+    private static AmenityBookingDto MapToDto(Domain.Entities.AmenityBooking b) => new(
+        b.Id,
+        b.AmenityId,
+        b.Amenity?.Name ?? string.Empty,
+        b.SocietyId,
+        b.UserId,
+        b.FlatNumber,
+        b.BookingDate,
+        b.StartTime.ToString("HH:mm"),
+        b.EndTime.ToString("HH:mm"),
+        b.Status,
+        b.Notes,
+        b.ApprovedBy,
+        b.ApprovedAt,
+        b.RejectionReason,
+        b.CreatedAt);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\AmenityService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Entities\Amenity.cs
+SIZE  : 4.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Domain.Entities;
+
+public class Amenity : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    public string? Description { get; private set; }
+    public string? Location { get; private set; }
+    public bool IsActive { get; private set; } = true;
+    public bool IsBookable { get; private set; } = true;
+    
+    // Slot Configuration
+    public int SlotDurationMinutes { get; private set; } = 60;
+    public int MaxBookingsPerDayPerUser { get; private set; } = 1;
+    public int AdvanceBookingDaysAllowed { get; private set; } = 7;
+    
+    // Operating Hours
+    public TimeOnly OperatingHoursStart { get; private set; } = new(6, 0);
+    public TimeOnly OperatingHoursEnd { get; private set; } = new(22, 0);
+    
+    // Navigation
+    public virtual ICollection<AmenityBooking> Bookings { get; private set; } = new List<AmenityBooking>();
+
+    private Amenity() { } // EF Core
+
+    public static Amenity Create(
+        Guid societyId,
+        string name,
+        string? description,
+        string? location,
+        bool isBookable,
+        int slotDurationMinutes,
+        int maxBookingsPerDayPerUser,
+        int advanceBookingDaysAllowed,
+        TimeOnly operatingHoursStart,
+        TimeOnly operatingHoursEnd)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Amenity name is required.", nameof(name));
+
+        if (slotDurationMinutes < 15 || slotDurationMinutes > 480)
+            throw new ArgumentException("Slot duration must be between 15 and 480 minutes.", nameof(slotDurationMinutes));
+
+        if (maxBookingsPerDayPerUser < 1)
+            throw new ArgumentException("Max bookings per day must be at least 1.", nameof(maxBookingsPerDayPerUser));
+
+        if (advanceBookingDaysAllowed < 0 || advanceBookingDaysAllowed > 30)
+            throw new ArgumentException("Advance booking days must be between 0 and 30.", nameof(advanceBookingDaysAllowed));
+
+        if (operatingHoursStart >= operatingHoursEnd)
+            throw new ArgumentException("Operating hours start must be before end.", nameof(operatingHoursStart));
+
+        return new Amenity
+        {
+            SocietyId = societyId,
+            Name = name.Trim(),
+            Description = description?.Trim(),
+            Location = location?.Trim(),
+            IsBookable = isBookable,
+            SlotDurationMinutes = slotDurationMinutes,
+            MaxBookingsPerDayPerUser = maxBookingsPerDayPerUser,
+            AdvanceBookingDaysAllowed = advanceBookingDaysAllowed,
+            OperatingHoursStart = operatingHoursStart,
+            OperatingHoursEnd = operatingHoursEnd
+        };
+    }
+
+    public void Update(
+        string name,
+        string? description,
+        string? location,
+        bool isBookable,
+        int slotDurationMinutes,
+        int maxBookingsPerDayPerUser,
+        int advanceBookingDaysAllowed,
+        TimeOnly operatingHoursStart,
+        TimeOnly operatingHoursEnd)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Amenity name is required.", nameof(name));
+
+        if (slotDurationMinutes < 15 || slotDurationMinutes > 480)
+            throw new ArgumentException("Slot duration must be between 15 and 480 minutes.", nameof(slotDurationMinutes));
+
+        if (operatingHoursStart >= operatingHoursEnd)
+            throw new ArgumentException("Operating hours start must be before end.", nameof(operatingHoursStart));
+
+        Name = name.Trim();
+        Description = description?.Trim();
+        Location = location?.Trim();
+        IsBookable = isBookable;
+        SlotDurationMinutes = slotDurationMinutes;
+        MaxBookingsPerDayPerUser = Math.Max(1, maxBookingsPerDayPerUser);
+        AdvanceBookingDaysAllowed = Math.Clamp(advanceBookingDaysAllowed, 0, 30);
+        OperatingHoursStart = operatingHoursStart;
+        OperatingHoursEnd = operatingHoursEnd;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Entities\AmenityBooking.cs
+SIZE  : 3.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Enums;
+
+namespace AmenityService.Domain.Entities;
+
+public class AmenityBooking : BaseEntity
+{
+    public Guid AmenityId { get; private set; }
+    public Guid SocietyId { get; private set; }
+    public Guid UserId { get; private set; }
+    public string FlatNumber { get; private set; } = string.Empty;
+    
+    // Booking Time
+    public DateOnly BookingDate { get; private set; }
+    public TimeOnly StartTime { get; private set; }
+    public TimeOnly EndTime { get; private set; }
+    
+    // Status
+    public BookingStatus Status { get; private set; } = BookingStatus.Pending;
+    public string? Notes { get; private set; }
+    
+    // Approval Tracking
+    public Guid? ApprovedBy { get; private set; }
+    public DateTimeOffset? ApprovedAt { get; private set; }
+    public string? RejectionReason { get; private set; }
+    
+    // Navigation
+    public virtual Amenity Amenity { get; private set; } = null!;
+
+    private AmenityBooking() { } // EF Core
+
+    public static AmenityBooking Create(
+        Guid amenityId,
+        Guid societyId,
+        Guid userId,
+        string flatNumber,
+        DateOnly bookingDate,
+        TimeOnly startTime,
+        TimeOnly endTime,
+        string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(flatNumber))
+            throw new ArgumentException("Flat number is required.", nameof(flatNumber));
+
+        if (startTime >= endTime)
+            throw new ArgumentException("Start time must be before end time.", nameof(startTime));
+
+        return new AmenityBooking
+        {
+            AmenityId = amenityId,
+            SocietyId = societyId,
+            UserId = userId,
+            FlatNumber = flatNumber.Trim(),
+            BookingDate = bookingDate,
+            StartTime = startTime,
+            EndTime = endTime,
+            Notes = notes?.Trim()
+        };
+    }
+
+    public void Approve(Guid approvedBy)
+    {
+        if (Status != BookingStatus.Pending)
+            throw new InvalidOperationException($"Cannot approve booking in {Status} status.");
+
+        Status = BookingStatus.Approved;
+        ApprovedBy = approvedBy;
+        ApprovedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Reject(Guid rejectedBy, string reason)
+    {
+        if (Status != BookingStatus.Pending)
+            throw new InvalidOperationException($"Cannot reject booking in {Status} status.");
+
+        Status = BookingStatus.Rejected;
+        ApprovedBy = rejectedBy;
+        ApprovedAt = DateTimeOffset.UtcNow;
+        RejectionReason = reason?.Trim();
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Cancel()
+    {
+        if (Status is not (BookingStatus.Pending or BookingStatus.Approved))
+            throw new InvalidOperationException($"Cannot cancel booking in {Status} status.");
+
+        Status = BookingStatus.Cancelled;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void MarkCompleted()
+    {
+        if (Status != BookingStatus.Approved)
+            throw new InvalidOperationException($"Cannot complete booking in {Status} status.");
+
+        Status = BookingStatus.Completed;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public bool IsTimeOverlapping(TimeOnly otherStart, TimeOnly otherEnd)
+    {
+        return StartTime < otherEnd && EndTime > otherStart;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Entities\BaseEntity.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public Guid Id { get; protected set; } = Guid.NewGuid();
+    public DateTimeOffset CreatedAt { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; protected set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Enums\BookingStatus.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Domain.Enums;
+
+public enum BookingStatus
+{
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2,
+    Cancelled = 3,
+    Completed = 4
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Interfaces\IAmenityBookingRepository.cs
+SIZE  : 1.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using AmenityService.Domain.Enums;
+
+namespace AmenityService.Domain.Interfaces;
+
+public interface IAmenityBookingRepository
+{
+    Task<AmenityBooking?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AmenityBooking>> GetByAmenityAndDateAsync(
+        Guid amenityId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AmenityBooking>> GetByAmenityAndDateRangeAsync(
+        Guid amenityId, 
+        DateOnly startDate, 
+        DateOnly endDate, 
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AmenityBooking>> GetByUserAndSocietyAsync(
+        Guid userId, 
+        Guid societyId, 
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AmenityBooking>> GetByUserAndDateAsync(
+        Guid userId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AmenityBooking>> GetBySocietyAndDateAsync(
+        Guid societyId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AmenityBooking>> GetPendingBySocietyAsync(
+        Guid societyId, 
+        CancellationToken cancellationToken = default);
+    Task<int> CountUserBookingsForDateAsync(
+        Guid userId, 
+        Guid amenityId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default);
+    Task<bool> HasOverlappingBookingAsync(
+        Guid amenityId, 
+        DateOnly date, 
+        TimeOnly startTime, 
+        TimeOnly endTime, 
+        CancellationToken cancellationToken = default);
+    void Add(AmenityBooking booking);
+    void Update(AmenityBooking booking);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Interfaces\IAmenityRepository.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+
+namespace AmenityService.Domain.Interfaces;
+
+public interface IAmenityRepository
+{
+    Task<Amenity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Amenity>> GetBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Amenity>> GetActiveBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> IsOwnedBySocietyAsync(Guid amenityId, Guid societyId, CancellationToken cancellationToken = default);
+    void Add(Amenity amenity);
+    void Update(Amenity amenity);
+    void Remove(Amenity amenity);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Domain\Interfaces\IUnitOfWork.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Domain.Interfaces;
+
+public interface IUnitOfWork : IDisposable
+{
+    IAmenityRepository Amenities { get; }
+    IAmenityBookingRepository AmenityBookings { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\AmenityService.Infrastructure.csproj
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AmenityService.Domain\AmenityService.Domain.csproj" />
+    <ProjectReference Include="..\AmenityService.Application\AmenityService.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace AmenityService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Data\AmenityDbContext.cs
+SIZE  : 3.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace AmenityService.Infrastructure.Data;
+
+public class AmenityDbContext : DbContext
+{
+    public AmenityDbContext(DbContextOptions<AmenityDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<Amenity> Amenities => Set<Amenity>();
+    public DbSet<AmenityBooking> AmenityBookings => Set<AmenityBooking>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        ConfigureAmenityEntity(modelBuilder);
+        ConfigureAmenityBookingEntity(modelBuilder);
+    }
+
+    private static void ConfigureAmenityEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Amenity>(entity =>
+        {
+            entity.ToTable("Amenities");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.SocietyId)
+                .IsRequired();
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(e => e.Description)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.Location)
+                .HasMaxLength(200);
+
+            entity.Property(e => e.SlotDurationMinutes)
+                .IsRequired();
+
+            entity.Property(e => e.MaxBookingsPerDayPerUser)
+                .IsRequired()
+                .HasDefaultValue(1);
+
+            entity.Property(e => e.AdvanceBookingDaysAllowed)
+                .IsRequired()
+                .HasDefaultValue(7);
+
+            entity.Property(e => e.OperatingHoursStart)
+                .IsRequired();
+
+            entity.Property(e => e.OperatingHoursEnd)
+                .IsRequired();
+
+            entity.HasIndex(e => e.SocietyId);
+            entity.HasIndex(e => new { e.SocietyId, e.IsActive });
+        });
+    }
+
+    private static void ConfigureAmenityBookingEntity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AmenityBooking>(entity =>
+        {
+            entity.ToTable("AmenityBookings");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.AmenityId)
+                .IsRequired();
+
+            entity.Property(e => e.SocietyId)
+                .IsRequired();
+
+            entity.Property(e => e.UserId)
+                .IsRequired();
+
+            entity.Property(e => e.FlatNumber)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(e => e.BookingDate)
+                .IsRequired();
+
+            entity.Property(e => e.StartTime)
+                .IsRequired();
+
+            entity.Property(e => e.EndTime)
+                .IsRequired();
+
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.Property(e => e.Notes)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.RejectionReason)
+                .HasMaxLength(300);
+
+            // Relationships
+            entity.HasOne(e => e.Amenity)
+                .WithMany(a => a.Bookings)
+                .HasForeignKey(e => e.AmenityId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Indexes for query performance
+            entity.HasIndex(e => e.AmenityId);
+            entity.HasIndex(e => e.SocietyId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.AmenityId, e.BookingDate });
+            entity.HasIndex(e => new { e.UserId, e.SocietyId });
+            entity.HasIndex(e => new { e.SocietyId, e.Status });
+            entity.HasIndex(e => new { e.UserId, e.AmenityId, e.BookingDate });
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Repositories\AmenityBookingRepository.cs
+SIZE  : 5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using AmenityService.Domain.Enums;
+using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace AmenityService.Infrastructure.Repositories;
+
+public class AmenityBookingRepository : IAmenityBookingRepository
+{
+    private readonly AmenityDbContext _context;
+
+    public AmenityBookingRepository(AmenityDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<AmenityBooking?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByAmenityAndDateAsync(
+        Guid amenityId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.AmenityId == amenityId && b.BookingDate == date)
+            .OrderBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByAmenityAndDateRangeAsync(
+        Guid amenityId, 
+        DateOnly startDate, 
+        DateOnly endDate, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.AmenityId == amenityId && 
+                        b.BookingDate >= startDate && 
+                        b.BookingDate <= endDate)
+            .OrderBy(b => b.BookingDate)
+            .ThenBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByUserAndSocietyAsync(
+        Guid userId, 
+        Guid societyId, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.UserId == userId && b.SocietyId == societyId)
+            .OrderByDescending(b => b.BookingDate)
+            .ThenByDescending(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByUserAndDateAsync(
+        Guid userId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Where(b => b.UserId == userId && b.BookingDate == date)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetBySocietyAndDateAsync(
+        Guid societyId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.SocietyId == societyId && b.BookingDate == date)
+            .OrderBy(b => b.Amenity!.Name)
+            .ThenBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetPendingBySocietyAsync(
+        Guid societyId, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.SocietyId == societyId && b.Status == BookingStatus.Pending)
+            .OrderBy(b => b.BookingDate)
+            .ThenBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> CountUserBookingsForDateAsync(
+        Guid userId, 
+        Guid amenityId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .CountAsync(b => b.UserId == userId && 
+                            b.AmenityId == amenityId && 
+                            b.BookingDate == date &&
+                            b.Status != BookingStatus.Cancelled &&
+                            b.Status != BookingStatus.Rejected,
+                            cancellationToken);
+    }
+
+    public async Task<bool> HasOverlappingBookingAsync(
+        Guid amenityId, 
+        DateOnly date, 
+        TimeOnly startTime, 
+        TimeOnly endTime, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .AnyAsync(b => b.AmenityId == amenityId &&
+                          b.BookingDate == date &&
+                          b.Status != BookingStatus.Cancelled &&
+                          b.Status != BookingStatus.Rejected &&
+                          b.StartTime < endTime &&
+                          b.EndTime > startTime,
+                          cancellationToken);
+    }
+
+    public void Add(AmenityBooking booking)
+    {
+        _context.AmenityBookings.Add(booking);
+    }
+
+    public void Update(AmenityBooking booking)
+    {
+        _context.AmenityBookings.Update(booking);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Repositories\AmenityRepository.cs
+SIZE  : 2.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace AmenityService.Infrastructure.Repositories;
+
+public class AmenityRepository : IAmenityRepository
+{
+    private readonly AmenityDbContext _context;
+
+    public AmenityRepository(AmenityDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<Amenity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Amenity>> GetBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .Where(a => a.SocietyId == societyId)
+            .OrderBy(a => a.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Amenity>> GetActiveBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .Where(a => a.SocietyId == societyId && a.IsActive)
+            .OrderBy(a => a.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .AnyAsync(a => a.Id == id, cancellationToken);
+    }
+
+    public async Task<bool> IsOwnedBySocietyAsync(Guid amenityId, Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .AnyAsync(a => a.Id == amenityId && a.SocietyId == societyId, cancellationToken);
+    }
+
+    public void Add(Amenity amenity)
+    {
+        _context.Amenities.Add(amenity);
+    }
+
+    public void Update(Amenity amenity)
+    {
+        _context.Amenities.Update(amenity);
+    }
+
+    public void Remove(Amenity amenity)
+    {
+        _context.Amenities.Remove(amenity);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Repositories\UnitOfWork.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Data;
+
+namespace AmenityService.Infrastructure.Repositories;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly AmenityDbContext _context;
+
+    public IAmenityRepository Amenities { get; }
+    public IAmenityBookingRepository AmenityBookings { get; }
+
+    public UnitOfWork(
+        AmenityDbContext context,
+        IAmenityRepository amenityRepository,
+        IAmenityBookingRepository amenityBookingRepository)
+    {
+        _context = context;
+        Amenities = amenityRepository;
+        AmenityBookings = amenityBookingRepository;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        _context.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "BillingDb": "Server=localhost;Database=MyGateBillingDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\BillingService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillingService.Application\BillingService.Application.csproj" />
+    <ProjectReference Include="..\BillingService.Infrastructure\BillingService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\Controllers\InvoicesController.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using BillingService.Application.Features.Invoices.Commands;
+using BillingService.Application.Features.Invoices.Queries;
+
+namespace BillingService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class InvoicesController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    public InvoicesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpPost("generate")]
+    public async Task<IActionResult> Generate([FromBody] GenerateInvoiceCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(Generate), new { id }, new { Id = id });
+    }
+
+    [HttpGet("my-dues")]
+    public async Task<IActionResult> GetMyDues([FromQuery] Guid flatId)
+    {
+        var result = await _mediator.Send(new GetMyDuesQuery { FlatId = flatId });
+        return Ok(result);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\Program.cs
+SIZE  : 2.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.OpenApi;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using BillingService.Infrastructure.Persistence;
+using BillingService.Domain.Interfaces;
+using BillingService.Infrastructure.Repositories;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddDbContext<BillingDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("BillingDb")));
+
+    builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(BillingService.Application.Features.Invoices.Commands.GenerateInvoiceCommand).Assembly));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+     var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Name = "Authorization", Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT", In = ParameterLocation.Header });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() });
+});
+
+var app = builder.Build();
+app.UseSwagger(); app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication(); app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5107",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\BillingService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillingService.Domain\BillingService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace BillingService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Commands\GenerateInvoiceCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace BillingService.Application.Features.Invoices.Commands;
+
+public class GenerateInvoiceCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public Guid FlatId { get; set; }
+    public decimal Amount { get; set; }
+    public DateTime DueDate { get; set; }
+    public string? Description { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Commands\GenerateInvoiceCommandHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Entities;
+using BillingService.Domain.Interfaces;
+
+namespace BillingService.Application.Features.Invoices.Commands;
+
+public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceCommand, Guid>
+{
+    private readonly IInvoiceRepository _repository;
+    public GenerateInvoiceCommandHandler(IInvoiceRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(GenerateInvoiceCommand request, CancellationToken cancellationToken)
+    {
+        var invoice = new Invoice(
+            request.SocietyId, 
+            request.FlatId, 
+            request.Amount, 
+            request.DueDate, 
+            request.Description
+        );
+
+        return (await _repository.AddAsync(invoice)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Queries\GetMyDuesQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Entities;
+
+namespace BillingService.Application.Features.Invoices.Queries;
+
+public class GetMyDuesQuery : IRequest<List<Invoice>>
+{
+    public Guid FlatId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Queries\GetMyDuesQueryHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Interfaces;
+using BillingService.Domain.Entities;
+
+namespace BillingService.Application.Features.Invoices.Queries;
+
+public class GetMyDuesQueryHandler : IRequestHandler<GetMyDuesQuery, List<Invoice>>
+{
+    private readonly IInvoiceRepository _repository;
+    public GetMyDuesQueryHandler(IInvoiceRepository repository) => _repository = repository;
+
+    public async Task<List<Invoice>> Handle(GetMyDuesQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetByFlatIdAsync(request.FlatId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\BillingService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace BillingService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Entities\Invoice.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace BillingService.Domain.Entities;
+
+public class Invoice
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public Guid FlatId { get; private set; }
+    
+    public decimal Amount { get; private set; }
+    public decimal PenaltyAmount { get; private set; }
+    public decimal TotalAmount => Amount + PenaltyAmount;
+    
+    public DateTime DueDate { get; private set; }
+    public string? InvoiceNumber { get; private set; }
+    public string? Description { get; private set; }
+    
+    public InvoiceStatus Status { get; private set; } = InvoiceStatus.Pending;
+    public DateTime GeneratedAt { get; private set; }
+
+    private Invoice() { }
+
+    public Invoice(Guid societyId, Guid flatId, decimal amount, DateTime dueDate, string? description = null)
+    {
+        if (amount < 0) throw new ArgumentException("Amount cannot be negative.");
+        
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        FlatId = flatId;
+        Amount = amount;
+        DueDate = dueDate;
+        Description = description;
+        GeneratedAt = DateTime.UtcNow;
+    }
+
+    public void MarkAsPaid(decimal penaltyPaid = 0)
+    {
+        Status = InvoiceStatus.Paid;
+        PenaltyAmount = penaltyPaid; // In a real app, this would calculate based on days late
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Entities\InvoiceStatus.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace BillingService.Domain.Entities;
+
+public enum InvoiceStatus
+{
+    Pending,    // Just generated
+    Paid,       // Resident paid
+    Overdue,    // Past due date
+    Waived,      // Admin removed the charge
+    PartiallyPaid // Advanced paid, but not full amount
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Interfaces\IInvoiceRepository.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using BillingService.Domain.Entities;
+
+namespace BillingService.Domain.Interfaces;
+
+public interface IInvoiceRepository
+{
+    Task<Invoice> AddAsync(Invoice invoice);
+    Task<List<Invoice>> GetByFlatIdAsync(Guid flatId);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\BillingService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillingService.Domain\BillingService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace BillingService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\Persistence\BillingDbContext.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using BillingService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace BillingService.Infrastructure.Persistence;
+
+public class BillingDbContext : DbContext
+{
+    public BillingDbContext(DbContextOptions<BillingDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+      // Tell EF Core to use 4 decimal places for money!
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.Property(e => e.Amount).HasPrecision(18, 4);
+            entity.Property(e => e.PenaltyAmount).HasPrecision(18, 4);
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\Repositories\InvoiceRepository.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using BillingService.Domain.Entities;
+using BillingService.Domain.Interfaces;
+using BillingService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace BillingService.Infrastructure.Repositories;
+
+public class InvoiceRepository : IInvoiceRepository
+{
+    private readonly BillingDbContext _context;
+    public InvoiceRepository(BillingDbContext context) => _context = context;
+
+    public async Task<Invoice> AddAsync(Invoice invoice)
+    {
+        await _context.Invoices.AddAsync(invoice);
+        await _context.SaveChangesAsync();
+        return invoice;
+    }
+
+    public async Task<List<Invoice>> GetByFlatIdAsync(Guid flatId)
+    {
+        return await _context.Invoices
+            .Where(i => i.FlatId == flatId)
+            .OrderByDescending(i => i.DueDate)
+            .ToListAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\appsettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateDailyHelpServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\AssignmentsController.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Application.Features.Assignments.Commands.AssignStaff;
+using DailyHelpService.Application.Features.Assignments.Queries.GetMyAssignments;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+public class AssignmentsController : BaseController
+{
+    private readonly IMediator _mediator;
+    public AssignmentsController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("my-help")]
+    public async Task<ActionResult<IReadOnlyList<DailyHelpAssignmentDto>>> GetMyHelp([FromQuery] Guid flatId)
+    {
+        var result = await _mediator.Send(new GetMyAssignmentsQuery { FlatId = flatId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+  //  [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Guid>> Assign([FromBody] AssignStaffCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetMyHelp), new { flatId = command.FlatId }, id);
+    }
+
+    [HttpDelete("{id}")]
+   // [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> RemoveAssignment(Guid id)
+    {
+        // TODO: Implement removal via MediatR
+        return NoContent();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+    protected bool IsAdmin => Role == "Admin";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\HelpTypesController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType;
+using DailyHelpService.Application.Features.HelpTypes.Queries.GetHelpTypesBySociety;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+public class HelpTypesController : BaseController
+{
+    private readonly IMediator _mediator;
+    public HelpTypesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("society/{societyId}")]
+    public async Task<ActionResult<IReadOnlyList<HelpTypeDto>>> GetBySociety(Guid societyId)
+    {
+        var result = await _mediator.Send(new GetHelpTypesBySocietyQuery { SocietyId = societyId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateHelpTypeCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetBySociety), new { societyId = command.SocietyId }, id);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\StaffController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Application.Features.Staff.Commands.CreateStaff;
+using DailyHelpService.Application.Features.Staff.Queries.GetStaffBySociety;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+public class StaffController : BaseController
+{
+    private readonly IMediator _mediator;
+    public StaffController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("society/{societyId}")]
+    public async Task<ActionResult<IReadOnlyList<DailyHelpStaffDto>>> GetBySociety(Guid societyId, [FromQuery] Guid? helpTypeId = null)
+    {
+        var result = await _mediator.Send(new GetStaffBySocietyQuery { SocietyId = societyId, HelpTypeId = helpTypeId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    //[Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateStaffCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetBySociety), new { societyId = command.SocietyId }, id);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\DailyHelpService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DailyHelpService.Application\DailyHelpService.Application.csproj" />
+    <ProjectReference Include="..\DailyHelpService.Infrastructure\DailyHelpService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Program.cs
+SIZE  : 3.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using DailyHelpService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using DailyHelpService.Domain.Interfaces;
+using DailyHelpService.Infrastructure.Repositories;
+using FluentValidation;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin()   
+         policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<DailyHelpDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IHelpTypeRepository, HelpTypeRepository>();
+builder.Services.AddScoped<IDailyHelpStaffRepository, DailyHelpStaffRepository>();
+builder.Services.AddScoped<IDailyHelpAssignmentRepository, DailyHelpAssignmentRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// --- MediatR & Validation ---
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType.CreateHelpTypeCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType.CreateHelpTypeCommand).Assembly);
+// Note: If you want FluentValidation to auto-run, you need to add the behavior:
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Daily Help Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Properties\launchSettings.json
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5111",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DailyHelpService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DailyHelpService.Domain\DailyHelpService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DTOs\DailyHelpAssignmentDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application.DTOs;
+
+public record DailyHelpAssignmentDto(
+    Guid Id,
+    Guid StaffId,
+    string StaffName,
+    string StaffMobile,
+    string HelpTypeName,
+    Guid FlatId,
+    string WorkingDays,
+    string? InTime,
+    string? OutTime,
+    bool IsActive);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DTOs\DailyHelpStaffDto.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application.DTOs;
+
+public record DailyHelpStaffDto(
+    Guid Id, 
+    string Name, 
+    string MobileNumber, 
+    Guid HelpTypeId, 
+    string HelpTypeName, 
+    string? AgencyName, 
+    bool IsActive);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DTOs\HelpTypeDto.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application.DTOs;
+
+public record HelpTypeDto(Guid Id, string Name);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Commands\AssignStaff\AssignStaffCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Commands.AssignStaff;
+
+public record AssignStaffCommand : IRequest<Guid>
+{
+    public Guid StaffId { get; init; }
+    public Guid FlatId { get; init; }
+    public Guid SocietyId { get; init; }
+    public string WorkingDays { get; init; } = "Mon,Tue,Wed,Thu,Fri,Sat";
+    public string? InTime { get; init; }
+    public string? OutTime { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Commands\AssignStaff\AssignStaffCommandHandler.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Commands.AssignStaff;
+
+public class AssignStaffCommandHandler : IRequestHandler<AssignStaffCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public AssignStaffCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(AssignStaffCommand request, CancellationToken cancellationToken)
+    {
+        var staff = await _unitOfWork.Staff.GetByIdAsync(request.StaffId, cancellationToken)
+            ?? throw new KeyNotFoundException("Staff not found.");
+
+        if (staff.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("Staff does not belong to this society.");
+
+        TimeOnly? inTime = string.IsNullOrWhiteSpace(request.InTime) ? null : TimeOnly.Parse(request.InTime);
+        TimeOnly? outTime = string.IsNullOrWhiteSpace(request.OutTime) ? null : TimeOnly.Parse(request.OutTime);
+
+        var assignment = Domain.Entities.DailyHelpAssignment.Create(
+            request.StaffId, request.FlatId, request.SocietyId, request.WorkingDays, inTime, outTime);
+
+        _unitOfWork.Assignments.Add(assignment);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return assignment.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Queries\GetMyAssignments\GetMyAssignmentsQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Queries.GetMyAssignments;
+
+public record GetMyAssignmentsQuery : IRequest<IReadOnlyList<DailyHelpAssignmentDto>>
+{
+    public Guid FlatId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Queries\GetMyAssignmentsQueryHandler.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Queries.GetMyAssignments;
+
+public class GetMyAssignmentsQueryHandler : IRequestHandler<GetMyAssignmentsQuery, IReadOnlyList<DailyHelpAssignmentDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetMyAssignmentsQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<DailyHelpAssignmentDto>> Handle(GetMyAssignmentsQuery request, CancellationToken cancellationToken)
+    {
+        var assignments = await _unitOfWork.Assignments.GetByFlatIdAsync(request.FlatId, cancellationToken);
+        return assignments.Select(a => new DailyHelpAssignmentDto(
+            a.Id,
+            a.StaffId,
+            a.Staff.Name,
+            a.Staff.MobileNumber,
+            a.Staff.HelpType.Name, // Traversing Staff -> HelpType
+            a.FlatId,
+            a.WorkingDays,
+            a.InTime?.ToString("HH:mm"),
+            a.OutTime?.ToString("HH:mm"),
+            a.IsActive
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\HelpTypes\Commands\CreateHelpType\CreateHelpTypeCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType;
+
+public record CreateHelpTypeCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\HelpTypes\Commands\CreateHelpType\CreateHelpTypeCommandHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType;
+
+public class CreateHelpTypeCommandHandler : IRequestHandler<CreateHelpTypeCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateHelpTypeCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(CreateHelpTypeCommand request, CancellationToken cancellationToken)
+    {
+        var helpType = Domain.Entities.HelpType.Create(request.SocietyId, request.Name);
+        _unitOfWork.HelpTypes.Add(helpType);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return helpType.Id;
+    }
+}
+

@@ -1,0 +1,57 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET
+║  Generated : 2026-09-25 11:55:34
+║  Root      : C:\MyGateApp\src\BuildingBlocks
+║  Files     : 3
+╚══════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj
+SIZE  : 0.2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BuildingBlocks.Messaging\Events\UserRegisteredEvent.cs
+SIZE  : 0.2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+namespace BuildingBlocks.Messaging.Events;
+
+// This is the exact data the DJ broadcasts
+public record UserRegisteredEvent(
+    Guid UserId, 
+    string MobileNumber, 
+    string FullName, 
+    DateTime RegisteredAt
+);
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BuildingBlocks.Messaging\Interfaces\IEventBus.cs
+SIZE  : 0.2 KB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+using BuildingBlocks.Messaging.Events;
+
+namespace BuildingBlocks.Messaging.Interfaces;
+
+public interface IEventBus
+{
+    // The DJ uses this to broadcast
+    Task PublishAsync<TEvent>(TEvent eventData, string topicName) where TEvent : class;
+}
+
+
+

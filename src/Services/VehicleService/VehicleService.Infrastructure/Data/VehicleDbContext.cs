@@ -23,7 +23,7 @@ public class VehicleDbContext : DbContext
             entity.HasIndex(e => new { e.SocietyId, e.SlotNumber }).IsUnique();
         });
 
-       /* modelBuilder.Entity<Vehicle>(entity =>
+        modelBuilder.Entity<Vehicle>(entity =>
         {
             entity.ToTable("Vehicles");
             entity.HasKey(e => e.Id);
@@ -38,7 +38,7 @@ public class VehicleDbContext : DbContext
             entity.HasIndex(e => new { e.SocietyId, e.VehicleNumber });
             entity.HasIndex(e => e.FlatId);
             entity.HasIndex(e => e.OwnerId);
-        });*/
+        });
         modelBuilder.Entity<ParkingSlot>(entity =>
 {
     entity.ToTable("ParkingSlots");

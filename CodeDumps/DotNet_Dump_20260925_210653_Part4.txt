@@ -1,0 +1,1906 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET  (continued — Part 4)
+║  Generated : 2026-09-25 21:07:33
+║  Root      : C:\MyGateApp\src\Services
+║  Max part  : 150 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetSlotsBySociety\GetSlotsBySocietyQueryHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Queries.GetSlotsBySociety;
+
+public class GetSlotsBySocietyQueryHandler : IRequestHandler<GetSlotsBySocietyQuery, IReadOnlyList<ParkingSlotDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetSlotsBySocietyQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<ParkingSlotDto>> Handle(GetSlotsBySocietyQuery request, CancellationToken cancellationToken)
+    {
+        var slots = await _unitOfWork.ParkingSlots.GetBySocietyAsync(
+            request.SocietyId, request.Type, request.IsOccupied, cancellationToken);
+
+        return slots.Select(s => new ParkingSlotDto(
+            s.Id,
+    s.SlotNumber,
+    s.SlotType,
+    s.BlockId,
+    s.FlatId,
+    s.FlatId.HasValue, // IsAllotted
+    s.IsOccupied
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\VehicleService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleService.Domain\VehicleService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Entities\BaseEntity.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public Guid Id { get; protected set; } = Guid.NewGuid();
+    public DateTimeOffset CreatedAt { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; protected set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Entities\ParkingSlot.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Entities;
+
+public class ParkingSlot : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public string SlotNumber { get; private set; } = string.Empty;
+    public VehicleType SlotType { get; private set; }
+
+ // NEW: Location Mapping
+    public Guid? BlockId { get; private set; }
+    public Guid? FlatId { get; private set; } // If populated, this slot is strictly allotted to this flat
+    
+    public string? BlockName { get; private set; }
+    public bool IsOccupied { get; private set; } = false;
+    
+    public virtual Vehicle? ParkedVehicle { get; private set; }
+
+    private ParkingSlot() { }
+
+   public static ParkingSlot Create(Guid societyId, string slotNumber, VehicleType slotType, Guid? blockId, Guid? flatId)
+    {
+        if (string.IsNullOrWhiteSpace(slotNumber)) throw new ArgumentException("Slot number is required.");
+
+        return new ParkingSlot
+        {
+            SocietyId = societyId,
+            SlotNumber = slotNumber.Trim(),
+            SlotType = slotType,
+            BlockId = blockId,
+            FlatId = flatId
+        };
+    }
+
+    public void MarkOccupied() { IsOccupied = true; UpdatedAt = DateTimeOffset.UtcNow; }
+    public void MarkVacant() { IsOccupied = false; UpdatedAt = DateTimeOffset.UtcNow; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Entities\Vehicle.cs
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Entities;
+
+public class Vehicle : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public Guid OwnerId { get; private set; } 
+    public Guid FlatId { get; private set; }
+    
+    public VehicleType VehicleType { get; private set; }
+    public VehicleCategory Category { get; private set; } // NEW: Resident or Guest
+    
+    public string VehicleNumber { get; private set; } = string.Empty;
+    public string? MakeModel { get; private set; }
+    
+    // NEW: Time tracking for Guests
+    public DateTimeOffset? CheckInTime { get; private set; }
+    public DateTimeOffset? ExpectedCheckOutTime { get; private set; }
+    
+    public Guid? ParkingSlotId { get; private set; }
+    public virtual ParkingSlot? ParkingSlot { get; private set; }
+
+    private Vehicle() { }
+
+    public static Vehicle CreateResidentVehicle(Guid societyId, Guid ownerId, Guid flatId, string vehicleNumber, VehicleType vehicleType, string? makeModel)
+    {
+        if (string.IsNullOrWhiteSpace(vehicleNumber)) throw new ArgumentException("Vehicle number is required.");
+        if (vehicleType == VehicleType.Visitor) throw new ArgumentException("Residents cannot register as Visitor type.");
+
+        return new Vehicle
+        {
+            SocietyId = societyId,
+            OwnerId = ownerId,
+            FlatId = flatId,
+            VehicleNumber = vehicleNumber.Trim().ToUpper(),
+            VehicleType = vehicleType,
+            Category = VehicleCategory.Resident,
+            MakeModel = makeModel?.Trim()
+        };
+    }
+
+    // NEW: Factory method for Guests
+    public static Vehicle CreateGuestVehicle(Guid societyId, Guid flatId, string vehicleNumber, VehicleType vehicleType, string? makeModel, DateTimeOffset expectedCheckout)
+    {
+        if (string.IsNullOrWhiteSpace(vehicleNumber)) throw new ArgumentException("Vehicle number is required.");
+
+        return new Vehicle
+        {
+            SocietyId = societyId,
+            OwnerId = Guid.Empty, // Guest doesn't have an app account
+            FlatId = flatId,
+            VehicleNumber = vehicleNumber.Trim().ToUpper(),
+            VehicleType = vehicleType,
+            Category = VehicleCategory.Guest,
+            MakeModel = makeModel?.Trim(),
+            CheckInTime = DateTimeOffset.UtcNow,
+            ExpectedCheckOutTime = expectedCheckout
+        };
+    }
+
+    public void AssignSlot(Guid slotId)
+    {
+        ParkingSlotId = slotId;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void RemoveSlot()
+    {
+        ParkingSlotId = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Enums\VehicleCategory.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Enums;
+
+// Ownership type
+public enum VehicleCategory
+{
+    Resident = 0,
+    Guest = 1
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Enums\VehicleType.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Enums;
+
+public enum VehicleType
+{
+    TwoWheeler = 0,
+    FourWheeler = 1,
+      Visitor = 2 
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Interfaces\IParkingSlotRepository.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Interfaces;
+
+public interface IParkingSlotRepository
+{
+    Task<ParkingSlot?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ParkingSlot>> GetAvailableSlotsAsync(Guid societyId, VehicleType type, CancellationToken cancellationToken = default);
+    Task<bool> IsSlotNumberTakenAsync(Guid societyId, string slotNumber, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ParkingSlot>> GetBySocietyAsync(Guid societyId, VehicleType? type = null, bool? isOccupied = null, CancellationToken cancellationToken = default);
+    
+    void Add(ParkingSlot slot);
+    void Update(ParkingSlot slot);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Interfaces\IUnitOfWork.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Interfaces;
+
+public interface IUnitOfWork : IDisposable
+{
+    IParkingSlotRepository ParkingSlots { get; }
+    IVehicleRepository Vehicles { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Interfaces\IVehicleRepository.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Interfaces;
+
+public interface IVehicleRepository
+{
+    Task<IReadOnlyList<Vehicle>> GetByOwnerAsync(Guid societyId, Guid ownerId, CancellationToken cancellationToken = default);
+    Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> IsVehicleNumberTakenAsync(Guid societyId, string vehicleNumber, CancellationToken cancellationToken = default);
+
+    Task<int> CountActiveVehiclesByTypeAsync(Guid societyId, Guid flatId, VehicleType type, CancellationToken cancellationToken = default);
+
+    void Add(Vehicle vehicle);
+    void Update(Vehicle vehicle);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\VehicleService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\Data\VehicleDbContext.cs
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace VehicleService.Infrastructure.Data;
+
+public class VehicleDbContext : DbContext
+{
+    public VehicleDbContext(DbContextOptions<VehicleDbContext> options) : base(options) { }
+
+    public DbSet<ParkingSlot> ParkingSlots => Set<ParkingSlot>();
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ParkingSlot>(entity =>
+        {
+            entity.ToTable("ParkingSlots");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SlotNumber).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SlotType).IsRequired();
+            entity.HasIndex(e => new { e.SocietyId, e.SlotNumber }).IsUnique();
+        });
+
+       /* modelBuilder.Entity<Vehicle>(entity =>
+        {
+            entity.ToTable("Vehicles");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VehicleNumber).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.VehicleType).IsRequired();
+            
+            entity.HasOne(e => e.ParkingSlot)
+                  .WithOne(s => s.ParkedVehicle)
+                  .HasForeignKey<Vehicle>(e => e.ParkingSlotId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.SocietyId, e.VehicleNumber });
+            entity.HasIndex(e => e.FlatId);
+            entity.HasIndex(e => e.OwnerId);
+        });*/
+        modelBuilder.Entity<ParkingSlot>(entity =>
+{
+    entity.ToTable("ParkingSlots");
+    entity.HasKey(e => e.Id);
+    entity.Property(e => e.SlotNumber).IsRequired().HasMaxLength(20);
+    entity.Property(e => e.SlotType).IsRequired();
+    
+    // Indexes for querying slots by location
+    entity.HasIndex(e => new { e.SocietyId, e.SlotNumber }).IsUnique();
+    entity.HasIndex(e => e.BlockId);
+    entity.HasIndex(e => e.FlatId);
+});
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\Repositories\ParkingSlotRepository.cs
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using VehicleService.Domain.Enums;
+using VehicleService.Domain.Interfaces;
+using VehicleService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace VehicleService.Infrastructure.Repositories;
+
+public class ParkingSlotRepository : IParkingSlotRepository
+{
+    private readonly VehicleDbContext _context;
+    public ParkingSlotRepository(VehicleDbContext context) => _context = context;
+
+    public async Task<ParkingSlot?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.ParkingSlots.Include(s => s.ParkedVehicle).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<ParkingSlot>> GetAvailableSlotsAsync(Guid societyId, VehicleType type, CancellationToken cancellationToken = default)
+        => await _context.ParkingSlots
+            .Where(s => s.SocietyId == societyId && s.SlotType == type && !s.IsOccupied)
+            .OrderBy(s => s.SlotNumber)
+            .ToListAsync(cancellationToken);
+
+    public async Task<bool> IsSlotNumberTakenAsync(Guid societyId, string slotNumber, CancellationToken cancellationToken = default)
+        => await _context.ParkingSlots.AnyAsync(s => s.SocietyId == societyId && s.SlotNumber == slotNumber.Trim(), cancellationToken);
+
+    public async Task<IReadOnlyList<ParkingSlot>> GetBySocietyAsync(Guid societyId, VehicleType? type = null, bool? isOccupied = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.ParkingSlots.Where(s => s.SocietyId == societyId);
+        
+        if (type.HasValue) query = query.Where(s => s.SlotType == type.Value);
+        if (isOccupied.HasValue) query = query.Where(s => s.IsOccupied == isOccupied.Value);
+        
+        return await query.OrderBy(s => s.SlotType).ThenBy(s => s.SlotNumber).ToListAsync(cancellationToken);
+    }
+
+    public void Add(ParkingSlot slot) => _context.ParkingSlots.Add(slot);
+    public void Update(ParkingSlot slot) => _context.ParkingSlots.Update(slot);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\Repositories\UnitOfWork.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Interfaces;
+using VehicleService.Infrastructure.Data;
+
+namespace VehicleService.Infrastructure.Repositories;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly VehicleDbContext _context;
+    public IParkingSlotRepository ParkingSlots { get; }
+    public IVehicleRepository Vehicles { get; }
+
+    public UnitOfWork(VehicleDbContext context, IParkingSlotRepository slotRepo, IVehicleRepository vehicleRepo)
+    {
+        _context = context;
+        ParkingSlots = slotRepo;
+        Vehicles = vehicleRepo;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => await _context.SaveChangesAsync(cancellationToken);
+    public void Dispose() { _context.Dispose(); GC.SuppressFinalize(this); }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\Repositories\VehicleRepository.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using VehicleService.Domain.Enums;
+using VehicleService.Domain.Interfaces;
+using VehicleService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace VehicleService.Infrastructure.Repositories;
+
+public class VehicleRepository : IVehicleRepository
+{
+    private readonly VehicleDbContext _context;
+    public VehicleRepository(VehicleDbContext context) => _context = context;
+
+    public async Task<IReadOnlyList<Vehicle>> GetByOwnerAsync(Guid societyId, Guid ownerId, CancellationToken cancellationToken = default)
+        => await _context.Vehicles
+            .Include(v => v.ParkingSlot)
+            .Where(v => v.SocietyId == societyId && v.OwnerId == ownerId)
+            .ToListAsync(cancellationToken);
+
+    public async Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.Vehicles.Include(v => v.ParkingSlot).FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
+
+    public async Task<bool> IsVehicleNumberTakenAsync(Guid societyId, string vehicleNumber, CancellationToken cancellationToken = default)
+        => await _context.Vehicles.AnyAsync(v => v.SocietyId == societyId && v.VehicleNumber == vehicleNumber.Trim().ToUpper(), cancellationToken);
+
+    public void Add(Vehicle vehicle) => _context.Vehicles.Add(vehicle);
+    public void Update(Vehicle vehicle) => _context.Vehicles.Update(vehicle);
+
+    public async Task<int> CountActiveVehiclesByTypeAsync(Guid societyId, Guid flatId, VehicleType type, CancellationToken cancellationToken = default)
+{
+    return await _context.Vehicles
+        .CountAsync(v => v.SocietyId == societyId && 
+                         v.FlatId == flatId && 
+                         v.VehicleType == type &&
+                         v.Category == VehicleCategory.Resident, 
+                         cancellationToken);
+}
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\VehicleService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleService.Domain\VehicleService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "VisitorDb": "Server=localhost;Database=MyGateVisitorDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VisitorService.API.Controllers;
+
+[ApiController]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst("sub")?.Value;
+            
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("Valid User ID not found in token.");
+            
+        return userId;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\Controllers\VisitorsController.cs
+SIZE  : 3.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using VisitorService.Domain.Interfaces;
+using VisitorService.Infrastructure.Repositories;
+using VisitorService.Application.Features.Visitors.Commands;
+using VisitorService.Application.Features.Visitors.Queries; // For GetMyVisitorsQuery
+using VisitorService.Domain.Entities;                     // For PreApprovedVisitor
+
+namespace VisitorService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize] // Locked down! Needs JWT
+public class VisitorsController : BaseController
+{
+    private readonly IMediator _mediator;
+
+    public VisitorsController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    // ADMIN: Get ALL! Get all visitors for a society
+    [HttpGet("society/{societyId}")]
+    public async Task<IActionResult> GetSocietyVisitors(Guid societyId)
+    {
+        var query = new GetSocietyVisitorsQuery { SocietyId = societyId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    [HttpPost("pre-approve")]
+    public async Task<IActionResult> PreApprove([FromBody] PreApproveVisitorCommand command)
+    {
+        /*
+      // The 'UserId' comes from your BaseController, which reads the JWT
+      command.InvitedByUserId = GetUserId(); // Injects the real ID!
+      var id = await _mediator.Send(command);
+      return Ok(new { Id = id });
+     // return CreatedAtAction(nameof(PreApprove), new { id }, new { Id = id });
+     */
+        command.InvitedByUserId = GetUserId();
+        var result = await _mediator.Send(command);
+        // CHANGED: Return OTP along with ID so frontend can display it
+        return Ok(new { Id = result.Id, Otp = result.Otp });
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyVisitorOtpCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return Ok(new { Message = "Visitor allowed inside.", VisitorId = id });
+    }
+    [HttpPost("mark-exit")]
+    public async Task<IActionResult> MarkExit([FromBody] MarkVisitorExitCommand command)
+    {
+        await _mediator.Send(command);
+        return Ok(); // 204 No Content
+    }
+
+    //RESIDENT: Get my visitors
+    [HttpGet("my-visitors")]
+    public async Task<IActionResult> GetMyVisitors([FromQuery] Guid inviterId)
+    {
+        var query = new GetMyVisitorsQuery { InviterId = inviterId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    // ADMIN: Manual entry override (no OTP)
+    [HttpPost("{id}/manual-entry")]
+    public async Task<IActionResult> ManualEntry(Guid id, [FromBody] ManualEntryCommand command)
+    {
+        command.PreApprovalId = id;
+        await _mediator.Send(command);
+        return Ok(new { Message = "Visitor manually marked as entered." });
+    }
+
+    // NEW: Regenerate OTP for an existing Pending visitor
+    [HttpPost("{id}/regenerate-otp")]
+    public async Task<IActionResult> RegenerateOtp(Guid id)
+    {
+        var command = new RegenerateOtpCommand { PreApprovalId = id };
+        var result = await _mediator.Send(command);
+        return Ok(new { Otp = result.Otp, ExpiresAt = result.ExpiresAt });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\Program.cs
+SIZE  : 4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using VisitorService.Domain.Interfaces;
+using VisitorService.Infrastructure.Persistence;
+using VisitorService.Infrastructure.Repositories;
+using VisitorService.Infrastructure.Services;
+using Microsoft.OpenApi;
+using System.Text.Json.Serialization; 
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });
+});
+
+// 1. Database
+builder.Services.AddDbContext<VisitorDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("VisitorDb")));
+
+// 2. Repositories (We will create the interface/implementation next)
+builder.Services.AddScoped<IPreApprovedVisitorRepository, PreApprovedVisitorRepository>();
+builder.Services.AddScoped<IVisitorLogRepository, VisitorLogRepository>();
+builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+
+// 3. MediatR
+//builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(VisitorService.Application.Features.Visitors.Commands.PreApproveVisitorCommand).Assembly));
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(VisitorService.Application.Features.Visitors.VisitorsServiceMarker).Assembly));
+
+// 4. JWT Bouncer (Copied from Tenant Service)
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+      var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+         IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+// 5. Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT Authorization header using the Bearer scheme."
+    });
+
+   /* c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new List<string>()
+        }
+    });*/
+     c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // This converts Enums (1, 2) to Strings ("Entered", "Exited")
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5105",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.API\VisitorService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisitorService.Application\VisitorService.Application.csproj" />
+    <ProjectReference Include="..\VisitorService.Infrastructure\VisitorService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VisitorService.Application;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\ManualEntryCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class ManualEntryCommand : IRequest<Unit>
+{
+    public Guid PreApprovalId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\ManualEntryCommandHandler.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class ManualEntryCommandHandler : IRequestHandler<ManualEntryCommand, Unit>
+{
+   private readonly IPreApprovedVisitorRepository _visitorRepo;
+    private readonly IVisitorLogRepository _logRepo;
+
+    public ManualEntryCommandHandler(IPreApprovedVisitorRepository visitorRepo,  IVisitorLogRepository logRepo)
+    {
+        _visitorRepo = visitorRepo;
+        _logRepo = logRepo;
+    }
+
+    public async Task<Unit> Handle(ManualEntryCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Find the visitor
+        var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+            ?? throw new KeyNotFoundException("Visitor not found.");
+
+        // 2. Manual entry — no OTP check, admin override
+        visitor.ManualEntry();
+        await _visitorRepo.UpdateAsync(visitor);
+
+        // 3. Create visitor log with manual entry note
+        var log = new Domain.Entities.VisitorLog(
+            visitor.SocietyId,
+            visitor.Id,
+            visitor.VisitorName,
+            visitor.VisitorMobile,
+            visitor.FlatId,
+            $"MANUAL ENTRY by Admin. Reason: {request.Reason}"
+        );
+
+        await _logRepo.AddAsync(log);
+
+        Console.WriteLine("");
+        Console.WriteLine("**********************************************************");
+        Console.WriteLine("*  MANUAL ENTRY (Admin Override)                         *");
+        Console.WriteLine("**********************************************************");
+        Console.WriteLine($"*  Visitor : {visitor.VisitorName}");
+        Console.WriteLine($"*  Reason  : {request.Reason}");
+        Console.WriteLine("**********************************************************");
+        Console.WriteLine("");
+
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\MarkVisitorExitCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class MarkVisitorExitCommand : IRequest<Unit>
+{
+   // public Guid LogId { get; set; }
+      public Guid PreApprovalId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\MarkVisitorExitCommandHandler.cs
+SIZE  : 2.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Entities;
+using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class MarkVisitorExitCommandHandler : IRequestHandler<MarkVisitorExitCommand, Unit>
+{
+    private readonly IVisitorLogRepository _logRepo;
+    private readonly IPreApprovedVisitorRepository _visitorRepo;
+
+    public MarkVisitorExitCommandHandler(
+        IVisitorLogRepository logRepo,
+        IPreApprovedVisitorRepository visitorRepo)
+    {
+        _logRepo = logRepo;
+        _visitorRepo = visitorRepo;
+    }
+
+    public async Task<Unit> Handle(MarkVisitorExitCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Find and update the PreApprovedVisitor status (PRIMARY — must succeed)
+        var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+            ?? throw new KeyNotFoundException("Visitor not found.");
+
+        visitor.MarkAsExited();
+        await _visitorRepo.UpdateAsync(visitor);
+
+        Console.WriteLine($"🚪 VISITOR EXITED: {visitor.VisitorName} (ID: {visitor.Id})");
+
+        // 2. Try to find an active VisitorLog (SECONDARY — best effort)
+        var log = await _logRepo.GetActiveByPreApprovalIdAsync(request.PreApprovalId);
+
+        if (log != null)
+        {
+            // Found the entry log — mark it as exited
+            log.MarkExit();
+            await _logRepo.UpdateAsync(log);
+            Console.WriteLine($"   → Updated existing entry log. Exit time: {log.ExitTime}");
+        }
+        else
+        {
+            // No active log found — create one with exit already recorded
+            Console.WriteLine($"   → No active entry log found. Creating exit log...");
+            var exitLog = new VisitorLog(
+                visitor.SocietyId,
+                visitor.Id,
+                visitor.VisitorName,
+                visitor.VisitorMobile,
+                visitor.FlatId,
+                visitor.Purpose
+            );
+            exitLog.MarkExit();
+            await _logRepo.AddAsync(exitLog);
+            Console.WriteLine($"   → Exit log created. Log ID: {exitLog.Id}");
+        }
+
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\PreApproveVisitorCommand.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+  public record PreApproveVisitorResult(Guid Id, string Otp);
+public class PreApproveVisitorCommand : IRequest<PreApproveVisitorResult>
+{
+    public Guid SocietyId { get; set; }
+    public Guid FlatId { get; set; }
+    public string VisitorName { get; set; } = string.Empty;
+    public string VisitorMobile { get; set; } = string.Empty;
+    public DateTime ExpectedDate { get; set; }
+    public TimeSpan? ExpectedTime { get; set; }
+    public string? Purpose { get; set; }
+    public Guid InvitedByUserId { get; set; } 
+
+  
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\PreApproveVisitorCommandHandler.cs
+SIZE  : 2.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Entities;
+using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class PreApproveVisitorCommandHandler : IRequestHandler<PreApproveVisitorCommand, PreApproveVisitorResult>
+{
+    private readonly IPreApprovedVisitorRepository _repository;
+    private readonly IPasswordHasher _passwordHasher;
+
+    public PreApproveVisitorCommandHandler(IPreApprovedVisitorRepository repository, IPasswordHasher passwordHasher)
+    {
+        _repository = repository;
+        _passwordHasher = passwordHasher;
+    }
+
+   // public async Task<Guid> Handle(PreApproveVisitorCommand request, CancellationToken cancellationToken)
+    public async Task<PreApproveVisitorResult> Handle(PreApproveVisitorCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Create the Visitor Entity
+        var visitor = new PreApprovedVisitor(
+            request.SocietyId,
+            request.InvitedByUserId != Guid.Empty ? request.InvitedByUserId : Guid.Empty, // Use provided InvitedByUserId or default to Guid.Empty
+            request.FlatId,
+            request.VisitorName,
+            request.VisitorMobile,
+            request.ExpectedDate,
+            request.ExpectedTime,
+            request.Purpose
+        );
+
+        // 2. Generate Gate OTP
+        var random = new Random();
+        var otp = random.Next(1000, 9999).ToString();
+        var hashedOtp = _passwordHasher.HashPassword(otp);
+        
+        visitor.SetOtp(hashedOtp);
+
+        // 3. Save to Database
+        var result = await _repository.AddAsync(visitor);
+
+        // 4. In a real app, send SMS to visitor with the OTP!
+        /*Console.WriteLine($"=========================================");
+        Console.WriteLine($"📱 MOCK SMS TO VISITOR: {request.VisitorMobile}");
+        Console.WriteLine($"🔑 GATE OTP: {otp}");
+        Console.WriteLine($"=========================================");
+        */
+Console.WriteLine("");
+Console.WriteLine("**********************************************************");
+Console.WriteLine("*  VISITOR PRE-APPROVED - GATE OTP GENERATED             *");
+Console.WriteLine("**********************************************************");
+Console.WriteLine($"*  Visitor Mobile : {request.VisitorMobile}");
+Console.WriteLine($"*  GATE OTP       : {otp}  <--- USE THIS OTP TO VERIFY ENTRY");
+Console.WriteLine($"*  Pre-Approval ID: {result.Id}");
+Console.WriteLine("**********************************************************");
+Console.WriteLine("");
+        return new PreApproveVisitorResult(result.Id, otp);
+       // return result.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\RegenerateOtpCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public record RegenerateOtpResult(string Otp, DateTime ExpiresAt);
+
+public class RegenerateOtpCommand : IRequest<RegenerateOtpResult>
+{
+    public Guid PreApprovalId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\RegenerateOtpCommandHandler.cs
+SIZE  : 2.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class RegenerateOtpCommandHandler : IRequestHandler<RegenerateOtpCommand, RegenerateOtpResult>
+{
+    private readonly IPreApprovedVisitorRepository _visitorRepo;
+    private readonly IPasswordHasher _passwordHasher;
+
+    public RegenerateOtpCommandHandler(
+        IPreApprovedVisitorRepository visitorRepo,
+        IPasswordHasher passwordHasher)
+    {
+        _visitorRepo = visitorRepo;
+        _passwordHasher = passwordHasher;
+    }
+
+    public async Task<RegenerateOtpResult> Handle(RegenerateOtpCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Find the visitor
+        var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+            ?? throw new KeyNotFoundException("Visitor not found.");
+
+        // 2. Only allow regenerating for Pending visitors
+        if (visitor.Status != Domain.Entities.VisitorStatus.Pending)
+            throw new InvalidOperationException(
+                $"Cannot regenerate OTP for visitor with status '{visitor.Status}'. " +
+                "Only Pending visitors can get a new OTP.");
+
+        // 3. Generate new OTP
+        var random = new Random();
+        var otp = random.Next(1000, 9999).ToString();
+        var hashedOtp = _passwordHasher.HashPassword(otp);
+
+        // 4. Set the new OTP (also resets expiry to +30 mins)
+        visitor.SetOtp(hashedOtp);
+
+        // 5. Save to database
+        await _visitorRepo.UpdateAsync(visitor);
+
+        // 6. Print to console
+        Console.WriteLine("");
+        Console.WriteLine("**********************************************************");
+        Console.WriteLine("*  OTP REGENERATED                                       *");
+        Console.WriteLine("**********************************************************");
+        Console.WriteLine($"*  Visitor         : {visitor.VisitorName}");
+        Console.WriteLine($"*  New GATE OTP    : {otp}");
+        Console.WriteLine($"*  Pre-Approval ID : {visitor.Id}");
+        Console.WriteLine($"*  Expires At      : {visitor.OtpExpiresAt}");
+        Console.WriteLine("**********************************************************");
+        Console.WriteLine("");
+
+        return new RegenerateOtpResult(otp, visitor.OtpExpiresAt!.Value);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\VerifyVisitorOtpCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class VerifyVisitorOtpCommand : IRequest<Guid>
+{
+    public Guid PreApprovalId { get; set; } // The ID of the pre-approved visitor
+    public string Otp { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Commands\VerifyVisitorOtpCommandHandler.cs
+SIZE  : 6.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ /*using MediatR;
+using VisitorService.Domain.Entities;
+using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class VerifyVisitorOtpCommandHandler : IRequestHandler<VerifyVisitorOtpCommand, Guid>
+{
+    private readonly IPreApprovedVisitorRepository _visitorRepo;
+    private readonly IPasswordHasher _passwordHasher;
+    // We'll need a log repository too!
+
+    public VerifyVisitorOtpCommandHandler(IPreApprovedVisitorRepository visitorRepo, IPasswordHasher passwordHasher)
+    {
+        _visitorRepo = visitorRepo;
+        _passwordHasher = passwordHasher;
+    }
+
+    public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Find the pre-approved visitor
+        var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+            ?? throw new KeyNotFoundException("Visitor not found.");
+
+        // 2. Verify the OTP using our clean architecture rule!
+        // The Handler checks the hash, then tells the entity to clear it if valid.
+        bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
+
+        if (!isValid)
+            throw new UnauthorizedAccessException("Invalid or expired OTP.");
+
+        // 3. Clear the OTP in the domain entity
+        visitor.ClearOtp();
+
+        // 4. In a real app, we would inject IVisitorLogRepository here and save a new VisitorLog
+        // to record that they stepped inside. For now, we just return success!
+        
+        Console.WriteLine($"🚪 GATE LOG: {visitor.VisitorName} entered the society at {DateTime.UtcNow}");
+
+        return visitor.Id;
+    }
+}
+*/
+using MediatR;
+using VisitorService.Domain.Entities;
+using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Application.Features.Visitors.Commands;
+
+public class VerifyVisitorOtpCommandHandler : IRequestHandler<VerifyVisitorOtpCommand, Guid>
+{
+    private readonly IPreApprovedVisitorRepository _visitorRepo;
+    private readonly IVisitorLogRepository _logRepo; // NEW!
+    private readonly IPasswordHasher _passwordHasher;
+
+    public VerifyVisitorOtpCommandHandler(
+        IPreApprovedVisitorRepository visitorRepo,
+        IVisitorLogRepository logRepo, // NEW!
+        IPasswordHasher passwordHasher)
+    {
+        _visitorRepo = visitorRepo;
+        _logRepo = logRepo; // NEW!
+        _passwordHasher = passwordHasher;
+    }
+
+    /* public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
+     {
+         // 1. Find the pre-approved visitor
+         var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+             ?? throw new KeyNotFoundException("Visitor not found.");
+
+         // 2. Verify the OTP
+         bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
+
+         if (!isValid)
+             throw new UnauthorizedAccessException("Invalid or expired OTP.");
+
+         // 3. Clear the OTP in the domain entity
+         visitor.ClearOtp();
+
+         // 4. CREATE THE REAL DATABASE LOG!
+         var log = new VisitorLog(
+             visitor.SocietyId,
+             visitor.Id, // Link the log to the pre-approval
+             visitor.VisitorName,
+             visitor.VisitorMobile,
+             visitor.FlatId,
+             visitor.Purpose
+         );
+
+         // 5. Save the log to the database
+         var savedLog = await _logRepo.AddAsync(log);
+
+         Console.WriteLine($"🚪 GATE LOG SAVED: {visitor.VisitorName} entered. Log ID: {savedLog.Id}");
+
+         // We return the Log ID, because the guard needs it to mark them as "Exited" later!
+         return savedLog.Id; 
+     }*/
+    public async Task<Guid> Handle(VerifyVisitorOtpCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Find the pre-approved visitor
+        var visitor = await _visitorRepo.GetByIdAsync(request.PreApprovalId)
+            ?? throw new KeyNotFoundException("Visitor not found.");
+
+        // 2. CHECK THE EXPIRATION TIME! (The missing rule)
+        if (visitor.OtpExpiresAt == null || DateTime.UtcNow > visitor.OtpExpiresAt.Value)
+        {
+            throw new UnauthorizedAccessException("OTP has expired.");
+        }
+
+if (DateTime.UtcNow > visitor.OtpExpiresAt.Value)
+            throw new UnauthorizedAccessException("OTP has expired. Please pre-approve again to get a new OTP.");
+
+        // 3. Verify the OTP hash
+       // bool isValid = _passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash!);
+
+        //if (!isValid)
+            //throw new UnauthorizedAccessException("Invalid or expired OTP.");
+
+              // 3. Verify the OTP hash (WITH SAFE NULL CHECK & MVP BYPASS)
+      /*  if (request.Otp != "1234") // <--- TEMP MVP BYPASS: "1234" always works for testing
+        {
+           // REAL PRODUCTION LOGIC (Only runs if OTP is NOT 1234)
+        if (visitor.OtpExpiresAt == null || DateTime.UtcNow > visitor.OtpExpiresAt.Value)
+        {
+            throw new UnauthorizedAccessException("OTP has expired.");
+        }
+
+        if (string.IsNullOrEmpty(visitor.OtpHash) || !_passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash))
+        {
+            throw new UnauthorizedAccessException("Invalid or expired OTP.");
+        }
+        }*/
+         // 3. Verify OTP hash
+        if (string.IsNullOrEmpty(visitor.OtpHash) || !_passwordHasher.VerifyPassword(request.Otp, visitor.OtpHash))
+            throw new UnauthorizedAccessException("Invalid OTP.");
+
+        // 4. Clear the OTP in the domain entity
+        visitor.ClearOtp();
+               // 5.3 NEW: Update status to Inside
+        visitor.MarkAsEntered();
+         await _visitorRepo.UpdateAsync(visitor);
+
+        // 5. Create the real database log
+        var log = new VisitorLog(
+            visitor.SocietyId,
+            visitor.Id,
+            visitor.VisitorName,
+            visitor.VisitorMobile,
+            visitor.FlatId,
+            visitor.Purpose
+        );
+
+        var savedLog = await _logRepo.AddAsync(log);
+        Console.WriteLine($"🚪 GATE LOG SAVED: {visitor.VisitorName} entered. Log ID: {savedLog.Id}");
+         Console.WriteLine("==========================================================");
+        Console.WriteLine($"GATE ENTRY: {visitor.VisitorName} entered the society.");
+        Console.WriteLine($"Log ID: {savedLog.Id}");
+        Console.WriteLine("==========================================================");
+
+        return savedLog.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Queries\GetMyVisitorsQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Entities;
+
+namespace VisitorService.Application.Features.Visitors.Queries;
+
+public class GetMyVisitorsQuery : IRequest<List<PreApprovedVisitor>>
+{
+    public Guid InviterId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Queries\GetMyVisitorsQueryHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Interfaces;
+using VisitorService.Domain.Entities; // For PreApprovedVisitor
+
+namespace VisitorService.Application.Features.Visitors.Queries;
+
+public class GetMyVisitorsQueryHandler : IRequestHandler<GetMyVisitorsQuery, List<PreApprovedVisitor>>
+{
+    private readonly IPreApprovedVisitorRepository _repository;
+    public GetMyVisitorsQueryHandler(IPreApprovedVisitorRepository repository) => _repository = repository;
+
+    public async Task<List<PreApprovedVisitor>> Handle(GetMyVisitorsQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetByInviterIdAsync(request.InviterId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Queries\GetSocietyVisitorsQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Entities;
+
+namespace VisitorService.Application.Features.Visitors.Queries;
+
+public class GetSocietyVisitorsQuery : IRequest<List<PreApprovedVisitor>>
+{
+    public Guid SocietyId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\Queries\GetSocietyVisitorsQueryHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using VisitorService.Domain.Interfaces;
+using VisitorService.Domain.Entities;
+
+namespace VisitorService.Application.Features.Visitors.Queries;
+
+public class GetSocietyVisitorsQueryHandler : IRequestHandler<GetSocietyVisitorsQuery, List<PreApprovedVisitor>>
+{
+    private readonly IPreApprovedVisitorRepository _repository;
+
+    public GetSocietyVisitorsQueryHandler(IPreApprovedVisitorRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<List<PreApprovedVisitor>> Handle(GetSocietyVisitorsQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetBySocietyIdAsync(request.SocietyId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\Features\Visitors\VisitorsServiceMarker.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VisitorService.Application.Features.Visitors;
+
+// This file does nothing except give MediatR a target to scan for Handlers!
+public class VisitorsServiceMarker { }
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Application\VisitorService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisitorService.Domain\VisitorService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VisitorService.Domain;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\Entities\PreApprovedVisitor.cs
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace VisitorService.Domain.Entities;
+
+public class PreApprovedVisitor
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public Guid InvitedByUserId { get; private set; } // The resident
+    public Guid FlatId { get; private set; }
+
+    public string VisitorName { get; private set; } = null!;
+    public string VisitorMobile { get; private set; } = null!;
+    public string? Purpose { get; private set; }
+
+    public DateTime ExpectedDate { get; private set; }
+    public TimeSpan? ExpectedTime { get; private set; }
+
+    public string? OtpHash { get; private set; } = null!;
+    public DateTime? OtpExpiresAt { get; private set; }
+    public VisitorStatus Status { get; private set; } = VisitorStatus.Pending;
+
+    private PreApprovedVisitor() { }
+
+    public PreApprovedVisitor(
+        Guid societyId,
+        Guid invitedByUserId,
+        Guid flatId,
+        string visitorName,
+        string visitorMobile,
+        DateTime expectedDate,
+        TimeSpan? expectedTime = null,
+        string? purpose = null)
+    {
+        if (string.IsNullOrWhiteSpace(visitorName)) throw new ArgumentException("Visitor name is required.");
+        if (string.IsNullOrWhiteSpace(visitorMobile)) throw new ArgumentException("Visitor mobile is required.");
+
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        InvitedByUserId = invitedByUserId;
+        FlatId = flatId;
+        VisitorName = visitorName;
+        VisitorMobile = visitorMobile;
+        ExpectedDate = expectedDate;
+        ExpectedTime = expectedTime;
+        Purpose = purpose;
+    }
+
+    // Method to attach the OTP when generated
+    public void SetOtp(string hashedOtp)
+    {
+        OtpHash = hashedOtp;
+        OtpExpiresAt = DateTime.UtcNow.AddMinutes(30); // Gate OTPs usually last 30 mins
+    }
+
+    // The Handler will check the hash, and if valid, call this method to wipe it.
+    public void ClearOtp()
+    {
+        OtpHash = null;
+        OtpExpiresAt = null;
+    }
+
+    // NEW: Status transition methods
+    public void MarkAsEntered()
+    {
+        if (Status != VisitorStatus.Pending)
+            throw new InvalidOperationException($"Cannot mark visitor as entered. Current status: {Status}");
+        Status = VisitorStatus.Inside;
+    }
+
+    public void MarkAsExited()
+    {
+        if (Status != VisitorStatus.Inside)
+            throw new InvalidOperationException($"Cannot mark visitor as exited. Current status: {Status}");
+        Status = VisitorStatus.Exited;
+    }
+
+    // Admin override — allows entry from ANY status, no OTP check
+    public void ManualEntry()
+    {
+        Status = VisitorStatus.Inside;
+        OtpHash = null;
+        OtpExpiresAt = null;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\Entities\VisitorLog.cs
+SIZE  : 1.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace VisitorService.Domain.Entities;
+
+public class VisitorLog
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    
+    // This links to the PreApprovedVisitor (if they were pre-approved). Can be null for unexpected guests!
+    public Guid? PreApprovalId { get; private set; } 
+    
+    public string VisitorName { get; private set; } = null!;
+    public string VisitorMobile { get; private set; } = null!;
+    public string? Purpose { get; private set; }
+    
+    public Guid VisitingFlatId { get; private set; }
+    public DateTime EntryTime { get; private set; }
+    public DateTime? ExitTime { get; private set; }
+    public VisitorStatus Status { get; private set; } = VisitorStatus.Inside;
+
+    private VisitorLog() { }
+
+    public VisitorLog(
+        Guid societyId, 
+        Guid? preApprovalId, 
+        string visitorName, 
+        string visitorMobile, 
+        Guid visitingFlatId, 
+        string? purpose = null)
+    {
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        PreApprovalId = preApprovalId;
+        VisitorName = visitorName;
+        VisitorMobile = visitorMobile;
+        VisitingFlatId = visitingFlatId;
+        Purpose = purpose;
+        EntryTime = DateTime.UtcNow;
+    }
+
+    public void MarkExit()
+    {
+       // if (Status != VisitorStatus.Inside) throw new InvalidOperationException("Visitor is not inside the society.");
+        ExitTime = DateTime.UtcNow;
+        Status = VisitorStatus.Exited;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\Interfaces\IPasswordHasher.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VisitorService.Domain.Interfaces;
+
+public interface IPasswordHasher
+{
+    string HashPassword(string password);
+    bool VerifyPassword(string password, string hashedPassword);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\Interfaces\IPreApprovedVisitorRepository.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VisitorService.Domain.Entities;
+
+namespace VisitorService.Domain.Interfaces;
+
+public interface IPreApprovedVisitorRepository
+{
+    Task<PreApprovedVisitor> AddAsync(PreApprovedVisitor visitor);
+    Task<PreApprovedVisitor?> GetByIdAsync(Guid id);
+        Task<List<PreApprovedVisitor>> GetByInviterIdAsync(Guid inviterId);
+
+        Task UpdateAsync(PreApprovedVisitor visitor);
+        //Society wide query for Admin
+        Task<List<PreApprovedVisitor>> GetBySocietyIdAsync(Guid societyId);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\Interfaces\IVisitorLogRepository.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VisitorService.Domain.Entities;
+
+namespace VisitorService.Domain.Interfaces;
+
+public interface IVisitorLogRepository
+{
+    Task<VisitorLog> AddAsync(VisitorLog log);
+    Task<VisitorLog?> GetByIdAsync(Guid id);
+        Task UpdateAsync(VisitorLog log);
+         Task<VisitorLog?> GetActiveByPreApprovalIdAsync(Guid preApprovalId);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\VisitorService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Domain\VisitorStatus.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VisitorService.Domain.Entities;
+
+public enum VisitorStatus
+{
+    Pending,   // Pre-approved, but hasn't arrived yet
+    Inside,    // Guard marked them as entered
+    Exited,    // Guard marked them as exited
+    Expired    // The expected date passed and they never showed up
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Infrastructure\Class1.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VisitorService.Infrastructure;
+
+public class Class1
+{
+
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Infrastructure\Persistence\VisitorDbContext.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VisitorService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace VisitorService.Infrastructure.Persistence;
+
+public class VisitorDbContext : DbContext
+{
+    public VisitorDbContext(DbContextOptions<VisitorDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<PreApprovedVisitor> PreApprovedVisitors => Set<PreApprovedVisitor>();
+    public DbSet<VisitorLog> VisitorLogs => Set<VisitorLog>();
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Infrastructure\Repositories\PreApprovedVisitorRepository.cs
+SIZE  : 1.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VisitorService.Domain.Entities;
+using VisitorService.Domain.Interfaces;
+using VisitorService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace VisitorService.Infrastructure.Repositories;
+
+public class PreApprovedVisitorRepository : IPreApprovedVisitorRepository
+{
+    private readonly VisitorDbContext _context;
+
+    public PreApprovedVisitorRepository(VisitorDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<PreApprovedVisitor> AddAsync(PreApprovedVisitor visitor)
+    {
+        await _context.PreApprovedVisitors.AddAsync(visitor);
+        await _context.SaveChangesAsync();
+        return visitor;
+    }
+
+    public async Task<PreApprovedVisitor?> GetByIdAsync(Guid id)
+    {
+        return await _context.PreApprovedVisitors.FindAsync(id);
+    }
+
+        public async Task<List<PreApprovedVisitor>> GetByInviterIdAsync(Guid inviterId)
+    {
+        return await _context.PreApprovedVisitors
+            .Where(v => v.InvitedByUserId == inviterId)
+            .OrderByDescending(v => v.ExpectedDate)
+            .ToListAsync();
+    }
+    // ← ADD THIS METHOD
+    public async Task UpdateAsync(PreApprovedVisitor visitor)
+    {
+        _context.PreApprovedVisitors.Update(visitor);
+        await _context.SaveChangesAsync();
+    }
+
+    // NEW: Get all visitors for a society (Admin view)
+    public async Task<List<PreApprovedVisitor>> GetBySocietyIdAsync(Guid societyId)
+    {
+        return await _context.PreApprovedVisitors
+            .Where(v => v.SocietyId == societyId)
+            .OrderByDescending(v => v.ExpectedDate)
+            .ToListAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Infrastructure\Repositories\VisitorLogRepository.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VisitorService.Domain.Entities;
+using VisitorService.Domain.Interfaces;
+using VisitorService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace VisitorService.Infrastructure.Repositories;
+
+public class VisitorLogRepository : IVisitorLogRepository
+{
+    private readonly VisitorDbContext _context;
+
+    public VisitorLogRepository(VisitorDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<VisitorLog> AddAsync(VisitorLog log)
+    {
+        await _context.VisitorLogs.AddAsync(log);
+        await _context.SaveChangesAsync();
+        return log;
+    }
+
+    public async Task<VisitorLog?> GetByIdAsync(Guid id)
+    {
+        return await _context.VisitorLogs.FindAsync(id);
+    }
+
+        public async Task UpdateAsync(VisitorLog log)
+    {
+        _context.VisitorLogs.Update(log);
+        await _context.SaveChangesAsync();
+    }
+
+     // NEW: Find the active log for a pre-approval
+    public async Task<VisitorLog?> GetActiveByPreApprovalIdAsync(Guid preApprovalId)
+    {
+        return await _context.VisitorLogs
+            .Where(l => l.PreApprovalId == preApprovalId &&  l.Status == VisitorStatus.Inside)
+            .OrderByDescending(l => l.EntryTime)
+            .FirstOrDefaultAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Infrastructure\Services\PasswordHasher.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VisitorService.Domain.Interfaces;
+
+namespace VisitorService.Infrastructure.Services;
+
+public class PasswordHasher : IPasswordHasher
+{
+    public string HashPassword(string password) => BCrypt.Net.BCrypt.HashPassword(password);
+    public bool VerifyPassword(string password, string hashedPassword) => BCrypt.Net.BCrypt.Verify(password, hashedPassword);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VisitorService\VisitorService.Infrastructure\VisitorService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisitorService.Domain\VisitorService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+

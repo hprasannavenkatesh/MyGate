@@ -15,7 +15,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFlutter", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        //policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+           policy.SetIsOriginAllowed(origin => true) // <--- THE MAGIC LINE! Allows any origin BUT works with Auth headers.
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
     });
 });
 
