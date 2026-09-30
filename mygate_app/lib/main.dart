@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:signalr_netcore/signalr_client.dart' hide ConnectionState; // ADDED hide ConnectionState
+import 'services/auth_service.dart';
 
 void main() async {
   // Required for shared_preferences
@@ -98,8 +99,10 @@ class _LoginScreenState extends State<LoginScreen> {
           // 4. Save everything locally
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwt_token', fatToken);
+          await AuthService.cacheTokenClaims(fatToken);   
           await prefs.setString('society_id', society['societyId']);
           await prefs.setString('flat_id', society['flatId']);
+          await prefs.setString('flat_number', society['flatNumber']);
 
           // 5. Navigate to Guard Screen (Removed 'const', checked 'mounted')
           if (mounted) {
@@ -157,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // PERMANENT SAVE: Save token locally!
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', _jwtToken!);
+        await AuthService.cacheTokenClaims(_jwtToken!);
 
         if (_isGuardMode) {
          // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const GuardScreen(token: '')));
@@ -270,8 +274,9 @@ class _SocietySelectionScreenState extends State<SocietySelectionScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Select Your Flat'), actions: [
         IconButton(icon: const Icon(Icons.logout), onPressed: () async {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('jwt_token'); // LOGOUT!
+          //final prefs = await SharedPreferences.getInstance();
+          //await prefs.remove('jwt_token'); // LOGOUT!
+           await AuthService.logout(); // ← Clears ALL cached data
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
         })
       ]),
@@ -302,7 +307,8 @@ class _SocietySelectionScreenState extends State<SocietySelectionScreen> {
                             print('🟢🟢🟢 FLAT TAPPED! NEW CODE IS RUNNING! 🟢🟢🟢');
                           final prefs = await SharedPreferences.getInstance();
                           final currentToken = prefs.getString('jwt_token') ?? '';
-                          final userId = _extractUserId(currentToken); // You already have this helper!
+                          //final userId = _extractUserId(currentToken); // You already have this helper!
+                          final userId = await AuthService.getUserId();
 
                           try {
                   // 1. CALL THE IDENTITY SERVICE TO GET THE CONTEXT JWT
@@ -327,10 +333,12 @@ class _SocietySelectionScreenState extends State<SocietySelectionScreen> {
                     // 2. CRITICAL STEP: OVERWRITE THE OLD TOKEN WITH THE NEW ONE!
                     // This new token now has SocietyId, FlatId, and Role baked inside.
                     await prefs.setString('jwt_token', newContextToken);
+                     await AuthService.cacheTokenClaims(newContextToken);     
                     
                     // 3. Save flat IDs locally for easy access later
                     await prefs.setString('society_id', society['societyId']);
                     await prefs.setString('flat_id', society['flatId']);
+                     await prefs.setString('flat_number', society['flatNumber']); 
                     
                     // 4. Go to Home
                     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
@@ -420,7 +428,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchVisitors(String token) async {
     try {
-      final userId = _extractUserId(token);
+      //final userId = _extractUserId(token);
+      final userId = await AuthService.getUserId();
       final response = await http.get(
         Uri.parse('http://localhost:5105/api/visitors/my-visitors?inviterId=$userId'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
@@ -441,8 +450,9 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.logout), onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('jwt_token');
+            //final prefs = await SharedPreferences.getInstance();
+            //await prefs.remove('jwt_token');
+             await AuthService.logout(); // ← Clears ALL cached data
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
           })
         ],
@@ -1065,12 +1075,17 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
     try {
       final prefs = await SharedPreferences.getInstance();
       final realToken = prefs.getString('jwt_token') ?? '';
-      final userId = _extractUserId(realToken);
-      
+      //final userId = _extractUserId(realToken);
+        final userId = await AuthService.getUserId();
+
        // CHANGED: Renamed 'context' to 'tokenContext' to avoid shadowing BuildContext
       final tokenContext = _extractContextFromToken(realToken);
-      final societyId = tokenContext['societyId'] ?? '';
-      final flatId = tokenContext['flatId'] ?? '';
+      //final societyId = tokenContext['societyId'] ?? '';
+     // final flatId = tokenContext['flatId'] ?? '';
+
+    
+final societyId = await AuthService.getSocietyId();
+final flatId = await AuthService.getFlatId();
 
       // SAFETY CHECK: Prevent the API call if IDs are missing
       if (societyId.isEmpty || flatId.isEmpty) {
@@ -1170,8 +1185,9 @@ class _GuardScreenState extends State<GuardScreen> with SingleTickerProviderStat
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white),
             onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('jwt_token');
+              //final prefs = await SharedPreferences.getInstance();
+              //await prefs.remove('jwt_token');
+               await AuthService.logout(); // ← Clears ALL cached data
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -1405,8 +1421,9 @@ class _MyDuesScreenState extends State<MyDuesScreen> {
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.logout), onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('jwt_token');
+           // final prefs = await SharedPreferences.getInstance();
+           // await prefs.remove('jwt_token');
+            await AuthService.logout(); // ← Clears ALL cached data
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
           })
         ],
@@ -1567,8 +1584,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.logout), onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('jwt_token');
+            //final prefs = await SharedPreferences.getInstance();
+            //await prefs.remove('jwt_token');
+             await AuthService.logout(); // ← Clears ALL cached data
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
           })
         ],

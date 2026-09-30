@@ -15,6 +15,7 @@ public class InvoicesController : ControllerBase
     public InvoicesController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost("generate")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Generate([FromBody] GenerateInvoiceCommand command)
     {
         var id = await _mediator.Send(command);

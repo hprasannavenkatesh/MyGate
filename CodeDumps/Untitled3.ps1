@@ -379,12 +379,16 @@ Export-ProjectCodeDump `
     -ExcludeDirs   $DotNetExcludeDirs `
     -ExcludeFiles  $DotNetExcludeFiles `
     -IncludeExts   $DotNetIncludeExts `
-    -OutputFile    "DotNet_Dump1_$Timestamp
+    -OutputFile    "DotNet_Dump1_$Timestamp"
+    
+
+
+
 
 Write-Host @"
 
   ╔═══════════════════════════════════════╗
-  ║     ALL DUMPS COMPLETE ✔              ║
+  ║     ALL DUMPS COMPLETE ✔             
   ║     Output folder: $OutputDir
   ╚═══════════════════════════════════════╝
 

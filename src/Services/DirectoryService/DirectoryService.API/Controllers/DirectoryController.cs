@@ -22,6 +22,7 @@ public class DirectoryController : BaseController
 
     [HttpPost]
    //[Authorize(Roles = "Admin")]
+   [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<Guid>> Add([FromBody] AddEntryCommand command)
     {
         var id = await _mediator.Send(command);
@@ -29,7 +30,8 @@ public class DirectoryController : BaseController
     }
 
     [HttpDelete("{id}")]
-   // [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult> Delete(Guid id, [FromQuery] Guid societyId)
     {
         var entry = await _mediator.Send(new DeleteEntryCommand { Id = id, SocietyId = societyId });

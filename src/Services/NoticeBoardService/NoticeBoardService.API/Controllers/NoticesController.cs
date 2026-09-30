@@ -13,7 +13,8 @@ public class NoticesController : BaseController // <--- USING BASECONTROLLER!
     public NoticesController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost]
-    [Authorize(Roles = "Admin")] // Only admins can post notices!
+    //[Authorize(Roles = "Admin")] // Only admins can post notices!
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> CreateNotice([FromBody] CreateNoticeCommand command)
     {
         command.CreatedByUserId = GetUserId(); // <--- MAGIC FROM BASECONTROLLER

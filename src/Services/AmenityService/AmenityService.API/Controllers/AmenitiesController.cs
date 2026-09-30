@@ -52,6 +52,7 @@ public class AmenitiesController : BaseController
     /// </summary>
     [HttpPost]
     //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateAmenityCommand command)
     {
         var id = await _mediator.Send(command);
@@ -63,6 +64,7 @@ public class AmenitiesController : BaseController
     /// </summary>
     [HttpPut("{id}")]
     //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult> Update(Guid id, [FromBody] UpdateAmenityCommand command)
     {
         if (id != command.Id)
@@ -77,6 +79,7 @@ public class AmenitiesController : BaseController
     /// </summary>
     [HttpDelete("{id}")]
     //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult> Delete(Guid id, [FromQuery] Guid societyId)
     {
         var command = new DeleteAmenityCommand { Id = id, SocietyId = societyId };

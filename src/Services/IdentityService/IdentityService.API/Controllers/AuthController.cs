@@ -58,7 +58,7 @@ public class AuthController : ControllerBase
         return NoContent(); // 204 No Content is standard for a successful update
     }
 
-        [HttpPost("request-otp")]
+    [HttpPost("request-otp")]
     public async Task<IActionResult> RequestOtp([FromBody] RequestOtpCommand command)
     {
         // This just returns OK. The real OTP is printed in the terminal!
@@ -73,5 +73,19 @@ public class AuthController : ControllerBase
         return Ok(new { Token = token });
     }
 
-      
+    // Add this method to the existing AuthController class:
+
+    [HttpGet("lookup/{mobileNumber}")]
+    [Authorize]
+    public async Task<IActionResult> LookupUser(string mobileNumber)
+    {
+        var query = new LookupUserByMobileQuery { MobileNumber = mobileNumber };
+        var result = await _mediator.Send(query);
+
+        if (result is null)
+            return NotFound(new { Message = "No user found with this mobile number." });
+
+        return Ok(result);
+    }
+
 }

@@ -61,7 +61,8 @@ public class BookingsController : BaseController
     /// Get all bookings for a specific amenity (Admin)
     /// </summary>
     [HttpGet("amenity/{amenityId}")]
-   // [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<AmenityBookingDto>>> GetByAmenity(
         Guid amenityId, 
         [FromQuery] Guid societyId, 
@@ -81,7 +82,8 @@ public class BookingsController : BaseController
     /// Get all pending bookings for a society (Admin)
     /// </summary>
     [HttpGet("pending")]
-   // [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<AmenityBookingDto>>> GetPendingBookings(
         [FromQuery] Guid societyId)
     {
@@ -123,6 +125,7 @@ public class BookingsController : BaseController
     /// </summary>
     [HttpPut("{id}/approve")]
     //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult> Approve(Guid id, [FromQuery] Guid societyId)
     {
         var command = new ApproveBookingCommand 
@@ -140,6 +143,7 @@ public class BookingsController : BaseController
     /// </summary>
     [HttpPut("{id}/reject")]
     //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult> Reject(
         Guid id, 
         [FromQuery] Guid societyId, 

@@ -20,7 +20,7 @@ public class StaffController : BaseController
     }
 
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateStaffCommand command)
     {
         var id = await _mediator.Send(command);

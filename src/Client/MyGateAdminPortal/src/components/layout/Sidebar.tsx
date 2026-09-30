@@ -1,15 +1,18 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Car, FileText } from 'lucide-react'; // Removed 'Settings' and 'React'
+import { LayoutDashboard, Users, Car, Building, FileText, UserPlus } from 'lucide-react'; // Removed 'Settings' and 'React'
 
 const Sidebar = () => {
   const location = useLocation();
 
-  const menuItems = [
+   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Visitors', path: '/visitors', icon: Users },
+    { name: 'Notices', path: '/notices', icon: FileText }, // ADDED
+    { name: 'Amenities', path: '/amenities', icon: LayoutDashboard }, // ADDED (Using LayoutDashboard as placeholder icon)
+      { name: 'Master Data', path: '/master', icon: Building }, // NEW
     { name: 'Vehicles', path: '/vehicles', icon: Car },
     { name: 'Billing', path: '/billing', icon: FileText },
-    // If you want a Settings button later, add it here and import the icon above
+    { name: 'Assign Member', path: '/assign-member', icon: UserPlus },
   ];
 
   return (

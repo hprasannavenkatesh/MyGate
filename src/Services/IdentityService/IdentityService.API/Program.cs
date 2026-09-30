@@ -24,6 +24,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader(); // Allow JSON content
     });
 });
+// Register HTTP Client for cross-service calls (SuperAdmin fetching societies)
+builder.Services.AddHttpClient("TenantService");
 
 // 2. Add MediatR (Tell it to scan the Application layer for Commands/Queries)
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(IdentityService.Application.Features.Auth.Commands.RegisterUserCommand).Assembly));

@@ -4,6 +4,7 @@ using EmergencyService.Application.Features.Alerts.Commands.TriggerPanic;
 using EmergencyService.Application.Features.Alerts.Queries.GetActiveAlerts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EmergencyService.API.Controllers // MUST MATCH EXACTLY
 {
@@ -27,6 +28,7 @@ namespace EmergencyService.API.Controllers // MUST MATCH EXACTLY
         }
 
         [HttpPut("resolve/{alertId}")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult> ResolveAlert(Guid alertId, [FromQuery] Guid societyId)
         {
             await _mediator.Send(new ResolveAlertCommand { AlertId = alertId, SocietyId = societyId });

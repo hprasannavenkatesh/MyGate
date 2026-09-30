@@ -20,7 +20,7 @@ public class HelpTypesController : BaseController
     }
 
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateHelpTypeCommand command)
     {
         var id = await _mediator.Send(command);

@@ -35,7 +35,7 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
             _ => "Resident" // Security Default: If unknown, treat as Resident
         };*/
         // 1. Get MemberType from Request (e.g., 0, 1, 2)
-       // int memberTypeId = int.Parse(request.MemberType); // Assuming React sends "0", "1"
+        // int memberTypeId = int.Parse(request.MemberType); // Assuming React sends "0", "1"
 
         // 2. Map MemberType to Security Role
         /*string assignedRole = memberTypeId switch
@@ -47,34 +47,45 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
             3 => "Resident",    // FamilyOfTenant gets Resident access
             _ => "Resident"     // Default safe fallback for unknown types
         };*/
-           // 2. Map MemberType to Security Role
+        // 2. Map MemberType to Security Role
         string assignedRole;
-
-        // Try to parse as integer first (in case React sends "0", "4")
-        if (int.TryParse(request.MemberType, out int memberTypeId))
+        // SUPERADMIN CHECK: If the request explicitly asks for SuperAdmin role, 
+        // and we verify the user is indeed our seeded SuperAdmin, bypass MemberType mapping.
+        // (We check the user ID to prevent privilege escalation from normal users)
+        if (request.Role == "SuperAdmin" && user.Id == Guid.Parse("A1B2C3D4-E5F6-7890-1234-567890ABCDEF"))
         {
-            assignedRole = memberTypeId switch
-            {
-                4 => "Admin",       // CommitteeMember gets Admin access
-                0 => "Resident",    // Owner gets Resident access
-                1 => "Resident",    // Tenant gets Resident access
-                2 => "Resident",    // FamilyOfOwner gets Resident access
-                3 => "Resident",    // FamilyOfTenant gets Resident access
-                _ => "Resident"     // Default safe fallback for unknown types
-            };
+            assignedRole = "SuperAdmin";
         }
         else
         {
-            // Fallback: It's a string like "Owner", "Tenant", "CommitteeMember" (from Flutter/TenantService)
-            assignedRole = request.MemberType?.ToLowerInvariant() switch
+            // Try to parse as integer first (in case React sends "0", "4")
+            if (int.TryParse(request.MemberType, out int memberTypeId))
             {
-                "committeemember" => "Admin",
-                "admin" => "Admin",
-                _ => "Resident" // "Owner", "Tenant", etc. default to Resident
-            };
+                assignedRole = memberTypeId switch
+                {
+                    4 => "Admin",       // CommitteeMember gets Admin access
+                    0 => "Resident",    // Owner gets Resident access
+                    1 => "Resident",    // Tenant gets Resident access
+                    2 => "Resident",    // FamilyOfOwner gets Resident access
+                    3 => "Resident",    // FamilyOfTenant gets Resident access
+                    _ => "Resident"     // Default safe fallback for unknown types
+                };
+            }
+            else
+            {
+                // Fallback: It's a string like "Owner", "Tenant", "CommitteeMember" (from Flutter/TenantService)
+                assignedRole = request.MemberType?.ToLowerInvariant() switch
+                {
+                    "committeemember" => "Admin",
+                    "admin" => "Admin",
+                    _ => "Resident" // "Owner", "Tenant", etc. default to Resident
+                };
+            }
         }
 
-Console.WriteLine($"🔑 MAPPED ROLE IS: {assignedRole}"); // <--- ADD THIS LOG
+
+
+        Console.WriteLine($"🔑 MAPPED ROLE IS: {assignedRole}"); // <--- ADD THIS LOG
         Console.WriteLine($"📱 Generating Context Token for User: {user.FullName} | Society: {request.SocietyId} | Role: {assignedRole}");
 
         // 3. GENERATE TOKEN WITH REAL DATA
@@ -83,7 +94,7 @@ Console.WriteLine($"🔑 MAPPED ROLE IS: {assignedRole}"); // <--- ADD THIS LOG
             user.MobileNumber, // FROM DB
             user.FullName,     // FROM DB
             request.SocietyId,
-            request.FlatId,
+            request.FlatId, // SuperAdmin passes null/empty here
             assignedRole       // MAPPED SECURELY
         );
 

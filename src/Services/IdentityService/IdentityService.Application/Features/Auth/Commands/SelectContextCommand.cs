@@ -9,5 +9,5 @@ public class SelectContextCommand : IRequest<string>
     public Guid FlatId { get; set; }
     public string MemberType { get; set; } = string.Empty; // "Owner", "Tenant", etc.
 
-    public string Role { get; set; } = "Resident"; 
+    public string Role { get; set; } = string.Empty; 
 }

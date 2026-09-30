@@ -20,7 +20,7 @@ public class AssignmentsController : BaseController
     }
 
     [HttpPost]
-  //  [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<Guid>> Assign([FromBody] AssignStaffCommand command)
     {
         var id = await _mediator.Send(command);
@@ -28,7 +28,7 @@ public class AssignmentsController : BaseController
     }
 
     [HttpDelete("{id}")]
-   // [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult> RemoveAssignment(Guid id)
     {
         // TODO: Implement removal via MediatR

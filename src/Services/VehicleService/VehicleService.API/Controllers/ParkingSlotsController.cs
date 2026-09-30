@@ -16,7 +16,8 @@ public class ParkingSlotsController : BaseController
     
 
     [HttpPut("assign")]
-   // [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")] 
     public async Task<ActionResult> AssignSlot([FromBody] AssignSlotCommand command)
     {
         await _mediator.Send(command);
@@ -25,7 +26,7 @@ public class ParkingSlotsController : BaseController
 
      // NEW: Get Slots (Admin can see all, or filter by type/availability)
     [HttpGet]
-   // [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<ParkingSlotDto>>> GetSlots(
         [FromQuery] Guid societyId, 
         [FromQuery] int? type = null, 
@@ -45,7 +46,7 @@ public class ParkingSlotsController : BaseController
 
     // NEW: Create Slot (Admin only)
     [HttpPost]
-   // [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<Guid>> CreateSlot([FromBody] CreateSlotCommand command)
     {
         var id = await _mediator.Send(command);
