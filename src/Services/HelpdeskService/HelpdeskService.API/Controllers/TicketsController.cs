@@ -16,11 +16,11 @@ public class TicketsController : BaseController
     private readonly IMediator _mediator;
     public TicketsController(IMediator mediator) => _mediator = mediator;
 
-   
+
     [HttpPost("raise")]
     public async Task<IActionResult> RaiseTicket([FromBody] RaiseTicketCommand command)
     {
-      command.CreatedByUserId = GetUserId(); // Injects the real ID!
+        command.CreatedByUserId = GetUserId(); // Injects the real ID!
         var id = await _mediator.Send(command);
         return CreatedAtAction(nameof(RaiseTicket), new { id }, new { Id = id });
     }
@@ -33,7 +33,7 @@ public class TicketsController : BaseController
         return Ok(result);
     }
 
-     // NEW ENDPOINTS:
+    // NEW ENDPOINTS:
 
     [HttpGet("{ticketId}")]
     public async Task<IActionResult> GetTicketDetails(Guid ticketId)
@@ -46,18 +46,27 @@ public class TicketsController : BaseController
     [HttpPost("{ticketId}/comments")]
     public async Task<IActionResult> AddComment(Guid ticketId, [FromBody] AddCommentCommand command)
     {
-     command.TicketId = ticketId;
+        command.TicketId = ticketId;
         command.UserId = GetUserId(); // Injects the real ID!
         await _mediator.Send(command);
         return Ok();
     }
 
     [HttpPut("{ticketId}/status")]
-     [Authorize(Roles = "Admin")] // <--- THE MAGIC WORDS = ADMIN ONLY ENDPOINTS
+    [Authorize(Roles = "Admin,SuperAdmin")] // <--- THE MAGIC WORDS = ADMIN & SUPERADMIN ONLY ENDPOINTS
     public async Task<IActionResult> UpdateStatus(Guid ticketId, [FromBody] UpdateTicketStatusCommand command)
     {
         command.TicketId = ticketId;
         await _mediator.Send(command);
         return NoContent();
+    }
+
+    // ADD this endpoint:
+    [HttpGet("society/{societyId}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> GetSocietyTickets(Guid societyId)
+    {
+        var result = await _mediator.Send(new GetSocietyTicketsQuery { SocietyId = societyId });
+        return Ok(result);
     }
 }

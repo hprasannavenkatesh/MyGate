@@ -17,4 +17,10 @@ public abstract class BaseController : ControllerBase
     protected string? Role => User.FindFirstValue(ClaimTypes.Role);
 
     protected bool IsAdmin => Role == "Admin";
+     protected bool IsSuperAdmin => Role == "SuperAdmin"; // <--- ADD THIS
+      // ADD THIS (Crucial for SuperAdmin context filtering):
+    protected Guid SocietyId => Guid.TryParse(
+        User.FindFirstValue("SocietyId"), out var societyId) 
+        ? societyId 
+        : Guid.Empty; 
 }

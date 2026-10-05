@@ -6,5 +6,6 @@ public enum MemberType
     Tenant,
     FamilyMemberOfOwner,
     FamilyMemberOfTenant,
-      CommitteeMember = 4   // <--- ADD THIS FOR ADMIN ACCESS
+      CommitteeMember = 4,   // <--- ADD THIS FOR ADMIN ACCESS
+       CoOwner = 5 // NEW: For spouses/demoted primaries
 }

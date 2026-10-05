@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Phone, Shield } from 'lucide-react';
+import {API_URLS} from "../api/apiConfig";
 
-const IDENTITY_URL = 'http://localhost:5103';
+//const IDENTITY_URL = API_URLS.IDENTITY;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -12,14 +13,14 @@ const Login = () => {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [basicToken, setBasicToken] = useState('');
+  //const [basicToken, setBasicToken] = useState('');
 
   const handleRequestOtp = async () => {
     if (!mobile.trim()) return;
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${IDENTITY_URL}/api/auth/request-otp`, {
+      const res = await fetch(`${API_URLS.IDENTITY}/auth/request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobileNumber: mobile.trim() }),
@@ -41,7 +42,7 @@ const Login = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${IDENTITY_URL}/api/auth/verify-otp`, {
+      const res = await fetch(`${API_URLS.IDENTITY}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobileNumber: mobile.trim(), otp: otp.trim() }),
@@ -124,7 +125,7 @@ const Login = () => {
               onChange={(e) => setOtp(e.target.value)}
               placeholder="4-digit OTP"
               maxLength={4}
-              className="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm text-center text-lg tracking-widest focus:outline-none focus:border-blue-500 mb-4"
+              className="w-full border border-slate-300 rounded-md px-3 py-2.5  text-center text-lg tracking-widest focus:outline-none focus:border-blue-500 mb-4"
             />
             <button
               onClick={handleVerifyOtp}

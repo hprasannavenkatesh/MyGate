@@ -11,6 +11,7 @@ import {
 import {
   lookupUser,
   addMember,
+  registerUser,
   type UserLookupDto,
   type AddMemberPayload,
 } from '../api/memberAdmin';
@@ -68,6 +69,10 @@ const AssignMember = () => {
   const [successMsg, setSuccessMsg] = useState('');
 
   const [recentAssignments, setRecentAssignments] = useState<AssignmentRecord[]>([]);
+
+    const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('TempPass@123'); // Default temp password
 
   // ── Effects ──
 
@@ -135,6 +140,36 @@ const AssignMember = () => {
   }, [selectedBlockId]);
 
   // ── Handlers ──
+  const handleRegisterUser = async () => {
+    if (!mobileNumber || !newUserName || !newUserPassword) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await registerUser({ 
+        mobileNumber: mobileNumber, 
+        fullName: newUserName, 
+        email: newUserEmail || undefined,
+        password: newUserPassword
+      });
+      
+      // Auto-set the found user so the assignment form activates immediately
+      setFoundUser({ 
+        userId: result.id, 
+        fullName: newUserName, 
+        mobileNumber: mobileNumber, 
+        email: newUserEmail || null, 
+        isMobileVerified: false 
+      });
+      
+      setUserNotFound(false);
+      setSuccessMsg(`✅ User ${newUserName} registered successfully! You can now assign them to a flat.`);
+    } catch (err: any) {
+      setError('Registration failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   const handleSearchUser = async () => {
     if (!mobileNumber.trim()) return;
@@ -299,12 +334,43 @@ const AssignMember = () => {
         )}
 
         {userNotFound && (
-          <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-lg">
-            <AlertCircle size={18} className="mt-0.5 shrink-0" />
-            <p className="text-sm">
-              No registered user found for <strong>{searchedMobile}</strong>.
-              The user must register via the app first.
-            </p>
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-lg mb-4">
+            <div className="flex items-start gap-2 mb-3">
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+              <span className="font-medium">No registered user found for <strong>{searchedMobile}</strong>.</span>
+            </div>
+            <p className="text-sm mb-3">Register them now to assign to a flat:</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="Full Name *"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                className="border border-amber-300 rounded-md px-3 py-2 text-sm bg-white"
+              />
+              <input
+                type="email"
+                placeholder="Email (Optional)"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                className="border border-amber-300 rounded-md px-3 py-2 text-sm bg-white"
+              />
+              <input
+                type="password"
+                placeholder="Password *"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                className="border border-amber-300 rounded-md px-3 py-2 text-sm bg-white"
+              />
+            </div>
+            <button
+              onClick={handleRegisterUser}
+              disabled={!newUserName || !newUserPassword}
+              className="mt-3 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Register & Continue
+            </button>
           </div>
         )}
       </div>
@@ -406,19 +472,35 @@ const AssignMember = () => {
         </div>
 
         {/* Is Primary */}
-        <label className="flex items-center gap-2 mb-6 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isPrimary}
-            onChange={(e) => setIsPrimary(e.target.checked)}
-            className="accent-blue-600 w-4 h-4"
-          />
-          <Star size={16} className={isPrimary ? 'text-amber-500' : 'text-slate-400'} />
-          <span>
-            Primary member
-            <span className="text-slate-400 ml-1">(first owner / primary contact for this flat)</span>
-          </span>
-        </label>
+        {/* ✨ IsPrimary Checkbox & Smart Warning */}
+        {/* Only show this option for Owners and CommitteeMembers. Tenants are rarely Primary Contacts. */}
+        {memberType !== 'Tenant' && (
+          <div className="mb-6">
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              <Star size={16} className={isPrimary ? 'text-amber-500' : 'text-slate-400'} />
+              <span>
+                Primary member
+                <span className="text-slate-400 ml-1">(first owner / primary contact for this flat)</span>
+              </span>
+            </label>
+
+            {/* Contextual Warning - only show if they check the box */}
+            {isPrimary && (
+              <p className="text-xs text-amber-600 mt-1.5 ml-6 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.(3).5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.47 2.4-1.47 3.165 0l5.941 11.43c.755 1.455-.345 2.971-1.58 2.971H3.896c-1.235 0-2.335-1.516-1.58-2.971L8.257 3.099zM11 7a1 1 0 10-2 0v3a1 1 0 002 0V7zm-1 7a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                If this flat already has a Primary member, they will be automatically demoted to "Co-Owner".
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Confirmation */}
         {isFormComplete && (

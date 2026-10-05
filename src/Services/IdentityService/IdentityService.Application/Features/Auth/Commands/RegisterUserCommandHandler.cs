@@ -24,17 +24,33 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, G
     public async Task<Guid> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
         // BUSINESS RULE: Check if mobile is already registered (Rule ID-001 from our list!)
-        var exists = await _userRepository.ExistsByMobileAsync(request.MobileNumber);
-        if (exists)
+        //var exists = await _userRepository.ExistsByMobileAsync(request.MobileNumber);
+        var exists = await _userRepository.GetByMobileAsync(request.MobileNumber);
+       /* if (exists)
         {
             throw new InvalidOperationException("A user with this mobile number already exists.");
+        }*/
+         if (exists != null)
+        {
+            // ✅ CHANGED: Instead of throwing an exception, just return their ID.
+            // This prevents the React UI from crashing if they search for a user, 
+            // don't find them, and try to register them anyway.
+            return exists.Id; 
         }
+
 
         // Create our Domain Entity (using the code we wrote yesterday!)
         var user = new User(request.MobileNumber, request.FullName, request.Email);
 
         // NEW: Hash the password and set it on the user!
         user.SetPasswordHash(_passwordHasher.HashPassword(request.Password));
+
+        user.AssignRole(request.Role); // Assign the role from the request
+
+        if (request.Role != "Resident")
+        {
+            user.VerifyMobile(); // Auto-verify non-residents (like Admins or Guards)
+        }
 
         // Save to database (via the interface)
         var addedUser = await _userRepository.AddAsync(user);

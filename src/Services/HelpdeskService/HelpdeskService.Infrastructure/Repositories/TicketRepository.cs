@@ -24,7 +24,7 @@ public class TicketRepository : ITicketRepository
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
     }
-     // NEW METHODS IMPLEMENTATION:
+    // NEW METHODS IMPLEMENTATION:
     public async Task<Ticket?> GetByIdWithCommentsAsync(Guid ticketId)
     {
         return await _context.Tickets
@@ -42,5 +42,14 @@ public class TicketRepository : ITicketRepository
     {
         _context.Tickets.Update(ticket);
         await _context.SaveChangesAsync();
+    }
+
+    // ADD:
+    public async Task<List<Ticket>> GetBySocietyIdAsync(Guid societyId)
+    {
+        return await _context.Tickets
+            .Where(t => t.SocietyId == societyId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
     }
 }

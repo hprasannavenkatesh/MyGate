@@ -10,6 +10,17 @@ using BillingService.Infrastructure.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+         policy.SetIsOriginAllowed(origin => true) // FIXED
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+
 builder.Services.AddDbContext<BillingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("BillingDb")));
 

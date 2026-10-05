@@ -6,4 +6,6 @@ public interface IInvoiceRepository
 {
     Task<Invoice> AddAsync(Invoice invoice);
     Task<List<Invoice>> GetByFlatIdAsync(Guid flatId);
+    // ADD this method:
+    Task<List<Invoice>> GetBySocietyIdAsync(Guid societyId);
 }

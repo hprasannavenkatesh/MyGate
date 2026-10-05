@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EmergencyService.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace EmergencyService.Infrastructure.Services;
 
@@ -7,10 +8,21 @@ public class HttpRealtimeGatewayDispatcher : IRealtimeGatewayDispatcher
 {
     private readonly HttpClient _httpClient;
 
-    public HttpRealtimeGatewayDispatcher(HttpClient httpClient)
+    public HttpRealtimeGatewayDispatcher(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri("http://localhost:5114"); // Gateway URL
+
+        //var gatewayUrl = configuration.GetValue<string>("ServiceUrls:RealtimeGateway");
+    var gatewayUrl = configuration["ServiceUrls:RealtimeGateway"];
+    if (!string.IsNullOrEmpty(gatewayUrl))
+        {
+            _httpClient.BaseAddress = new Uri(gatewayUrl);
+        }
+        else
+        {
+            throw new InvalidOperationException("ServiceUrls:RealtimeGateway URL is not configured in appsettings.json.");
+        }
+      
     }
 
     public async Task BroadcastEmergencyAlertAsync(Guid societyId, object alertPayload, CancellationToken cancellationToken = default)

@@ -1,5 +1,5 @@
 // src/api/mockData.ts
-import { Users, DollarSign, Car, Activity } from 'lucide-react';
+//import { Users, DollarSign, Car, Activity } from 'lucide-react';
 
 export interface DashboardStats {
   totalResidents: number;

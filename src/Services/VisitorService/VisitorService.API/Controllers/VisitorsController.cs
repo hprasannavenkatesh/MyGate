@@ -23,6 +23,7 @@ public class VisitorsController : BaseController
 
     // ADMIN: Get ALL! Get all visitors for a society
     [HttpGet("society/{societyId}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> GetSocietyVisitors(Guid societyId)
     {
         var query = new GetSocietyVisitorsQuery { SocietyId = societyId };
@@ -70,6 +71,7 @@ public class VisitorsController : BaseController
 
     // ADMIN: Manual entry override (no OTP)
     [HttpPost("{id}/manual-entry")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> ManualEntry(Guid id, [FromBody] ManualEntryCommand command)
     {
         command.PreApprovalId = id;
@@ -79,6 +81,7 @@ public class VisitorsController : BaseController
 
     // NEW: Regenerate OTP for an existing Pending visitor
     [HttpPost("{id}/regenerate-otp")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> RegenerateOtp(Guid id)
     {
         var command = new RegenerateOtpCommand { PreApprovalId = id };

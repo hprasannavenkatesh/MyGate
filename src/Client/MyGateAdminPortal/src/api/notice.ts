@@ -1,5 +1,6 @@
 // src/api/notice.ts
 import apiClient from './client';
+import {API_URLS} from "./apiConfig";
 
 export interface NoticeDto {
   id: string;
@@ -15,14 +16,13 @@ export interface NoticeDto {
 // GET notices for a society
 export const getNotices = async (societyId: string): Promise<NoticeDto[]> => {
   const response = await apiClient.get<NoticeDto[]>(
-    'http://localhost:5109/api/Notices',
-    { params: { societyId } }
+    `${API_URLS.NOTICE}/society/${societyId}`
   );
   return response.data;
 };
 
 // POST create a new notice (Admin only)
 export const createNotice = async (notice: { societyId: string; title: string; description: string; category: number; isPinned: boolean }): Promise<string> => {
-  const response = await apiClient.post<string>('http://localhost:5109/api/Notices', notice);
+  const response = await apiClient.post<string>(`${API_URLS.NOTICE}`, notice);
   return response.data;
 };

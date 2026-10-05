@@ -44,7 +44,7 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(EmergencyService.Application.Features.Alerts.Commands.TriggerPanic.TriggerPanicCommand).Assembly));
 builder.Services.AddValidatorsFromAssembly(typeof(EmergencyService.Application.Features.Alerts.Commands.TriggerPanic.TriggerPanicCommand).Assembly);
 
-builder.Services.AddHttpClient<IRealtimeGatewayDispatcher, HttpRealtimeGatewayDispatcher>();
+//builder.Services.AddHttpClient<IRealtimeGatewayDispatcher, HttpRealtimeGatewayDispatcher>();
 
 // --- Authentication ---
 builder.Services.AddAuthentication(options =>

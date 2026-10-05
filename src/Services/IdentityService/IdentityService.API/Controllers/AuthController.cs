@@ -18,6 +18,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
     {
         // Send the command to MediatR, which sends it to our Handler
@@ -87,5 +88,19 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+
+    // ✅ ADD THIS NEW ENDPOINT
+    [HttpPost("create-guard")]
+    [Authorize(Roles = "Admin,SuperAdmin")] // Only Admins can create Guards
+    public async Task<IActionResult> CreateGuard([FromBody] RegisterUserCommand command)
+    {
+        // FORCE security-sensitive fields regardless of what the JSON payload contained
+        command.Role = "Guard";
+        command.Password = "Guard@123";
+        var id = await _mediator.Send(command);
+        return Ok(new { Id = id });
+    }
+
+
 
 }

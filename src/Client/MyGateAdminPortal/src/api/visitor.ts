@@ -1,5 +1,6 @@
 // src/api/visitor.ts
 import apiClient from './client';
+import {API_URLS} from "./apiConfig";
 
 // --- Interfaces matching your C# Classes ---
 
@@ -22,19 +23,6 @@ export interface PreApproveVisitorResult {
   otp: string;
 }
 
-
-/*
-// Matches: VisitorDto (The result of GetMyVisitors)
-export interface VisitorDto {
-  id: string; // Guid in C#
-  visitorName: string;
-  visitorMobile: string;
-  vehicleNumber?: string;
-  purpose: string;
-  status: string; // e.g., "PreApproved", "Entered", "Exited"
-  createdDate: string; // DateTime
-}
-*/
 
 // Updated to match PreApprovedVisitor entity fields
 export interface VisitorDto {
@@ -80,50 +68,46 @@ export interface ManualEntryCommand {
 
 // ADMIN: Get all visitors for a society
 export const getSocietyVisitors = async (societyId: string): Promise<VisitorDto[]> => {
-  const response = await apiClient.get<VisitorDto[]>('/Visitors/society/' + societyId);
+  const response = await apiClient.get<VisitorDto[]>(`${API_URLS.VISITOR}/society/${societyId}`);
   return response.data;
 };
 
 
 // 1. RESIDENT: GET: api/Visitors/my-visitors?inviterId=...
 export const getMyVisitors = async (inviterId: string): Promise<VisitorDto[]> => {
-  const response = await apiClient.get<VisitorDto[]>('/Visitors/my-visitors', {
+  const response = await apiClient.get<VisitorDto[]>(`${API_URLS.VISITOR}/Visitors/my-visitors`, {
     params: { inviterId }
   });
   return response.data;
 };
 
-// 2. POST: api/Visitors/pre-approve
-/*export const preApproveVisitor = async (command: PreApproveVisitorCommand) => {
-  const response = await apiClient.post<any>('/Visitors/pre-approve', command);
-  return response.data; // Returns { Id: "..." }
-};*/
+
 // CHANGED: Now returns PreApproveVisitorResult (includes OTP)
 export const preApproveVisitor = async (command: PreApproveVisitorCommand): Promise<PreApproveVisitorResult> => {
-  const response = await apiClient.post<PreApproveVisitorResult>('/Visitors/pre-approve', command);
+  const response = await apiClient.post<PreApproveVisitorResult>(`${API_URLS.VISITOR}/pre-approve`, command);
   return response.data;
 };
 
 // 3. POST: api/Visitors/verify-otp
 export const verifyVisitorOtp = async (command: VerifyVisitorOtpCommand) => {
-  const response = await apiClient.post<any>('/Visitors/verify-otp', command);
+  const response = await apiClient.post<any>(`${API_URLS.VISITOR}/verify-otp`, command);
   return response.data;
 };
 
 // 4. POST: api/Visitors/mark-exit
 export const markVisitorExit = async (command: MarkVisitorExitCommand) => {
-  await apiClient.post('/Visitors/mark-exit', command);
+  await apiClient.post(`${API_URLS.VISITOR}/mark-exit`, command);
 };
 
 // NEW: Regenerate OTP for an existing visitor
 export const regenerateOtp = async (preApprovalId: string): Promise<RegenerateOtpResult> => {
-  const response = await apiClient.post<RegenerateOtpResult>(`/Visitors/${preApprovalId}/regenerate-otp`);
+  const response = await apiClient.post<RegenerateOtpResult>(`${API_URLS.VISITOR}/${preApprovalId}/regenerate-otp`);
   return response.data;
 };
 
 // ADMIN: Manual entry override
 export const manualEntry = async (command: ManualEntryCommand) => {
-  await apiClient.post(`/Visitors/${command.preApprovalId}/manual-entry`, command);
+  await apiClient.post(`${API_URLS.VISITOR}/${command.preApprovalId}/manual-entry`, command);
 };
 
 // Walk-in entry: creates visitor AND marks as entered in one step

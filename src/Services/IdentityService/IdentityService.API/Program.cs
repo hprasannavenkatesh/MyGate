@@ -19,7 +19,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFlutter", policy =>
     {
-        policy.AllowAnyOrigin() // Allow any port (like localhost:55415)
+         policy.SetIsOriginAllowed(origin => true) // Allows any origin BUT works with Authorization headers
               .AllowAnyMethod() // Allow GET, POST, etc.
               .AllowAnyHeader(); // Allow JSON content
     });
@@ -100,11 +100,6 @@ builder.Services.AddSwaggerGen(c =>
 // ----------------------------------------
 
 
-// 5. Add Swagger for visual testing
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-// ----------------------------------------
-
 
 var app = builder.Build();
 
@@ -117,11 +112,11 @@ app.UseAuthorization();
 // ------------------------------------
 
 // 6. Turn on the Swagger UI ---
-if (app.Environment.IsDevelopment())
+/*if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+}*/
 // ------------------------------------
 // 7. Map Controllers (WE MISSED THIS TOO!)
 app.MapControllers();

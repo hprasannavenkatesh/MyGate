@@ -24,4 +24,13 @@ public class InvoiceRepository : IInvoiceRepository
             .OrderByDescending(i => i.DueDate)
             .ToListAsync();
     }
+
+    // ADD this method:
+    public async Task<List<Invoice>> GetBySocietyIdAsync(Guid societyId)
+    {
+        return await _context.Invoices
+            .Where(i => i.SocietyId == societyId)
+            .OrderByDescending(i => i.DueDate)
+            .ToListAsync();
+    }
 }

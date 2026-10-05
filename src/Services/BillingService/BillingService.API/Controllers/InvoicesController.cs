@@ -28,4 +28,13 @@ public class InvoicesController : ControllerBase
         var result = await _mediator.Send(new GetMyDuesQuery { FlatId = flatId });
         return Ok(result);
     }
+
+    // ADD this endpoint:
+    [HttpGet("society/{societyId}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> GetSocietyInvoices(Guid societyId)
+    {
+        var result = await _mediator.Send(new GetSocietyInvoicesQuery { SocietyId = societyId });
+        return Ok(result);
+    }
 }

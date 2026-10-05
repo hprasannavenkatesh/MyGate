@@ -8,7 +8,7 @@ namespace TenantService.API.Controllers;
 
 [ApiController]
 [Route("api/superadmin")]
-//[Authorize(Roles = "SuperAdmin")] // 🔒 LOCKED DOWN: Only SuperAdmins can hit this controller
+[Authorize(Roles = "SuperAdmin")] // 🔒 LOCKED DOWN: Only SuperAdmins can hit this controller
 public class SuperAdminController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -26,6 +26,7 @@ public class SuperAdminController : ControllerBase
     /// Gets ALL societies. Used by the SuperAdmin Society Picker in React.
     /// </summary>
     [HttpGet("societies")]
+      [Authorize(Roles = "SuperAdmin")] // FIXED: Was missing — anyone could list all societies
     public async Task<IActionResult> GetAllSocieties()
     {
         var result = await _mediator.Send(new GetAllSocietiesQuery());

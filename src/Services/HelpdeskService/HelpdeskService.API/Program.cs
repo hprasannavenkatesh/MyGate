@@ -18,7 +18,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFlutter", policy =>
     {
-        policy.AllowAnyOrigin()    
+         policy.SetIsOriginAllowed(origin => true) // FIXED
               .AllowAnyMethod()    
               .AllowAnyHeader();   
     });

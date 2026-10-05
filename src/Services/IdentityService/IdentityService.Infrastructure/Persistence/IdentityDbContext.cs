@@ -12,4 +12,14 @@ public class IdentityDbContext : DbContext
 
     // This creates the "Users" table in SQL Server based on our User entity
     public DbSet<User> Users => Set<User>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.Property(u => u.Role).IsRequired().HasDefaultValue("Resident").HasMaxLength(50);
+        });
+    }
 }

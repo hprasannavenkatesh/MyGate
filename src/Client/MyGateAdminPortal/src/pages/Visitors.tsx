@@ -19,6 +19,7 @@ import {
   walkInEntry,
   type VisitorDto,
   type PreApproveVisitorCommand,
+  getMyVisitors,
 } from "../api/visitor";
 import { useAuth } from "../context/AuthContext";
 import { format, isToday, parseISO } from "date-fns";
@@ -97,7 +98,7 @@ const Visitors = () => {
   const [manualEntryReason, setManualEntryReason] = useState("");
 
   // --- Fetch ALL society visitors (Admin view) ---
-  const fetchVisitors = async () => {
+  /*const fetchVisitors = async () => {
     if (!currentUser?.societyId) {
       setVisitors([]);
       setLoading(false);
@@ -111,6 +112,36 @@ const Visitors = () => {
     } catch (err: any) {
       console.error("Failed to load visitors:", err);
       setError("Failed to load visitors.");
+    } finally {
+      setLoading(false);
+    }
+  };*/
+    // --- Fetch visitors based on Role ---
+  const fetchVisitors = async () => {
+    if (!currentUser) {
+      setVisitors([]);
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    try {
+      // ADMIN/SUPERADMIN: Fetch the whole society's visitor log
+      if (currentUser.role === 'Admin' || currentUser.role === 'SuperAdmin') {
+        if (!currentUser.societyId) return;
+        const data = await getSocietyVisitors(currentUser.societyId);
+        setVisitors(data);
+      } 
+      // RESIDENT: Fetch only their personal visitors
+      else {
+        if (!currentUser.id) return;
+        const data = await getMyVisitors(currentUser.id);
+        setVisitors(data);
+      }
+    } catch (err: any) {
+      console.error("Failed to load visitors:", err);
+      setError("Failed to load visitors. (Check permissions)");
     } finally {
       setLoading(false);
     }
@@ -311,24 +342,28 @@ const Visitors = () => {
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Visitor Management</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsWalkInModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition"
-          >
-            <UserPlus size={18} />
-            Walk-in Entry
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
-          >
-            <Plus size={18} />
-            Pre-Approve
-          </button>
-        </div>
+        
+        {/* ONLY ADMINS CAN DO WALK-IN / MANUAL ENTRY FROM THIS PORTAL */}
+        {(currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin') && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsWalkInModalOpen(true)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition"
+            >
+              <UserPlus size={18} />
+              Walk-in Entry
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+            >
+              <Plus size={18} />
+              Pre-Approve
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -458,45 +493,55 @@ const Visitors = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
-                          {currentStatus === "Pending" && (
+                          {/* ADMIN / SUPERADMIN GATE ACTIONS */}
+                          {(currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin') && (
                             <>
-                              <button
-                                onClick={() => handleGetOtp(visitor.id)}
-                                disabled={otpLoading === visitor.id}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs hover:bg-amber-100 transition disabled:opacity-50"
-                              >
-                                <Key size={12} />
-                                {otpLoading === visitor.id
-                                  ? "..."
-                                  : isOtpShowing
-                                    ? "New OTP"
-                                    : "Get OTP"}
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleOpenManualEntry(
-                                    visitor.id,
-                                    visitor.visitorName,
-                                  )
-                                }
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded text-xs hover:bg-green-100 transition"
-                              >
-                                <ShieldCheck size={12} /> Manual Entry
-                              </button>
+                              {currentStatus === "Pending" && (
+                                <>
+                                  <button
+                                    onClick={() => handleGetOtp(visitor.id)}
+                                    disabled={otpLoading === visitor.id}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs hover:bg-amber-100 transition disabled:opacity-50"
+                                  >
+                                    <Key size={12} />
+                                    {otpLoading === visitor.id
+                                      ? "..."
+                                      : isOtpShowing
+                                        ? "New OTP"
+                                        : "Get OTP"}
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleOpenManualEntry(
+                                        visitor.id,
+                                        visitor.visitorName,
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded text-xs hover:bg-green-100 transition"
+                                  >
+                                    <ShieldCheck size={12} /> Manual Entry
+                                  </button>
+                                </>
+                              )}
+                              {currentStatus === "Entered" && (
+                                <button
+                                  onClick={() => handleMarkExit(visitor.id)}
+                                  disabled={exitLoading === visitor.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100 transition disabled:opacity-50"
+                                >
+                                  {exitLoading === visitor.id ? "..." : "Mark Exit"}
+                                </button>
+                              )}
+                              {currentStatus === "Exited" && (
+                                <span className="text-xs text-slate-400">Complete</span>
+                              )}
                             </>
                           )}
-                          {currentStatus === "Entered" && (
-                            <button
-                              onClick={() => handleMarkExit(visitor.id)}
-                              disabled={exitLoading === visitor.id}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100 transition disabled:opacity-50"
-                            >
-                              {exitLoading === visitor.id ? "..." : "Mark Exit"}
-                            </button>
-                          )}
-                          {currentStatus === "Exited" && (
-                            <span className="text-xs text-slate-400">
-                              Complete
+
+                          {/* RESIDENT VIEW ONLY */}
+                          {currentUser?.role === 'Resident' && (
+                            <span className="text-xs text-slate-400 italic">
+                              {currentStatus === "Exited" ? "Complete" : "Monitor Only"}
                             </span>
                           )}
                         </td>

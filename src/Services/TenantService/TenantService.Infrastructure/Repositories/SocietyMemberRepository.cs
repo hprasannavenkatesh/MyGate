@@ -1,6 +1,6 @@
 using TenantService.Domain;
 using TenantService.Domain.Interfaces;
-using TenantService.Domain.Entities;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+using TenantService.Domain.Entities;
 using TenantService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,4 +41,28 @@ public class SocietyMemberRepository : ISocietyMemberRepository
         await _context.SaveChangesAsync();
         return member;
     }
+
+    public void Update(SocietyMember member) => _context.SocietyMembers.Update(member);
+
+    public async Task<IReadOnlyList<SocietyMember>> GetByFlatIdAsync(Guid flatId, CancellationToken cancellationToken = default)
+    {
+        return await _context.SocietyMembers
+            .Where(m => m.FlatId == flatId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    // ADD:
+    public async Task<IReadOnlyList<SocietyMember>> GetBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.SocietyMembers
+            .Where(m => m.SocietyId == societyId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public void Remove(SocietyMember member) => _context.SocietyMembers.Remove(member);
 }

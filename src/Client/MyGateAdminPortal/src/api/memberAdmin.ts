@@ -1,5 +1,6 @@
 // src/api/memberAdmin.ts
 import apiClient from './client';
+import {API_URLS} from "./apiConfig";
 
 // ─── User Lookup (IdentityService 5103) ───
 export interface UserLookupDto {
@@ -13,7 +14,7 @@ export interface UserLookupDto {
 export const lookupUser = async (mobileNumber: string): Promise<UserLookupDto | null> => {
   try {
     const response = await apiClient.get<UserLookupDto>(
-      `http://localhost:5103/api/Auth/lookup/${mobileNumber}`
+      `${API_URLS.IDENTITY}/api/Auth/lookup/${mobileNumber}`
     );
     return response.data;
   } catch (err: any) {
@@ -39,9 +40,39 @@ export interface AddMemberPayload {
   isPrimary: boolean;
 }
 
+// --- Create Guard (IdentityService 5103) ---
+export interface CreateGuardPayload {
+  mobileNumber: string;
+  fullName: string;
+}
+
+export const createGuard = async (payload: CreateGuardPayload): Promise<{ id: string }> => {
+  const response = await apiClient.post(
+    `${API_URLS.IDENTITY}/auth/create-guard`,
+    payload
+  );
+  return response.data;
+};
+
 export const addMember = async (payload: AddMemberPayload): Promise<any> => {
   const response = await apiClient.post(
-    'http://localhost:5104/api/Societies/add-member',
+    `${API_URLS.TENANT}/api/Societies/add-member`,
+    payload
+  );
+  return response.data;
+};
+
+// ─── Register User (IdentityService 5103) ───
+export interface RegisterUserPayload {
+  mobileNumber: string;
+  fullName: string;
+  email?: string;
+  password: string; // The backend requires this now
+}
+
+export const registerUser = async (payload: RegisterUserPayload): Promise<{ id: string }> => {
+  const response = await apiClient.post(
+    `${API_URLS.IDENTITY}/api/auth/register`,
     payload
   );
   return response.data;

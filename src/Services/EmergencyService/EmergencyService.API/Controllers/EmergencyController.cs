@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 
+
 namespace EmergencyService.API.Controllers // MUST MATCH EXACTLY
 {
     public class EmergencyController : BaseController

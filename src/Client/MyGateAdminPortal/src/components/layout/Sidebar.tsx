@@ -1,19 +1,39 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Car, Building, FileText, UserPlus } from 'lucide-react'; // Removed 'Settings' and 'React'
+import { LayoutDashboard, Users, Car, Building, FileText, UserPlus, Ticket,ShieldCheck } from 'lucide-react'; // Removed 'Settings' and 'React'
+import { useAuth } from '../../context/AuthContext';
+
+// ADD this interface above the Sidebar component:
+interface MenuItem {
+  name: string;
+  path: string;
+  icon: React.ElementType;
+  roles: string[];
+}
 
 const Sidebar = () => {
   const location = useLocation();
+  const { currentUser } = useAuth();  // ADD
 
-   const menuItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Visitors', path: '/visitors', icon: Users },
-    { name: 'Notices', path: '/notices', icon: FileText }, // ADDED
-    { name: 'Amenities', path: '/amenities', icon: LayoutDashboard }, // ADDED (Using LayoutDashboard as placeholder icon)
-      { name: 'Master Data', path: '/master', icon: Building }, // NEW
-    { name: 'Vehicles', path: '/vehicles', icon: Car },
-    { name: 'Billing', path: '/billing', icon: FileText },
-    { name: 'Assign Member', path: '/assign-member', icon: UserPlus },
+  
+   const allMenuItems: MenuItem[] = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Visitors', path: '/visitors', icon: Users, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Guards', path: '/guards', icon: ShieldCheck, roles: ['Admin', 'SuperAdmin'] }, // Residents shouldn't manage guards
+    { name: 'Notices', path: '/notices', icon: FileText , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Amenities', path: '/amenities', icon: LayoutDashboard , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Helpdesk', path: '/helpdesk', icon: Ticket, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Daily Help', path: '/daily-help', icon: Users, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Directory', path: '/directory', icon: LayoutDashboard, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Master Data', path: '/master', icon: Building , roles: ['Admin', 'SuperAdmin'] }, // Residents shouldn't manage master data
+    { name: 'Vehicles', path: '/vehicles', icon: Car , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Billing', path: '/billing', icon: FileText , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Assign Member', path: '/assign-member', icon: UserPlus , roles: ['Admin', 'SuperAdmin'] }, // Admin only
   ];
+
+   // Filter by role — if user has no role match, hide the item
+  const menuItems = allMenuItems.filter(item => 
+    !currentUser?.role || item.roles.includes(currentUser.role)
+  );
 
   return (
     <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col">

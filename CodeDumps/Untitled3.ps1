@@ -22,7 +22,7 @@
  $Timestamp           = Get-Date -Format "yyyyMMdd_HHmmss"
 
 # --- Split threshold ---
- $MaxDumpFileSizeKB   = 150
+ $MaxDumpFileSizeKB   = 100
  $MaxDumpFileSizeBytes = $MaxDumpFileSizeKB * 1KB
 
 # =====================================================================

@@ -4,11 +4,13 @@
     "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "applicationUrl": "http://localhost:5115",
+      "launchBrowser": false,    
+      "applicationUrl": "http://localhost:5114",
+      "_applicationURL": "the port number was changed from 5115 to 5114 to avoid conflicts with RealtimeGateway.API",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     }
   }
 }
+

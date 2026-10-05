@@ -52,7 +52,8 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
         // SUPERADMIN CHECK: If the request explicitly asks for SuperAdmin role, 
         // and we verify the user is indeed our seeded SuperAdmin, bypass MemberType mapping.
         // (We check the user ID to prevent privilege escalation from normal users)
-        if (request.Role == "SuperAdmin" && user.Id == Guid.Parse("A1B2C3D4-E5F6-7890-1234-567890ABCDEF"))
+        //if (request.Role == "SuperAdmin" && user.Id == Guid.Parse("A1B2C3D4-E5F6-7890-1234-567890ABCDEF"))
+        if (user.Role == "SuperAdmin")
         {
             assignedRole = "SuperAdmin";
         }
@@ -63,6 +64,7 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
             {
                 assignedRole = memberTypeId switch
                 {
+                    5 => "Co-Owner",
                     4 => "Admin",       // CommitteeMember gets Admin access
                     0 => "Resident",    // Owner gets Resident access
                     1 => "Resident",    // Tenant gets Resident access

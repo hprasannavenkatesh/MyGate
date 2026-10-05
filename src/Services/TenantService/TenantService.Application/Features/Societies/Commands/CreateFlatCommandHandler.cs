@@ -11,7 +11,7 @@ public class CreateFlatCommandHandler : IRequestHandler<CreateFlatCommand, Guid>
 
     public async Task<Guid> Handle(CreateFlatCommand request, CancellationToken cancellationToken)
     {
-        var flat = new Flat(request.BlockId, request.FlatNumber, request.Type);
+        var flat = new Flat(request.SocietyId,request.BlockId, request.FlatNumber, request.Type);
         return (await _repository.AddFlatAsync(flat)).Id;
     }
 }

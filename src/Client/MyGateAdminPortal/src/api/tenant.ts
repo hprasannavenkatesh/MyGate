@@ -1,5 +1,6 @@
 // src/api/tenant.ts
 import apiClient from "./client";
+import {API_URLS} from "./apiConfig";
 
 // Matches the C# SocietyDto from TenantService
 export interface SocietyDto {
@@ -25,7 +26,7 @@ export const getMySocieties = async (userId: string): Promise<SocietyDto[]> => {
   const token = localStorage.getItem("auth_token");
   console.log("token in getMySocieties:", token);
   const response = await apiClient.get<SocietyDto[]>(
-    "http://localhost:5104/api/Societies/my-societies",
+    `${API_URLS.TENANT}/Societies/my-societies`,
     {
       params: { userId },
       headers: {
@@ -40,7 +41,7 @@ export const getMySocieties = async (userId: string): Promise<SocietyDto[]> => {
 export const getAllSocietiesForSuperAdmin = async (): Promise<SocietyListDto[]> => {
   const token = localStorage.getItem("auth_token");
   const response = await apiClient.get<SocietyListDto[]>(
-    "http://localhost:5103/api/superadmin/societies", // Hits IdentityService proxy
+     `${API_URLS.TENANT}/api/superadmin/societies`, // Hits IdentityService proxy
     {
       headers: {
         Authorization: `Bearer ${token}`,

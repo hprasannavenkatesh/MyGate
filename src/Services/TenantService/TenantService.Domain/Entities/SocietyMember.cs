@@ -24,4 +24,16 @@ public class SocietyMember
         MemberType = memberType;
         IsPrimary = isPrimary;
     }
+
+        //  NEW: Allow demoting a primary member
+    public void SetPrimary(bool isPrimary)
+    {
+        IsPrimary = isPrimary;
+    }
+
+    //  NEW: Allow changing member type (e.g., demoting to CoOwner)
+    public void UpdateMemberType(MemberType newType)
+    {
+        MemberType = newType;
+    }
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using IdentityService.Domain.Interfaces;
@@ -10,11 +11,13 @@ namespace IdentityService.API.Controllers;
 public class SuperAdminController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private readonly IUserRepository _userRepository;
 
-    public SuperAdminController(IHttpClientFactory httpClientFactory, IUserRepository userRepository)
+    public SuperAdminController(IHttpClientFactory httpClientFactory, IConfiguration configuration, IUserRepository userRepository)
     {
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
         _userRepository = userRepository;
     }
 
@@ -52,18 +55,27 @@ public class SuperAdminController : ControllerBase
             if (user == null) return Forbid("User not found.");
 
             // Only allow if their mobile number is our designated SuperAdmin number
-           if (user.MobileNumber != "0000000000") 
+           //if (user.MobileNumber != "0000000000") 
+            if (user.Role != "SuperAdmin")
             {
                 return Forbid("You do not have permission to view all societies.");
             }
 
             // 3. Proxy the request to TenantService (Port 5104)
             var client = _httpClientFactory.CreateClient("TenantService");
-            
+
+            // 🔒 FIX: Forward the SuperAdmin token so TenantService.Authorize(Roles="SuperAdmin") passes
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
             // We do NOT pass the Bearer token here, because TenantService's 
             // SuperAdmin endpoint is an internal open endpoint.
-            var response = await client.GetAsync("http://localhost:5104/api/superadmin/societies");
-
+           // var response = await client.GetAsync(_configuration["ServiceUrls:TenantService"] + "/api/superadmin/societies");
+           var tenantServiceUrl = _configuration["ServiceUrls:TenantService"] ?? throw new InvalidOperationException("TenantService URL is not configured.");
+            if (string.IsNullOrEmpty(tenantServiceUrl))
+            {
+                return StatusCode(500, "TenantService URL is not configured.");
+            }
+            var response = await client.GetAsync($"{tenantServiceUrl}/api/superadmin/societies");
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
