@@ -52,14 +52,12 @@ const RequireAuth = () => {
   return <Outlet />;
 };
 
+
 function AppContent() {
   const { currentUser, loading, userList, switchContext } = useAuth();
   const navigate = useNavigate();
 
-  // Handle Dropdown Change
   const handleUserChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    //const selectedId = e.target.value;
-    //const userToSwitch = userList.find((u) => u.id === selectedId);
      const selectedKey = e.target.value;
      const userToSwitch = userList.find((u) => u.uniqueKey === selectedKey);
     if (userToSwitch) {
@@ -70,20 +68,19 @@ function AppContent() {
   const handleLogout = () => {
     localStorage.removeItem("auth_token");
     navigate("/login");
-    window.location.reload(); // Force full reset on logout
+    window.location.reload(); 
   };
 
   return (
     <Routes>
-      {/* Public Route */}
+      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      
+      {/* CRITICAL FIX: Picker must be OUTSIDE RequireAuth to prevent infinite loop */}
+      <Route path="/picker" element={<SuperAdminSocietyPicker />} />
 
-      {/* FIX #19: Single Unified Protected Route Structure */}
+      {/* Protected Routes - Requires BOTH Token AND SocietyId */}
       <Route element={<RequireAuth />}>
-        
-        {/* SuperAdmin Picker Route (Only accessible if logged in) */}
-        <Route path="/picker" element={<SuperAdminSocietyPicker />} />
-
         {/* Main Application Layout Wrapper */}
         <Route
           element={
@@ -92,7 +89,7 @@ function AppContent() {
               <main className="flex-1 ml-64">
                 <div className="h-16 bg-white border-b flex items-center px-8 justify-between shadow-sm">
                   <h2 className="font-semibold text-slate-700">
-                    {currentUser?.isSuperAdmin ? `🏠 ${currentUser.name}` : "Admin Portal"}
+                   {currentUser?.isSuperAdmin ? `🌐 SuperAdmin: ${currentUser?.name || ''}` : "Admin Portal"}
                   </h2>
                   <div className="flex items-center gap-4">
                     {loading && (
@@ -112,16 +109,12 @@ function AppContent() {
                         <div className="text-sm text-slate-500">Acting As:</div>
                         <select
                           disabled={loading}
-                          //value={currentUser?.id || ""}
                           value={currentUser?.uniqueKey || ""} 
                           onChange={handleUserChange}
                           className="border border-slate-300 rounded px-3 py-1 text-sm bg-slate-50 focus:outline-none focus:border-blue-500"
                         >
                           {userList.map((user) => (
-                           // <option key={user.id} value={user.id}>
-                           //   {user.name}
-                           // </option>
-                             <option key={user.uniqueKey} value={user.uniqueKey}> {/* CHANGE: Use uniqueKey here */}
+                             <option key={user.uniqueKey} value={user.uniqueKey}>
                                 {user.name}
                               </option>
                           ))}
@@ -145,7 +138,7 @@ function AppContent() {
           {/* Nested Routes inside Main Layout */}
           <Route path="/" element={<Dashboard />} />
           <Route path="/visitors" element={<Visitors />} />
-           <Route path="/guards" element={<Guards />} /> {/* ADD ROUTE */}
+          <Route path="/guards" element={<Guards />} />
           <Route path="/notices" element={<Notices />} />
           <Route path="/amenities" element={<Amenities />} />
           <Route path="/master" element={<MasterData />} />
@@ -163,6 +156,8 @@ function AppContent() {
     </Routes>
   );
 }
+
+// ... App function remains the same ...
 
 function App() {
   return (

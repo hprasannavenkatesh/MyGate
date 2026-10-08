@@ -31,4 +31,25 @@ class EmergencyService {
       throw Exception('Failed (${response.statusCode}): ${response.body}');
     }
   }
+
+    static Future<void> triggerPanic() async {
+    final token = await AuthService.getToken();
+    final societyId = await AuthService.getSocietyId();
+    final flatId = await AuthService.getFlatId();
+
+    final response = await http.post(
+      Uri.parse('${ApiConfig.emergencyService}/api/Emergency/trigger'),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'societyId': societyId,
+        'flatId': flatId,
+        'type': 0, // 0 = Panic enum
+        'description': 'Panic button triggered by Guard'
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to trigger panic');
+    }
+  }
 }

@@ -40,13 +40,29 @@ export const getMySocieties = async (userId: string): Promise<SocietyDto[]> => {
 // Fetch ALL societies for the SuperAdmin Society Picker
 export const getAllSocietiesForSuperAdmin = async (): Promise<SocietyListDto[]> => {
   const token = localStorage.getItem("auth_token");
+ // DEBUG: Log the exact URL and Token being used
+  console.log('🪲 [DEBUG] Fetching SuperAdmin Societies');
+  console.log('🪲 [DEBUG] Token:', token);
+
+ /* const response = await apiClient.get<SocietyListDto[]>(
+     `${API_URLS.IDENTITY}/superadmin/societies`, // Hits IdentityService proxy
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );*/
+  // EXPLICIT URL: Bypass client.ts baseURL to guarantee the path is correct
   const response = await apiClient.get<SocietyListDto[]>(
-     `${API_URLS.TENANT}/api/superadmin/societies`, // Hits IdentityService proxy
+     `http://localhost:5103/api/superadmin/societies`, 
     {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     }
   );
+  
+  // DEBUG: Log the response
+  console.log('🪲 [DEBUG] SuperAdmin API Response:', response.data);
   return response.data;
 };

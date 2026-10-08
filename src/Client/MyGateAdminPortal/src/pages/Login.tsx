@@ -111,7 +111,7 @@ const Login = () => {
               OTP will appear in the .NET terminal console
             </p>
           </>
-        ) : (
+               ) : (
           <>
             <p className="text-sm text-slate-600 mb-3">
               OTP sent to <strong>{mobile}</strong>
@@ -135,12 +135,15 @@ const Login = () => {
               {loading ? <Loader2 size={16} className="animate-spin" /> : null}
               {loading ? 'Verifying...' : 'Verify & Login'}
             </button>
+            
+            {/* --- NEW: Back to Mobile Number Entry --- */}
             <button
               onClick={() => { setIsOtpSent(false); setOtp(''); }}
               className="w-full text-slate-500 hover:text-slate-700 text-sm mt-2 py-2"
             >
               ← Change mobile number
             </button>
+            
             <p className="text-xs text-slate-400 mt-3 text-center">
               Check .NET terminal for OTP
             </p>

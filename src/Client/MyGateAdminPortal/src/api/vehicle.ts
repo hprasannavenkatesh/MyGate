@@ -25,7 +25,7 @@ export interface ParkingSlotDto {
 
 export const getSocietyVehicles = async (societyId: string): Promise<VehicleDto[]> => {
   const response = await apiClient.get<VehicleDto[]>(
-    `${API_URLS.VEHICLE}/society/${societyId}`
+    `${API_URLS.VEHICLE}/Vehicles/society/${societyId}`
   );
   return response.data;
 };

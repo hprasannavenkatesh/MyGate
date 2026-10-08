@@ -1,0 +1,2302 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET  (continued — Part 3)
+║  Generated : 2026-10-06 12:43:49
+║  Root      : C:\MyGateApp\src\Services
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\Features\Directory\Commands\AddEntry\AddEntryCommandHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Domain.Interfaces;
+using MediatR;
+
+namespace DirectoryService.Application.Features.Directory.Commands.AddEntry;
+
+public class AddEntryCommandHandler : IRequestHandler<AddEntryCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public AddEntryCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(AddEntryCommand request, CancellationToken cancellationToken)
+    {
+        var entry = Domain.Entities.DirectoryEntry.Create(
+            request.SocietyId, request.Category, request.Name, request.ContactNumber, request.Email, request.Address, request.Notes);
+
+        _unitOfWork.Directory.Add(entry);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return entry.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\Features\Directory\Commands\DeleteEntry\DeleteEntryCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DirectoryService.Application.Features.Directory.Commands.DeleteEntry;
+
+public record DeleteEntryCommand : IRequest<Unit>
+{
+    public Guid Id { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\Features\Directory\Commands\DeleteEntry\DeleteEntryCommandHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Domain.Interfaces;
+using MediatR;
+
+namespace DirectoryService.Application.Features.Directory.Commands.DeleteEntry;
+
+public class DeleteEntryCommandHandler : IRequestHandler<DeleteEntryCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public DeleteEntryCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Unit> Handle(DeleteEntryCommand request, CancellationToken cancellationToken)
+    {
+        var entry = await _unitOfWork.Directory.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException("Directory entry not found.");
+
+        if (entry.SocietyId != request.SocietyId) throw new UnauthorizedAccessException();
+
+        _unitOfWork.Directory.Remove(entry);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\Features\Queries\GetDirectory\GetDirectoryQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Application.DTOs;
+using MediatR;
+
+namespace DirectoryService.Application.Features.Directory.Queries.GetDirectory;
+
+public record GetDirectoryQuery : IRequest<IReadOnlyList<DirectoryEntryDto>>
+{
+    public Guid SocietyId { get; init; }
+    public string? Category { get; init; }
+    public string? Search { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\Features\Queries\GetDirectory\GetDirectoryQueryHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Application.DTOs;
+using DirectoryService.Domain.Interfaces;
+using MediatR;
+
+namespace DirectoryService.Application.Features.Directory.Queries.GetDirectory;
+
+public class GetDirectoryQueryHandler : IRequestHandler<GetDirectoryQuery, IReadOnlyList<DirectoryEntryDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetDirectoryQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<DirectoryEntryDto>> Handle(GetDirectoryQuery request, CancellationToken cancellationToken)
+    {
+        var entries = await _unitOfWork.Directory.GetBySocietyAsync(request.SocietyId, request.Category, request.Search, cancellationToken);
+        return entries.Select(e => new DirectoryEntryDto(e.Id, e.Category, e.Name, e.ContactNumber, e.Email, e.Address, e.Notes)).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Domain\DirectoryService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Domain\Entities\BaseEntity.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DirectoryService.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public Guid Id { get; protected set; } = Guid.NewGuid();
+    public DateTimeOffset CreatedAt { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; protected set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Domain\Entities\DirectoryEntry.cs
+SIZE  : 1.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DirectoryService.Domain.Entities;
+
+public class DirectoryEntry : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public string Category { get; private set; } = string.Empty; // "Committee", "Emergency", "Plumber", "Electrician"
+    public string Name { get; private set; } = string.Empty;
+    public string ContactNumber { get; private set; } = string.Empty;
+    public string? Email { get; private set; }
+    public string? Address { get; private set; }
+    public string? Notes { get; private set; }
+    public bool IsActive { get; private set; } = true;
+
+    private DirectoryEntry() { }
+
+    public static DirectoryEntry Create(Guid societyId, string category, string name, string contactNumber, string? email, string? address, string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(category)) throw new ArgumentException("Category is required.");
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name is required.");
+        if (string.IsNullOrWhiteSpace(contactNumber)) throw new ArgumentException("Contact number is required.");
+
+        return new DirectoryEntry
+        {
+            SocietyId = societyId,
+            Category = category.Trim(),
+            Name = name.Trim(),
+            ContactNumber = contactNumber.Trim(),
+            Email = email?.Trim(),
+            Address = address?.Trim(),
+            Notes = notes?.Trim()
+        };
+    }
+
+    public void Update(string category, string name, string contactNumber, string? email, string? address, string? notes)
+    {
+        Category = category.Trim();
+        Name = name.Trim();
+        ContactNumber = contactNumber.Trim();
+        Email = email?.Trim();
+        Address = address?.Trim();
+        Notes = notes?.Trim();
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Domain\Interfaces\IDirectoryRepository.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Domain.Entities;
+
+namespace DirectoryService.Domain.Interfaces;
+
+public interface IDirectoryRepository
+{
+    Task<DirectoryEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetCategoriesAsync(Guid societyId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DirectoryEntry>> GetBySocietyAsync(Guid societyId, string? category = null, string? searchQuery = null, CancellationToken cancellationToken = default);
+    void Add(DirectoryEntry entry);
+    void Update(DirectoryEntry entry);
+    void Remove(DirectoryEntry entry);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Domain\Interfaces\IUnitOfWork.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DirectoryService.Domain.Interfaces;
+
+public interface IUnitOfWork : IDisposable
+{
+    IDirectoryRepository Directory { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Infrastructure\Data\DirectoryDbContext.cs
+SIZE  : 1.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace DirectoryService.Infrastructure.Data;
+
+public class DirectoryDbContext : DbContext
+{
+    public DirectoryDbContext(DbContextOptions<DirectoryDbContext> options) : base(options) { }
+
+    public DbSet<DirectoryEntry> DirectoryEntries => Set<DirectoryEntry>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<DirectoryEntry>(entity =>
+        {
+            entity.ToTable("DirectoryEntries");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContactNumber).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(150);
+            entity.Property(e => e.Address).HasMaxLength(200);
+            entity.Property(e => e.Notes).HasMaxLength(500);
+            
+            entity.HasIndex(e => e.SocietyId);
+            entity.HasIndex(e => new { e.SocietyId, e.Category });
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Infrastructure\DirectoryService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DirectoryService.Domain\DirectoryService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Infrastructure\Repositories\DirectoryRepository.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Domain.Entities;
+using DirectoryService.Domain.Interfaces;
+using DirectoryService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace DirectoryService.Infrastructure.Repositories;
+
+public class DirectoryRepository : IDirectoryRepository
+{
+    private readonly DirectoryDbContext _context;
+    public DirectoryRepository(DirectoryDbContext context) => _context = context;
+
+    public async Task<DirectoryEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.DirectoryEntries.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetCategoriesAsync(Guid societyId, CancellationToken cancellationToken = default)
+        => await _context.DirectoryEntries
+            .Where(e => e.SocietyId == societyId && e.IsActive)
+            .Select(e => e.Category)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DirectoryEntry>> GetBySocietyAsync(Guid societyId, string? category = null, string? searchQuery = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.DirectoryEntries.Where(e => e.SocietyId == societyId && e.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(category))
+            query = query.Where(e => e.Category == category);
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            query = query.Where(e => e.Name.Contains(searchQuery) || e.ContactNumber.Contains(searchQuery));
+
+        return await query.OrderBy(e => e.Category).ThenBy(e => e.Name).ToListAsync(cancellationToken);
+    }
+
+    public void Add(DirectoryEntry entry) => _context.DirectoryEntries.Add(entry);
+    public void Update(DirectoryEntry entry) => _context.DirectoryEntries.Update(entry);
+    public void Remove(DirectoryEntry entry) => _context.DirectoryEntries.Remove(entry);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Infrastructure\Repositories\UnitOfWork.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Domain.Interfaces;
+using DirectoryService.Infrastructure.Data;
+
+namespace DirectoryService.Infrastructure.Repositories;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly DirectoryDbContext _context;
+    public IDirectoryRepository Directory { get; }
+
+    public UnitOfWork(DirectoryDbContext context, IDirectoryRepository directoryRepo)
+    {
+        _context = context;
+        Directory = directoryRepo;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => await _context.SaveChangesAsync(cancellationToken);
+    public void Dispose() { _context.Dispose(); GC.SuppressFinalize(this); }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\appsettings.json
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+      "ServiceUrls": {
+    "TenantService": "http://localhost:5104",
+    "RealtimeGateway": "http://localhost:5116" 
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateEmergencyServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\Controllers\BaseController.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace EmergencyService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+    protected bool IsAdmin => Role == "Admin";
+     protected bool IsSuperAdmin => Role == "SuperAdmin"; // <--- ADD THIS
+    
+    // ADD THIS:
+    protected Guid SocietyId => Guid.TryParse(
+        User.FindFirstValue("SocietyId"), out var societyId) 
+        ? societyId 
+        : Guid.Empty; 
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\Controllers\EmergencyController.cs
+SIZE  : 1.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Application.DTOs;
+using EmergencyService.Application.Features.Alerts.Commands.ResolveAlert;
+using EmergencyService.Application.Features.Alerts.Commands.TriggerPanic;
+using EmergencyService.Application.Features.Alerts.Queries.GetActiveAlerts;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+
+
+namespace EmergencyService.API.Controllers // MUST MATCH EXACTLY
+{
+    public class EmergencyController : BaseController
+    {
+        private readonly IMediator _mediator;
+        public EmergencyController(IMediator mediator) => _mediator = mediator;
+
+        [HttpPost("trigger")]
+        public async Task<ActionResult<Guid>> TriggerPanic([FromBody] TriggerPanicCommand command)
+        {
+            var id = await _mediator.Send(command);
+            return Ok(id); 
+        }
+
+        [HttpGet("active")]
+        public async Task<ActionResult<IReadOnlyList<EmergencyAlertDto>>> GetActiveAlerts([FromQuery] Guid societyId)
+        {
+            var result = await _mediator.Send(new GetActiveAlertsQuery { SocietyId = societyId });
+            return Ok(result);
+        }
+
+        [HttpPut("resolve/{alertId}")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<ActionResult> ResolveAlert(Guid alertId, [FromQuery] Guid societyId)
+        {
+            await _mediator.Send(new ResolveAlertCommand { AlertId = alertId, SocietyId = societyId });
+            return NoContent();
+        }
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\EmergencyService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmergencyService.Application\EmergencyService.Application.csproj" />
+    <ProjectReference Include="..\EmergencyService.Infrastructure\EmergencyService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\Program.cs
+SIZE  : 4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using EmergencyService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using EmergencyService.Domain.Interfaces;
+using EmergencyService.Infrastructure.Repositories;
+using EmergencyService.Infrastructure.Services;
+using FluentValidation;
+ using System.Text.Json;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin()   
+         policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<EmergencyDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IEmergencyAlertRepository, EmergencyAlertRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IRealtimeGatewayDispatcher, HttpRealtimeGatewayDispatcher>();
+
+// --- MediatR & Validation ---
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(EmergencyService.Application.Features.Alerts.Commands.TriggerPanic.TriggerPanicCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(EmergencyService.Application.Features.Alerts.Commands.TriggerPanic.TriggerPanicCommand).Assembly);
+
+//builder.Services.AddHttpClient<IRealtimeGatewayDispatcher, HttpRealtimeGatewayDispatcher>();
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Vehicle Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+builder.Services.AddHttpClient<IRealtimeGatewayDispatcher, HttpRealtimeGatewayDispatcher>();
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ADD THIS BLOCK RIGHT HERE:
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (InvalidOperationException ex)
+    {
+        context.Response.StatusCode = 400;
+        await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message.ToString());
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+    }
+});
+
+
+
+app.MapControllers();
+
+app.Run();
+
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.API\Properties\launchSettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,    
+      "applicationUrl": "http://localhost:5114",
+      "_applicationURL": "the port number was changed from 5115 to 5114 to avoid conflicts with RealtimeGateway.API",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\DTOs\EmergencyAlertDto.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Enums;
+
+namespace EmergencyService.Application.DTOs;
+
+public record EmergencyAlertDto(
+    Guid Id,
+    EmergencyType Type,
+    string? Description,
+    AlertStatus Status,
+    DateTimeOffset TriggeredAt);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\EmergencyService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmergencyService.Domain\EmergencyService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\Features\Alerts\Commands\ResolveAlert\ResolveAlertCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace EmergencyService.Application.Features.Alerts.Commands.ResolveAlert;
+
+public record ResolveAlertCommand : IRequest<Unit>
+{
+    public Guid AlertId { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\Features\Alerts\Commands\ResolveAlert\ResolveAlertCommandHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Interfaces;
+using MediatR;
+
+namespace EmergencyService.Application.Features.Alerts.Commands.ResolveAlert;
+
+public class ResolveAlertCommandHandler : IRequestHandler<ResolveAlertCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public ResolveAlertCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Unit> Handle(ResolveAlertCommand request, CancellationToken cancellationToken)
+    {
+        var alert = await _unitOfWork.Alerts.GetByIdAsync(request.AlertId, cancellationToken)
+            ?? throw new KeyNotFoundException("Alert not found.");
+
+        if (alert.SocietyId != request.SocietyId) throw new UnauthorizedAccessException();
+
+        // We pass Guid.Empty here, Controller will override with real Admin/Guard ID
+        alert.Resolve(Guid.Empty); 
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\Features\Alerts\Commands\TriggerPanic\TriggerPanicCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Enums;
+using MediatR;
+
+namespace EmergencyService.Application.Features.Alerts.Commands.TriggerPanic;
+
+public record TriggerPanicCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public Guid FlatId { get; init; }
+    public EmergencyType Type { get; init; }
+    public string? Description { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\Features\Alerts\Commands\TriggerPanic\TriggerPanicCommandHandler.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Interfaces;
+using MediatR;
+
+namespace EmergencyService.Application.Features.Alerts.Commands.TriggerPanic;
+
+public class TriggerPanicCommandHandler : IRequestHandler<TriggerPanicCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IRealtimeGatewayDispatcher _gateway;
+
+    public TriggerPanicCommandHandler(IUnitOfWork unitOfWork, IRealtimeGatewayDispatcher gateway)
+    {
+        _unitOfWork = unitOfWork;
+        _gateway = gateway;
+    }
+
+    public async Task<Guid> Handle(TriggerPanicCommand request, CancellationToken cancellationToken)
+    {
+        var alert = Domain.Entities.EmergencyAlert.Create(
+            request.SocietyId, Guid.Empty, request.FlatId, request.Type, request.Description);
+        // Guid.Empty will be overwritten by Controller with real UserId
+
+        _unitOfWork.Alerts.Add(alert);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // 1. Broadcast to SignalR Gateway
+        var payload = new { alert.Id, alert.Type, alert.Description, TriggeredAt = alert.CreatedAt };
+        await _gateway.BroadcastEmergencyAlertAsync(alert.SocietyId, payload, cancellationToken);
+
+        return alert.Id;
+    }
+}                                                                                                                               
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\Features\Alerts\Queries\GetActiveAlerts\GetActiveAlertsQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Application.DTOs;
+using MediatR;
+
+namespace EmergencyService.Application.Features.Alerts.Queries.GetActiveAlerts;
+
+public record GetActiveAlertsQuery : IRequest<IReadOnlyList<EmergencyAlertDto>>
+{
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Application\Features\Alerts\Queries\GetActiveAlerts\GetActiveAlertsQueryHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Application.DTOs;
+using EmergencyService.Domain.Interfaces;
+using MediatR;
+
+namespace EmergencyService.Application.Features.Alerts.Queries.GetActiveAlerts;
+
+public class GetActiveAlertsQueryHandler : IRequestHandler<GetActiveAlertsQuery, IReadOnlyList<EmergencyAlertDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    public GetActiveAlertsQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<EmergencyAlertDto>> Handle(GetActiveAlertsQuery request, CancellationToken cancellationToken)
+    {
+        var alerts = await _unitOfWork.Alerts.GetActiveAlertsBySocietyAsync(request.SocietyId, cancellationToken);
+        return alerts.Select(a => new EmergencyAlertDto(a.Id, a.Type, a.Description, a.Status, a.CreatedAt)).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\EmergencyService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Entities\BaseEntity.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace EmergencyService.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public Guid Id { get; protected set; } = Guid.NewGuid();
+    public DateTimeOffset CreatedAt { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; protected set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Entities\EmergencyAlert.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Enums;
+
+namespace EmergencyService.Domain.Entities;
+
+public class EmergencyAlert : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public Guid TriggeredById { get; private set; }
+    public Guid FlatId { get; private set; }
+    public EmergencyType Type { get; private set; }
+    public string? Description { get; private set; }
+    public AlertStatus Status { get; private set; } = AlertStatus.Active;
+    
+    public Guid? ResolvedById { get; private set; }
+    public DateTimeOffset? ResolvedAt { get; private set; }
+
+    private EmergencyAlert() { }
+
+    public static EmergencyAlert Create(Guid societyId, Guid triggeredById, Guid flatId, EmergencyType type, string? description)
+    {
+        return new EmergencyAlert
+        {
+            SocietyId = societyId,
+            TriggeredById = triggeredById,
+            FlatId = flatId,
+            Type = type,
+            Description = description?.Trim()
+        };
+    }
+
+    public void Resolve(Guid resolvedById)
+    {
+        if (Status != AlertStatus.Active) throw new InvalidOperationException("Alert is already resolved.");
+        Status = AlertStatus.Resolved;
+        ResolvedById = resolvedById;
+        ResolvedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Enums\AlertStatus.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace EmergencyService.Domain.Enums;
+
+public enum AlertStatus
+{
+    Active = 0,
+    Resolved = 1
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Enums\EmergencyType.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace EmergencyService.Domain.Enums;
+
+public enum EmergencyType
+{
+    Panic = 0,
+    Medical = 1,
+    Fire = 2,
+    Security = 3
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Interfaces\IEmergencyAlertRepository.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Entities;
+using EmergencyService.Domain.Enums;
+
+namespace EmergencyService.Domain.Interfaces;
+
+public interface IEmergencyAlertRepository
+{
+    Task<IReadOnlyList<EmergencyAlert>> GetActiveAlertsBySocietyAsync(Guid societyId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<EmergencyAlert>> GetByUserAsync(Guid societyId, Guid userId, CancellationToken cancellationToken = default);
+    Task<EmergencyAlert?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    void Add(EmergencyAlert alert);
+    void Update(EmergencyAlert alert);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Interfaces\IRealtimeGatewayDispatcher.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace EmergencyService.Domain.Interfaces;
+
+// Keeps the Application layer unaware of HTTP/SignalR specifics
+public interface IRealtimeGatewayDispatcher
+{
+    Task BroadcastEmergencyAlertAsync(Guid societyId, object alertPayload, CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Domain\Interfaces\IUnitOfWork.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace EmergencyService.Domain.Interfaces;
+
+public interface IUnitOfWork : IDisposable
+{
+    IEmergencyAlertRepository Alerts { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Infrastructure\Data\EmergencyDbContext.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace EmergencyService.Infrastructure.Data;
+
+public class EmergencyDbContext : DbContext
+{
+    public EmergencyDbContext(DbContextOptions<EmergencyDbContext> options) : base(options) { }
+
+    public DbSet<EmergencyAlert> Alerts => Set<EmergencyAlert>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<EmergencyAlert>(entity =>
+        {
+            entity.ToTable("Alerts");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).IsRequired().HasConversion<string>();
+            entity.Property(e => e.Status).IsRequired().HasConversion<string>();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            
+            entity.HasIndex(e => e.SocietyId);
+            entity.HasIndex(e => new { e.SocietyId, e.Status }); // Crucial for fast active alert lookups
+            entity.HasIndex(e => e.TriggeredById);
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Infrastructure\EmergencyService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmergencyService.Domain\EmergencyService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Infrastructure\Repositories\EmergencyAlertRepository.cs
+SIZE  : 1.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Entities;
+using EmergencyService.Domain.Enums;
+using EmergencyService.Domain.Interfaces;
+using EmergencyService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace EmergencyService.Infrastructure.Repositories;
+
+public class EmergencyAlertRepository : IEmergencyAlertRepository
+{
+    private readonly EmergencyDbContext _context;
+    public EmergencyAlertRepository(EmergencyDbContext context) => _context = context;
+
+    public async Task<IReadOnlyList<EmergencyAlert>> GetActiveAlertsBySocietyAsync(Guid societyId, CancellationToken cancellationToken = default)
+        => await _context.Alerts
+            .Where(a => a.SocietyId == societyId && a.Status == AlertStatus.Active)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<EmergencyAlert>> GetByUserAsync(Guid societyId, Guid userId, CancellationToken cancellationToken = default)
+        => await _context.Alerts
+            .Where(a => a.SocietyId == societyId && a.TriggeredById == userId)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<EmergencyAlert?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.Alerts.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+    public void Add(EmergencyAlert alert) => _context.Alerts.Add(alert);
+    public void Update(EmergencyAlert alert) => _context.Alerts.Update(alert);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Infrastructure\Repositories\UnitOfWork.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using EmergencyService.Domain.Interfaces;
+using EmergencyService.Infrastructure.Data;
+
+namespace EmergencyService.Infrastructure.Repositories;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly EmergencyDbContext _context;
+    public IEmergencyAlertRepository Alerts { get; }
+
+    public UnitOfWork(EmergencyDbContext context, IEmergencyAlertRepository alertRepo)
+    {
+        _context = context;
+        Alerts = alertRepo;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
+        => await _context.SaveChangesAsync(cancellationToken);
+
+    public void Dispose() 
+    { 
+        _context.Dispose(); 
+        GC.SuppressFinalize(this); 
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : EmergencyService\EmergencyService.Infrastructure\Services\HttpRealtimeGatewayDispatcher.cs
+SIZE  : 1.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text.Json;
+using EmergencyService.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
+
+namespace EmergencyService.Infrastructure.Services;
+
+public class HttpRealtimeGatewayDispatcher : IRealtimeGatewayDispatcher
+{
+    private readonly HttpClient _httpClient;
+
+    public HttpRealtimeGatewayDispatcher(HttpClient httpClient, IConfiguration configuration)
+    {
+        _httpClient = httpClient;
+
+        //var gatewayUrl = configuration.GetValue<string>("ServiceUrls:RealtimeGateway");
+    var gatewayUrl = configuration["ServiceUrls:RealtimeGateway"];
+    if (!string.IsNullOrEmpty(gatewayUrl))
+        {
+            _httpClient.BaseAddress = new Uri(gatewayUrl);
+        }
+        else
+        {
+            throw new InvalidOperationException("ServiceUrls:RealtimeGateway URL is not configured in appsettings.json.");
+        }
+      
+    }
+
+    public async Task BroadcastEmergencyAlertAsync(Guid societyId, object alertPayload, CancellationToken cancellationToken = default)
+    {
+        var payload = new
+        {
+            methodName = "ReceiveEmergencyAlert",
+            groupName = $"society_{societyId}",
+            args = new[] { alertPayload }
+        };
+
+        var jsonContent = new StringContent(
+            JsonSerializer.Serialize(payload),
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        // Call the Gateway API (we will add this endpoint to the Gateway next)
+        var response = await _httpClient.PostAsync("/api/gateway/broadcast", jsonContent, cancellationToken);
+        
+        // We don't throw if gateway is down, safety first for emergencies
+        response.EnsureSuccessStatusCode(); 
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "HelpdeskDb": "Server=localhost;Database=MyGateHelpdeskDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+
+namespace HelpdeskService.API.Controllers;
+
+[ApiController]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst("sub")?.Value;
+            
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("Valid User ID not found in token.");
+            
+        return userId;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\Controllers\TicketsController.cs
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims; // CRITICAL FOR ClaimTypes
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using HelpdeskService.Application.Features.Tickets.Commands;
+using HelpdeskService.Application.Features.Tickets.Queries;
+using HelpdeskService.Application.Features.Admin;
+
+namespace HelpdeskService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class TicketsController : BaseController
+{
+    private readonly IMediator _mediator;
+    public TicketsController(IMediator mediator) => _mediator = mediator;
+
+
+    [HttpPost("raise")]
+    public async Task<IActionResult> RaiseTicket([FromBody] RaiseTicketCommand command)
+    {
+        command.CreatedByUserId = GetUserId(); // Injects the real ID!
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(RaiseTicket), new { id }, new { Id = id });
+    }
+
+    [HttpGet("my-tickets")]
+    public async Task<IActionResult> GetMyTickets([FromQuery] Guid flatId)
+    {
+        var query = new GetMyTicketsQuery { FlatId = flatId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    // NEW ENDPOINTS:
+
+    [HttpGet("{ticketId}")]
+    public async Task<IActionResult> GetTicketDetails(Guid ticketId)
+    {
+        var query = new GetTicketDetailsQuery { TicketId = ticketId };
+        var result = await _mediator.Send(query);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("{ticketId}/comments")]
+    public async Task<IActionResult> AddComment(Guid ticketId, [FromBody] AddCommentCommand command)
+    {
+        command.TicketId = ticketId;
+        command.UserId = GetUserId(); // Injects the real ID!
+        await _mediator.Send(command);
+        return Ok();
+    }
+
+    [HttpPut("{ticketId}/status")]
+    [Authorize(Roles = "Admin,SuperAdmin")] // <--- THE MAGIC WORDS = ADMIN & SUPERADMIN ONLY ENDPOINTS
+    public async Task<IActionResult> UpdateStatus(Guid ticketId, [FromBody] UpdateTicketStatusCommand command)
+    {
+        command.TicketId = ticketId;
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    // ADD this endpoint:
+    [HttpGet("society/{societyId}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> GetSocietyTickets(Guid societyId)
+    {
+        var result = await _mediator.Send(new GetSocietyTicketsQuery { SocietyId = societyId });
+        return Ok(result);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\HelpdeskService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HelpdeskService.Application\HelpdeskService.Application.csproj" />
+    <ProjectReference Include="..\HelpdeskService.Infrastructure\HelpdeskService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\Program.cs
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using HelpdeskService.Infrastructure.Persistence;
+using Microsoft.OpenApi;
+using HelpdeskService.Domain.Interfaces;
+using HelpdeskService.Infrastructure.Repositories;
+using HelpdeskService.Application.Features.Tickets.Queries;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+
+// --- 1. THIS IS THE MISSING BLOCK ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+         policy.SetIsOriginAllowed(origin => true) // FIXED
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+builder.Services.AddDbContext<HelpdeskDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("HelpdeskDb")));
+
+builder.Services.AddScoped<ITicketRepository, TicketRepository>();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(HelpdeskService.Application.Features.Tickets.Commands.RaiseTicketCommand).Assembly));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+      var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+
+    };
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Name = "Authorization", Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT", In = ParameterLocation.Header });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() });
+});
+
+var app = builder.Build();
+app.UseSwagger(); app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication(); app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5108",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Admin\UpdateTicketStatusCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace HelpdeskService.Application.Features.Admin;
+
+public class UpdateTicketStatusCommand : IRequest<Unit>
+{
+    public Guid TicketId { get; set; }
+    public int NewStatus { get; set; } // 1=InProgress, 2=Resolved
+    public Guid AdminUserId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Admin\UpdateTicketStatusCommandHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Entities;
+using HelpdeskService.Domain.Interfaces;
+
+namespace HelpdeskService.Application.Features.Admin;
+
+public class UpdateTicketStatusCommandHandler : IRequestHandler<UpdateTicketStatusCommand, Unit>
+{
+    private readonly ITicketRepository _repository;
+    public UpdateTicketStatusCommandHandler(ITicketRepository repository) => _repository = repository;
+
+    public async Task<Unit> Handle(UpdateTicketStatusCommand request, CancellationToken cancellationToken)
+    {
+        var ticket = await _repository.GetByIdWithCommentsAsync(request.TicketId) 
+            ?? throw new Exception("Ticket not found");
+
+        if ((TicketStatus)request.NewStatus == TicketStatus.InProgress)
+            ticket.AssignTo(request.AdminUserId);
+        else if ((TicketStatus)request.NewStatus == TicketStatus.Resolved)
+            ticket.Resolve();
+
+        await _repository.UpdateAsync(ticket);
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Commands\AddCommentCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace HelpdeskService.Application.Features.Tickets.Commands;
+
+public class AddCommentCommand : IRequest<Unit>
+{
+    public Guid TicketId { get; set; }
+    public string CommentText { get; set; } = string.Empty;
+    public bool IsAdminComment { get; set; } // Flutter will send false. Swagger will send true.
+
+       // NEW: The Controller will pass this in
+    public Guid UserId { get; set; } 
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Commands\AddCommentCommandHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Entities;
+using HelpdeskService.Domain.Interfaces;
+using System.Security.Claims;
+
+
+namespace HelpdeskService.Application.Features.Tickets.Commands;
+
+public class AddCommentCommandHandler : IRequestHandler<AddCommentCommand, Unit>
+{
+    private readonly ITicketRepository _repository;
+     public AddCommentCommandHandler(ITicketRepository repository) => _repository = repository;
+
+
+    public async Task<Unit> Handle(AddCommentCommand request, CancellationToken cancellationToken)
+    {
+        // Now we just use the ID passed safely from the controller
+        var comment = new TicketComment(
+            request.TicketId, 
+            request.UserId, 
+            request.CommentText, 
+            request.IsAdminComment
+        );
+        
+        await _repository.AddCommentAsync(comment);
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Commands\RaiseTicketCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace HelpdeskService.Application.Features.Tickets.Commands;
+
+public class RaiseTicketCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public Guid FlatId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public int Priority { get; set; } = 2; // Default to Medium
+      public Guid CreatedByUserId { get; set; } // ADD THIS LINE
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Commands\RaiseTicketCommandHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Entities;
+using HelpdeskService.Domain.Interfaces;
+
+namespace HelpdeskService.Application.Features.Tickets.Commands;
+
+public class RaiseTicketCommandHandler : IRequestHandler<RaiseTicketCommand, Guid>
+{
+    private readonly ITicketRepository _repository;
+    public RaiseTicketCommandHandler(ITicketRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(RaiseTicketCommand request, CancellationToken cancellationToken)
+    {
+        // Convert int to Enum
+        var priorityEnum = (TicketPriority)request.Priority;
+
+        var ticket = new Ticket(
+            request.SocietyId,
+            request.FlatId,
+           // Guid.Empty, // CreatedByUserId would come from JWT in a real app
+             request.CreatedByUserId, // CHANGED: Was Guid.Empty, now uses the real ID!
+            request.Title,
+            request.Description,
+            request.Category,
+            priorityEnum
+        );
+
+        return (await _repository.AddAsync(ticket)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Queries\GetMyTicketsQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Entities;
+
+namespace HelpdeskService.Application.Features.Tickets.Queries;
+
+public class GetMyTicketsQuery : IRequest<List<Ticket>>
+{
+    public Guid FlatId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Queries\GetMyTicketsQueryHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Interfaces;
+using HelpdeskService.Domain.Entities;
+
+namespace HelpdeskService.Application.Features.Tickets.Queries;
+
+public class GetMyTicketsQueryHandler : IRequestHandler<GetMyTicketsQuery, List<Ticket>>
+{
+    private readonly ITicketRepository _repository;
+    public GetMyTicketsQueryHandler(ITicketRepository repository) => _repository = repository;
+
+    public async Task<List<Ticket>> Handle(GetMyTicketsQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetByFlatIdAsync(request.FlatId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Queries\GetSocietyTicketsQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Entities;
+
+namespace HelpdeskService.Application.Features.Tickets.Queries;
+
+public class GetSocietyTicketsQuery : IRequest<List<Ticket>>
+{
+    public Guid SocietyId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Queries\GetSocietyTicketsQueryHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Interfaces;
+using HelpdeskService.Domain.Entities;
+
+namespace HelpdeskService.Application.Features.Tickets.Queries;
+
+public class GetSocietyTicketsQueryHandler : IRequestHandler<GetSocietyTicketsQuery, List<Ticket>>
+{
+    private readonly ITicketRepository _repository;
+    public GetSocietyTicketsQueryHandler(ITicketRepository repository) => _repository = repository;
+
+    public async Task<List<Ticket>> Handle(GetSocietyTicketsQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetBySocietyIdAsync(request.SocietyId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\Features\Tickets\Queries\GetTicketDetailsQuery.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using HelpdeskService.Domain.Entities;
+using HelpdeskService.Domain.Interfaces;
+
+
+namespace HelpdeskService.Application.Features.Tickets.Queries;
+
+public class GetTicketDetailsQuery : IRequest<Ticket?>
+{
+    public Guid TicketId { get; set; }
+}
+
+public class GetTicketDetailsQueryHandler : IRequestHandler<GetTicketDetailsQuery, Ticket?>
+{
+    private readonly ITicketRepository _repository;
+    public GetTicketDetailsQueryHandler(ITicketRepository repository) => _repository = repository;
+
+    public async Task<Ticket?> Handle(GetTicketDetailsQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetByIdWithCommentsAsync(request.TicketId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Application\HelpdeskService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HelpdeskService.Domain\HelpdeskService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Domain\Entities\Ticket.cs
+SIZE  : 2.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace HelpdeskService.Domain.Entities;
+
+public class Ticket
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public Guid FlatId { get; private set; }
+    public Guid CreatedByUserId { get; private set; } // The resident who raised it
+    
+    public string Title { get; private set; } = null!;
+    public string Description { get; private set; } = null!;
+    public string? Category { get; private set; } // e.g., "Plumbing", "Electrical"
+    
+    public TicketPriority Priority { get; private set; } = TicketPriority.Medium;
+    public TicketStatus Status { get; private set; } = TicketStatus.Open;
+    
+    public Guid? AssignedToId { get; private set; } // Admin or Staff member
+    public string? ResolutionNotes { get; private set; }
+    
+    public int Rating { get; private set; } // 1 to 5 stars given by resident
+    public string? Feedback { get; private set; }
+    
+    public DateTime CreatedAt { get; private set; }
+    public DateTime? UpdatedAt { get; private set; }
+
+  // NEW NAVIGATION PROPERTY FOR EF CORE:
+    private readonly List<TicketComment> _comments = new();
+    public IReadOnlyCollection<TicketComment> Comments => _comments.AsReadOnly();
+    private Ticket() { }
+
+    public Ticket(Guid societyId, Guid flatId, Guid createdByUserId, string title, string description, string? category = null, TicketPriority priority = TicketPriority.Medium)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("Title is required.");
+        
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        FlatId = flatId;
+        CreatedByUserId = createdByUserId;
+        Title = title;
+        Description = description;
+        Category = category;
+        Priority = priority;
+        CreatedAt = DateTime.UtcNow;
+    }
+
+    public void AssignTo(Guid staffId)
+    {
+        AssignedToId = staffId;
+        Status = TicketStatus.InProgress;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Resolve(string resolutionNotes="")
+    {
+        ResolutionNotes = resolutionNotes;
+        Status = TicketStatus.Resolved;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Close()
+    {
+        Status = TicketStatus.Closed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+      public void AddComment(TicketComment comment)
+    {
+        _comments.Add(comment);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Domain\Entities\TicketComment.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace HelpdeskService.Domain.Entities;
+
+public class TicketComment
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid TicketId { get; private set; }
+    public Guid UserId { get; private set; } // Can be resident or admin
+    public string CommentText { get; private set; } = null!;
+    public bool IsAdminComment { get; private set; } // To highlight admin responses
+    public string? AttachmentUrl { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+
+    private TicketComment() { }
+
+    public TicketComment(Guid ticketId, Guid userId, string commentText, bool isAdminComment = false, string? attachmentUrl = null)
+    {
+        if (string.IsNullOrWhiteSpace(commentText)) throw new ArgumentException("Comment cannot be empty.");
+        
+        Id = Guid.NewGuid();
+        TicketId = ticketId;
+        UserId = userId;
+        CommentText = commentText;
+        IsAdminComment = isAdminComment;
+        AttachmentUrl = attachmentUrl;
+        CreatedAt = DateTime.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Domain\Entities\TicketPriority.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace HelpdeskService.Domain.Entities;
+
+public enum TicketPriority
+{
+    Low,
+    Medium,
+    High,
+    Critical
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Domain\Entities\TicketStatus.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace HelpdeskService.Domain.Entities;
+
+public enum TicketStatus
+{
+    Open,        // Newly created
+    InProgress,  // Admin is working on it
+    Resolved,    // Admin fixed it, waiting for user review
+    Closed,       // User confirmed it's fixed
+    Rejected     // Admin couldn't fix or invalid ticket
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Domain\HelpdeskService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Domain\Interfaces\ITicketRepository.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using HelpdeskService.Domain.Entities;
+
+namespace HelpdeskService.Domain.Interfaces;
+
+public interface ITicketRepository
+{
+  Task<Ticket> AddAsync(Ticket ticket);
+  Task<List<Ticket>> GetByFlatIdAsync(Guid flatId);
+
+  // NEW METHODS:
+  Task<Ticket?> GetByIdWithCommentsAsync(Guid ticketId);
+  Task AddCommentAsync(TicketComment comment);
+  Task UpdateAsync(Ticket ticket);
+
+  // ADD:
+  Task<List<Ticket>> GetBySocietyIdAsync(Guid societyId);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Infrastructure\HelpdeskService.Infrastructure.csproj
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HelpdeskService.Domain\HelpdeskService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+  <PrivateAssets>all</PrivateAssets>
+</PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Infrastructure\Persistence\HelpdeskDbContext.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using HelpdeskService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace HelpdeskService.Infrastructure.Persistence;
+
+public class HelpdeskDbContext : DbContext
+{
+    public HelpdeskDbContext(DbContextOptions<HelpdeskDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<TicketComment> TicketComments => Set<TicketComment>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Ticket>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            // NEW: Tell EF Core to load comments automatically when fetching a ticket
+            entity.HasMany(e => e.Comments).WithOne().HasForeignKey(c => c.TicketId);
+        });
+
+        modelBuilder.Entity<TicketComment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CommentText).IsRequired();
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : HelpdeskService\HelpdeskService.Infrastructure\Repositories\TicketRepository.cs
+SIZE  : 1.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using HelpdeskService.Domain.Entities;
+using HelpdeskService.Domain.Interfaces;
+using HelpdeskService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace HelpdeskService.Infrastructure.Repositories;
+
+public class TicketRepository : ITicketRepository
+{
+    private readonly HelpdeskDbContext _context;
+    public TicketRepository(HelpdeskDbContext context) => _context = context;
+
+    public async Task<Ticket> AddAsync(Ticket ticket)
+    {
+        await _context.Tickets.AddAsync(ticket);
+        await _context.SaveChangesAsync();
+        return ticket;
+    }
+
+    public async Task<List<Ticket>> GetByFlatIdAsync(Guid flatId)
+    {
+        return await _context.Tickets
+            .Where(t => t.FlatId == flatId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+    // NEW METHODS IMPLEMENTATION:
+    public async Task<Ticket?> GetByIdWithCommentsAsync(Guid ticketId)
+    {
+        return await _context.Tickets
+            .Include(t => t.Comments) // This loads the comments!
+            .FirstOrDefaultAsync(t => t.Id == ticketId);
+    }
+
+    public async Task AddCommentAsync(TicketComment comment)
+    {
+        await _context.TicketComments.AddAsync(comment);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(Ticket ticket)
+    {
+        _context.Tickets.Update(ticket);
+        await _context.SaveChangesAsync();
+    }
+
+    // ADD:
+    public async Task<List<Ticket>> GetBySocietyIdAsync(Guid societyId)
+    {
+        return await _context.Tickets
+            .Where(t => t.SocietyId == societyId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ServiceUrls": {
+    "TenantService": "http://localhost:5104"
+  },
+  "ConnectionStrings": {
+    "IdentityDb": "Server=localhost;Database=MyGateIdentityDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.API\Controllers\AuthController.cs
+SIZE  : 3.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using IdentityService.Application.Features.Auth.Commands;
+using IdentityService.Application.Features.Auth.Queries;
+using Microsoft.AspNetCore.Authorization;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+
+namespace IdentityService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : ControllerBase
+{
+    private readonly IMediator _mediator;
+
+    public AuthController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    [HttpPost("register")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
+    {
+        // Send the command to MediatR, which sends it to our Handler
+        var userId = await _mediator.Send(command);
+
+        // Return the newly created User ID to the Flutter app
+        return CreatedAtAction(nameof(Register), new { id = userId }, new { Id = userId });
+    }
+
+    // NEW: LOGIN ENDPOINT
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginQuery query)
+    {
+        var token = await _mediator.Send(query);
+        return Ok(new { Token = token });
+    }
+
+    [HttpPost("select-context")]
+    public async Task<IActionResult> SelectContext([FromBody] SelectContextCommand command)
+    {
+        var token = await _mediator.Send(command);
+        return Ok(new { Token = token });
+    }
+
+    [Authorize]
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile([FromQuery] Guid userId)
+    {
+        var query = new GetProfileQuery { UserId = userId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
+    {
+        await _mediator.Send(command);
+        return NoContent(); // 204 No Content is standard for a successful update
+    }
+
+    [HttpPost("request-otp")]
+    public async Task<IActionResult> RequestOtp([FromBody] RequestOtpCommand command)
+    {
+        // This just returns OK. The real OTP is printed in the terminal!
+        await _mediator.Send(command);
+        return Ok(new { Message = "If you are registered, an OTP has been sent." });
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpCommand command)
+    {
+        var token = await _mediator.Send(command);
+        return Ok(new { Token = token });
+    }
+
+    // Add this method to the existing AuthController class:
+
+    [HttpGet("lookup/{mobileNumber}")]
+    [Authorize]
+    public async Task<IActionResult> LookupUser(string mobileNumber)
+    {
+        var query = new LookupUserByMobileQuery { MobileNumber = mobileNumber };
+        var result = await _mediator.Send(query);
+
+        if (result is null)
+            return NotFound(new { Message = "No user found with this mobile number." });
+
+        return Ok(result);
+    }
+
+    // ✅ ADD THIS NEW ENDPOINT
+    [HttpPost("create-guard")]
+    [Authorize(Roles = "Admin,SuperAdmin")] // Only Admins can create Guards
+    public async Task<IActionResult> CreateGuard([FromBody] RegisterUserCommand command)
+    {
+        // FORCE security-sensitive fields regardless of what the JSON payload contained
+        command.Role = "Guard";
+        command.Password = "Guard@123";
+        var id = await _mediator.Send(command);
+        return Ok(new { Id = id });
+    }
+
+
+
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : IdentityService\IdentityService.API\Controllers\SuperAdminController.cs
+SIZE  : 4.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using IdentityService.Domain.Interfaces;
+
+namespace IdentityService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class SuperAdminController : ControllerBase
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
+    private readonly IUserRepository _userRepository;
+
+    public SuperAdminController(IHttpClientFactory httpClientFactory, IConfiguration configuration, IUserRepository userRepository)
+    {
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
+        _userRepository = userRepository;
+    }
+
+    [HttpGet("societies")]
+    public async Task<IActionResult> GetAllSocieties()
+    {
+        try
+        {
+            // 1. Extract Token from Header safely
+            var authHeader = HttpContext.Request.Headers["Authorization"].ToString();
+            
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized("Token is missing.");
+            }
+
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+            var handler =  new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+            
+            if (!handler.CanReadToken(token))
+            {
+                return Unauthorized("Invalid token format.");
+            }
+
+            var jwtToken = handler.ReadJwtToken(token);
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized("Invalid user identifier in token.");
+            }
+
+            // 2. SECURITY CHECK: Look up the user in the DB
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return Forbid("User not found.");
+
+            // Only allow if their mobile number is our designated SuperAdmin number
+           //if (user.MobileNumber != "0000000000") 
+            if (user.Role != "SuperAdmin")
+            {
+                return Forbid("You do not have permission to view all societies.");
+            }
+
+            // 3. Proxy the request to TenantService (Port 5104)
+            var client = _httpClientFactory.CreateClient("TenantService");
+
+            // 🔒 FIX: Forward the SuperAdmin token so TenantService.Authorize(Roles="SuperAdmin") passes
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // We do NOT pass the Bearer token here, because TenantService's 
+            // SuperAdmin endpoint is an internal open endpoint.
+           // var response = await client.GetAsync(_configuration["ServiceUrls:TenantService"] + "/api/superadmin/societies");
+           var tenantServiceUrl = _configuration["ServiceUrls:TenantService"] ?? throw new InvalidOperationException("TenantService URL is not configured.");
+            if (string.IsNullOrEmpty(tenantServiceUrl))
+            {
+                return StatusCode(500, "TenantService URL is not configured.");
+            }
+            var response = await client.GetAsync($"{tenantServiceUrl}/api/superadmin/societies");
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ ERROR from TenantService: {response.StatusCode} - {errorContent}");
+                return StatusCode((int)response.StatusCode, "Failed to fetch societies from TenantService.");
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var societies = JsonSerializer.Deserialize<object>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return Ok(societies);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ FATAL ERROR in SuperAdminController: {ex.Message}");
+            return StatusCode(500, "An internal error occurred.");
+        }
+    }
+}
+

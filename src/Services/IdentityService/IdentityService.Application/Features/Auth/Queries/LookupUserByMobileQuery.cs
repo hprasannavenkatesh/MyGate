@@ -12,5 +12,6 @@ public record UserLookupDto(
     string FullName,
     string MobileNumber,
     string? Email,
-    bool IsMobileVerified
+    bool IsMobileVerified,
+    string? Role
 );

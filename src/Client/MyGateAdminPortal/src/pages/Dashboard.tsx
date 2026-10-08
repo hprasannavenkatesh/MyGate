@@ -1,172 +1,213 @@
 // src/pages/Dashboard.tsx
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { getAllSocietiesForSuperAdmin, type SocietyListDto } from '../api/tenant';
-import { getDashboardData } from '../api/mockData';
-import { Building, Users, Loader2, Activity as ActivityIcon, DollarSign, Car } from 'lucide-react';
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getSocietyVisitors } from "../api/visitor";
+import { getSocietyInvoices } from "../api/billing";
+import { getSocietyTickets } from "../api/helpdesk";
+import * as signalR from "@microsoft/signalr";
+import { Users, Receipt, Ticket, Loader2 } from "lucide-react";
 
+// CRITICAL FIX: Prevent StrictMode from creating duplicate connections
+let isSignalRInitializing = false;
 
-// --- SUPERADMIN GLOBAL DASHBOARD ---
-const SuperAdminDashboard = () => {
-  const [societies, setSocieties] = useState<SocietyListDto[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchGlobalData = async () => {
-      try {
-        const data = await getAllSocietiesForSuperAdmin();
-        setSocieties(data);
-      } catch (err) {
-        console.error('Failed to fetch global data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchGlobalData();
-  }, []);
-
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>;
-
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Building className="text-blue-600" size={24} /> Global Dashboard
-      </h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-md"><Building className="text-blue-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Total Societies</p>
-              <p className="text-2xl font-bold text-slate-800">{societies.length}</p>
-            </div>
-          </div>
-        </div>
-        {/* Placeholders for future cross-service aggregation */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-50 rounded-md"><Users className="text-green-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Total Residents</p>
-              <p className="text-2xl font-bold text-slate-800">—</p> 
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-50 rounded-md"><DollarSign className="text-red-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Pending Dues</p>
-              <p className="text-2xl font-bold text-slate-800">—</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <h2 className="text-lg font-semibold mb-4">Recent Societies</h2>
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b">
-            <tr>
-              <th className="px-6 py-3 font-medium">Society Name</th>
-              <th className="px-6 py-3 font-medium">City</th>
-              <th className="px-6 py-3 font-medium">Address</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {societies.length === 0 ? (
-              <tr><td colSpan={3} className="p-8 text-center text-slate-500">No societies found.</td></tr>
-            ) : (
-              societies.map(s => (
-                <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-800">{s.name}</td>
-                  <td className="px-6 py-4 text-slate-600">{s.city || '—'}</td>
-                  <td className="px-6 py-4 text-slate-600">{s.address || '—'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-// --- NORMAL ADMIN DASHBOARD ---
-const AdminDashboard = () => {
-  const { stats, activities } = getDashboardData(); // Still using mock data until Reporting Service (5119) is built
-
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-md"><Users className="text-blue-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Total Residents</p>
-              <p className="text-2xl font-bold text-slate-800">{stats.totalResidents}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-50 rounded-md"><DollarSign className="text-red-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Pending Dues</p>
-              <p className="text-2xl font-bold text-slate-800">₹{stats.pendingDues.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-50 rounded-md"><Car className="text-green-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Parking Occupancy</p>
-              <p className="text-2xl font-bold text-slate-800">{stats.parkingOccupancy}%</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-50 rounded-md"><ActivityIcon className="text-yellow-600" size={24} /></div>
-            <div>
-              <p className="text-sm text-slate-500">Active Notices</p>
-              <p className="text-2xl font-bold text-slate-800">{stats.activeNotices}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <ul className="divide-y divide-slate-100">
-          {activities.map(act => (
-            <li key={act.id} className="py-3 flex justify-between items-center">
-              <div>
-                <span className="text-sm font-medium text-slate-700">{act.event}</span>
-                <span className="text-xs text-slate-400 ml-2">by {act.user}</span>
-              </div>
-              <span className="text-xs text-slate-500">{act.time}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-};
-
-// --- MAIN ROUTER ---
 const Dashboard = () => {
   const { currentUser } = useAuth();
+  const [emergencyAlert, setEmergencyAlert] = useState<string | null>(null);
 
-  if (currentUser?.isSuperAdmin) {
-    return <SuperAdminDashboard />;
-  }
+  // Live Data States
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [pendingDuesCount, setPendingDuesCount] = useState<number | null>(null);
+  const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
-  return <AdminDashboard />;
+  const connectionRef = useRef<signalR.HubConnection | null>(null);
+
+  // 1. Fetch Context-Aware Data
+  useEffect(() => {
+    if (!currentUser?.societyId) return;
+
+    const fetchSocietyData = async () => {
+      setIsLoadingStats(true);
+      try {
+        const [visitors, invoices, tickets] = await Promise.all([
+          getSocietyVisitors(currentUser.societyId).catch(() => []),
+          getSocietyInvoices(currentUser.societyId).catch(() => []),
+          getSocietyTickets(currentUser.societyId).catch(() => []),
+        ]);
+
+        setVisitorCount(visitors.length);
+        setPendingDuesCount(invoices.filter((i) => i.status === 0).length);
+        setOpenTicketsCount(tickets.filter((t) => t.status === 0).length);
+      } catch (error) {
+        console.error("Failed to load dashboard stats", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchSocietyData();
+  }, [currentUser?.societyId]);
+
+  // 2. SignalR Emergency Listener
+  useEffect(() => {
+    if (!currentUser?.societyId) return;
+
+    // CRITICAL: Fetch the token to authenticate the Gateway connection
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      console.error("❌ No auth token found for SignalR connection.");
+      isSignalRInitializing = false; // Reset on failure
+      return;
+    }
+
+    console.log(
+      `🔌 Connecting to SignalR for Society: ${currentUser.societyId}`,
+    );
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl("http://localhost:5116/api/hubs/emergency", {
+        skipNegotiation: true,
+        transport: signalR.HttpTransportType.WebSockets,
+        accessTokenFactory: () => token,
+      }) // RealtimeGateway Port
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
+
+    connectionRef.current = connection;
+    // Listen for the exact method name invoked by the gateway
+    connection.on("ReceiveEmergencyAlert", (message) => {
+      console.log("🚨 EMERGENCY ALERT RECEIVED IN REACT:", message);
+      const description =
+        message?.description || "🚨 EMERGENCY ALERT TRIGGERED IN YOUR SOCIETY!";
+      setEmergencyAlert(description);
+    });
+
+    connection
+      .start()
+      .then(() => {
+        console.log("✅ SignalR Connected to Realtime$ateway");
+        return connection.invoke("JoinSocietyGroup", currentUser.societyId);
+      })
+      .then(() => {
+        console.log(`✅ Joined Society Group: ${currentUser.societyId}`);
+      })
+      .catch((err) => {
+        console.error("❌ SignalR Connection Error:", err);
+        isSignalRInitializing = false; // Reset on failure so it can retry
+      });
+    // Cleanup on unmount
+    return () => {
+      if (connectionRef.current) {
+        connectionRef.current.stop();
+        connectionRef.current = null;
+      }
+      isSignalRInitializing = false; // Reset when component unmounts
+    };
+  }, [currentUser?.societyId]);
+
+  // 3. Role-Based UI Text Helpers
+  const getRoleLabel = () => {
+    if (currentUser?.isSuperAdmin) return "SuperAdmin";
+    if (currentUser?.role === "Admin") return "Society Admin";
+    return "Resident";
+  };
+
+  const getScopeLabel = () => {
+    if (currentUser?.isSuperAdmin) return "Viewing data for selected society";
+    if (currentUser?.role === "Admin")
+      return "Viewing all data for your society";
+    return "Viewing data for your flat only";
+  };
+
+  return (
+    <div className="p-8">
+      {/* Emergency Alert Overlay */}
+      {emergencyAlert && (
+        <div className="fixed inset-0 bg-red-900/90 flex items-center justify-center z-50 p-8">
+          <div className="bg-white p-8 rounded-lg shadow-2xl text-center max-w-md">
+            <div className="text-5xl mb-4">🚨</div>
+            <h2 className="text-2xl font-bold text-red-700 mb-4">
+              EMERGENCY ALERT
+            </h2>
+            <p className="text-lg text-slate-800 mb-6">{emergencyAlert}</p>
+            <button
+              onClick={() => setEmergencyAlert(null)}
+              className="bg-red-600 text-white px-6 py-3 rounded-md font-bold hover:bg-red-700"
+            >
+              ACKNOWLEDGE
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+        <p className="text-slate-500 mt-1">
+          Logged in as{" "}
+          <span className="font-semibold text-indigo-600">
+            {getRoleLabel()}
+          </span>{" "}
+          • {getScopeLabel()}
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      {isLoadingStats ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="animate-spin text-slate-400 w-8 h-8" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Active Visitors Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className="p-3 bg-blue-50 rounded-full">
+              <Users className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-500">
+                Society Visitors
+              </h3>
+              <p className="text-2xl font-bold text-slate-800">
+                {visitorCount ?? "--"}
+              </p>
+            </div>
+          </div>
+
+          {/* Pending Dues Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className="p-3 bg-red-50 rounded-full">
+              <Receipt className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-500">
+                Pending Dues
+              </h3>
+              <p className="text-2xl font-bold text-slate-800">
+                {pendingDuesCount ?? "--"}
+              </p>
+            </div>
+          </div>
+
+          {/* Open Tickets Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className="p-3 bg-yellow-50 rounded-full">
+              <Ticket className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-500">
+                Open Tickets
+              </h3>
+              <p className="text-2xl font-bold text-slate-800">
+                {openTicketsCount ?? "--"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Dashboard;

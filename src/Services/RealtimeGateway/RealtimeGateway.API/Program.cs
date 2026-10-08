@@ -9,10 +9,12 @@ global using RealtimeGateway.API.Hubs;
 global using Microsoft.AspNetCore.SignalR;
 global using System.Text.Json;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Add SignalR to the services
 builder.Services.AddSignalR();
+
 
 // 2. Add CORS (CRITICAL FOR FLUTTER WEB)
 builder.Services.AddCors(options =>
@@ -32,13 +34,24 @@ var app = builder.Build();
 
 // 3. Use CORS BEFORE SignalR
 app.UseCors("AllowFlutter");
-
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 // 4. Map the Hubs to specific endpoints
 // Flutter will connect to these URLs
-app.MapHub<EmergencyHub>("/hubs/emergency");
-app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<EmergencyHub>("/api/hubs/emergency");
+app.MapHub<ChatHub>("/api/hubs/chat");
+// 4. Map the Hubs to specific endpoints
+// Flutter will connect to these URLs
+/*app.MapHub<EmergencyHub>("/api/hubs/emergency", options =>
+{
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransports.All;
+});
+app.MapHub<ChatHub>("/hubs/chat", options =>
+{
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransports.All;
+});*/
 
 // --- ADD THIS BLOCK ---
 app.MapPost("/api/gateway/broadcast", async (HttpContext context, IHubContext<EmergencyHub> hubContext) =>

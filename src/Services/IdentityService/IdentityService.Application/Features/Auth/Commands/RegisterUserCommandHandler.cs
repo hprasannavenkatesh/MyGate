@@ -39,7 +39,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, G
         }
 
 
-        // Create our Domain Entity (using the code we wrote yesterday!)
+        // Create our Domain Entity 
         var user = new User(request.MobileNumber, request.FullName, request.Email);
 
         // NEW: Hash the password and set it on the user!

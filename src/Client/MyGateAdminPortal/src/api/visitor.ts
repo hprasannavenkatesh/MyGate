@@ -68,7 +68,7 @@ export interface ManualEntryCommand {
 
 // ADMIN: Get all visitors for a society
 export const getSocietyVisitors = async (societyId: string): Promise<VisitorDto[]> => {
-  const response = await apiClient.get<VisitorDto[]>(`${API_URLS.VISITOR}/society/${societyId}`);
+  const response = await apiClient.get<VisitorDto[]>(`${API_URLS.VISITOR}/Visitors/society/${societyId}`);
   return response.data;
 };
 

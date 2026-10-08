@@ -68,8 +68,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final societyId = await AuthService.getSocietyId();
     if (societyId.isEmpty) return;
 
+
     _hubConnection = HubConnectionBuilder()
-        .withUrl("${ApiConfig.emergencyGateway}/hubs/emergency")
+        .withUrl("${ApiConfig.emergencyGateway}/hubs/emergency",
+        options: HttpConnectionOptions(
+          transport: HttpTransportType.WebSockets,
+          logger: null,
+        ))           
         .withAutomaticReconnect()
         .build();
 

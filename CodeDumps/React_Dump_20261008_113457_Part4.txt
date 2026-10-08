@@ -1,0 +1,2558 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — React  (continued — Part 4)
+║  Generated : 2026-10-08 11:35:31
+║  Root      : C:\MyGateApp\src\Client
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Directory.tsx
+SIZE  : 2.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import { useState, useEffect } from 'react';
+import { getDirectory, getCategories, type DirectoryEntryDto } from '../api/directory';
+import { useAuth } from '../context/AuthContext';
+import { Loader2, Phone } from 'lucide-react';
+
+const Directory = () => {
+  const { currentUser } = useAuth();
+  const [entries, setEntries] = useState<DirectoryEntryDto[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      if (!currentUser?.societyId) return;
+      setLoading(true);
+      try {
+        const [e, c] = await Promise.all([
+          getDirectory(currentUser.societyId),
+          getCategories(currentUser.societyId)
+        ]);
+        setEntries(e);
+        setCategories(c);
+      } catch (err) {
+        console.error('Failed to fetch directory', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [currentUser?.societyId]);
+
+  const filtered = selectedCategory
+    ? entries.filter(e => e.category === selectedCategory)
+    : entries;
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Society Directory</h1>
+
+      {/* Category filter */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        <button onClick={() => setSelectedCategory('')}
+          className={`px-3 py-1 rounded-full text-sm font-medium ${!selectedCategory ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+          All
+        </button>
+        {categories.map(c => (
+          <button key={c} onClick={() => setSelectedCategory(c)}
+            className={`px-3 py-1 rounded-full text-sm font-medium ${selectedCategory === c ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={24} /></div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(e => (
+            <div key={e.id} className="bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold">{e.name}</h3>
+                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">{e.category}</span>
+              </div>
+              <div className="text-sm text-slate-600 space-y-1">
+                <div className="flex items-center gap-2"><Phone size={14} /> {e.contactNumber}</div>
+                {e.email && <div className="text-xs">{e.email}</div>}
+                {e.address && <div className="text-xs text-slate-400">{e.address}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Directory;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Guards.tsx
+SIZE  : 5.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Guards.tsx
+import { useState } from 'react';
+import { createGuard } from '../api/memberAdmin';
+//import { useAuth } from '../context/AuthContext';
+import { ShieldCheck, Plus, Loader2, Phone } from 'lucide-react';
+
+const Guards = () => {
+  //const { currentUser } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Form State
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [fullName, setFullName] = useState('');
+  
+  // UI State
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleCreateGuard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mobileNumber.trim() || !fullName.trim()) return;
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const result = await createGuard({ mobileNumber: mobileNumber.trim(), fullName: fullName.trim() });
+      setSuccess(`Guard registered successfully! ID: ${result.id.substring(0, 8)}...`);
+      setMobileNumber('');
+      setFullName('');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to register guard. Check if mobile number already exists.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <ShieldCheck className="text-blue-600" size={24} /> Guard Management
+        </h1>
+        <button 
+          onClick={() => { setIsModalOpen(true); setError(null); setSuccess(null); }}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+        >
+          <Plus size={18} /> Register Guard
+        </button>
+      </div>
+
+      {/* Feedback Messages */}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mb-4">{error}</div>}
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md mb-4">{success}</div>}
+
+      <div className="bg-white p-12 rounded-lg shadow-sm border border-slate-200 text-center">
+        <ShieldCheck className="mx-auto text-slate-300 mb-4" size={48} />
+        <h3 className="text-lg font-medium text-slate-700">Society Security Guards</h3>
+        <p className="text-sm text-slate-500 mt-1">
+          Register guards to allow them access to the Gate App for visitor entry and exit management.
+        </p>
+        {/* TODO: Add a table here later to fetch and display existing guards from the society */}
+      </div>
+
+      {/* --- Create Guard Modal --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[400px] shadow-xl">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <ShieldCheck size={20} className="text-blue-600" /> Register New Guard
+            </h2>
+            <form onSubmit={handleCreateGuard} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name *</label>
+                <input 
+                  type="text" 
+                  value={fullName} 
+                  onChange={(e) => setFullName(e.target.value)} 
+                  className="w-full border p-2 rounded" 
+                  placeholder="e.g., Ramesh Kumar" 
+                  required 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number *</label>
+                <div className="flex gap-2">
+                  <div className="flex items-center px-3 border border-slate-300 rounded-l-md bg-slate-50 text-slate-500 text-sm">
+                    <Phone size={16} />
+                  </div>
+                  <input 
+                    type="tel" 
+                    value={mobileNumber} 
+                    onChange={(e) => setMobileNumber(e.target.value)} 
+                    className="flex-1 border border-slate-300 rounded-r-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
+                    placeholder="9876543210" 
+                    maxLength={15}
+                    required 
+                  />
+                </div>
+              </div>
+              
+              <p className="text-xs text-slate-400">
+                Default password will be set to <span className="font-mono bg-slate-100 px-1 py-0.5 rounded">Guard@123</span>. 
+                The guard must log in with this mobile number via OTP.
+              </p>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-slate-400 flex items-center gap-2"
+                >
+                  {loading && <Loader2 size={16} className="animate-spin" />} Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Guards;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Helpdesk.tsx
+SIZE  : 4.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import { useState, useEffect } from 'react';
+import { getSocietyTickets, updateTicketStatus, type TicketDto } from '../api/helpdesk';
+import { useAuth } from '../context/AuthContext';
+//import { Loader2, Ticket, CheckCircle, Clock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+
+const statusMap: Record<number, { label: string; color: string }> = {
+  0: { label: 'Open', color: 'bg-yellow-100 text-yellow-700' },
+  1: { label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
+  2: { label: 'Resolved', color: 'bg-green-100 text-green-700' },
+  3: { label: 'Closed', color: 'bg-slate-100 text-slate-600' },
+};
+
+const Helpdesk = () => {
+  const { currentUser } = useAuth();
+  const [tickets, setTickets] = useState<TicketDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetch = async () => {
+      if (!currentUser?.societyId) return;
+      setLoading(true);
+      try {
+        const data = await getSocietyTickets(currentUser.societyId);
+        setTickets(data);
+      } catch (err) {
+        console.error('Failed to fetch tickets', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [currentUser?.societyId]);
+
+  const handleStatusUpdate = async (ticketId: string, newStatus: number) => {
+    setUpdatingId(ticketId);
+    try {
+      await updateTicketStatus(ticketId, newStatus);
+      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
+    } catch (err) {
+      alert('Failed to update status');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Helpdesk Tickets</h1>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={24} /></div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b">
+              <tr>
+                <th className="px-6 py-3 font-medium">Title</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Created</th>
+                <th className="px-6 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {tickets.length === 0 ? (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-500">No tickets found.</td></tr>
+              ) : tickets.map(t => {
+                const s = statusMap[t.status] || statusMap[0];
+                return (
+                  <tr key={t.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium">{t.title}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${s.color}`}>{s.label}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-500">{new Date(t.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      {t.status === 0 && (
+                        <button onClick={() => handleStatusUpdate(t.id, 1)} disabled={updatingId === t.id}
+                          className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs hover:bg-blue-100">Start</button>
+                      )}
+                      {t.status === 1 && (
+                        <button onClick={() => handleStatusUpdate(t.id, 2)} disabled={updatingId === t.id}
+                          className="px-2 py-1 bg-green-50 text-green-700 rounded text-xs hover:bg-green-100">Resolve</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Helpdesk;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Login.tsx
+SIZE  : 5.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Login.tsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, Phone, Shield } from 'lucide-react';
+import {API_URLS} from "../api/apiConfig";
+
+//const IDENTITY_URL = API_URLS.IDENTITY;
+
+const Login = () => {
+  const navigate = useNavigate();
+  const [mobile, setMobile] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  //const [basicToken, setBasicToken] = useState('');
+
+  const handleRequestOtp = async () => {
+    if (!mobile.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URLS.IDENTITY}/auth/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobileNumber: mobile.trim() }),
+      });
+      if (res.ok) {
+        setIsOtpSent(true);
+      } else {
+        setError('Failed to request OTP');
+      }
+    } catch (err: any) {
+      setError('Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URLS.IDENTITY}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobileNumber: mobile.trim(), otp: otp.trim() }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const token = data.token;
+        localStorage.setItem('auth_token', token);
+        navigate('/');
+        window.location.reload();
+      } else {
+        setError('Invalid OTP');
+      }
+    } catch (err: any) {
+      setError('Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-lg border border-slate-200 w-full max-w-sm">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-3">
+            <Shield className="w-8 h-8 text-blue-600" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-800">MyGate Admin</h1>
+          <p className="text-sm text-slate-500 mt-1">Login to manage your society</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {!isOtpSent ? (
+          <>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Mobile Number
+            </label>
+            <div className="flex gap-2 mb-4">
+              <div className="flex items-center px-3 border border-slate-300 rounded-l-md bg-slate-50 text-slate-500 text-sm">
+                <Phone size={16} />
+              </div>
+              <input
+                type="tel"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="9876543210"
+                maxLength={15}
+                className="flex-1 border border-slate-300 rounded-r-md px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <button
+              onClick={handleRequestOtp}
+              disabled={loading || !mobile.trim()}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white py-2.5 rounded-md text-sm font-medium flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+              {loading ? 'Sending...' : 'Send OTP'}
+            </button>
+            <p className="text-xs text-slate-400 mt-3 text-center">
+              OTP will appear in the .NET terminal console
+            </p>
+          </>
+               ) : (
+          <>
+            <p className="text-sm text-slate-600 mb-3">
+              OTP sent to <strong>{mobile}</strong>
+            </p>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Enter OTP
+            </label>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="4-digit OTP"
+              maxLength={4}
+              className="w-full border border-slate-300 rounded-md px-3 py-2.5  text-center text-lg tracking-widest focus:outline-none focus:border-blue-500 mb-4"
+            />
+            <button
+              onClick={handleVerifyOtp}
+              disabled={loading || !otp.trim()}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-400 text-white py-2.5 rounded-md text-sm font-medium flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+              {loading ? 'Verifying...' : 'Verify & Login'}
+            </button>
+            
+            {/* --- NEW: Back to Mobile Number Entry --- */}
+            <button
+              onClick={() => { setIsOtpSent(false); setOtp(''); }}
+              className="w-full text-slate-500 hover:text-slate-700 text-sm mt-2 py-2"
+            >
+              ← Change mobile number
+            </button>
+            
+            <p className="text-xs text-slate-400 mt-3 text-center">
+              Check .NET terminal for OTP
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\MasterData.tsx
+SIZE  : 12.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/MasterData.tsx
+import { useState, useEffect } from "react";
+import {
+  getAllSocieties,
+  getBlocksBySociety,
+  getFlatsByBlock,
+  createSociety,
+  createBlock,
+  createFlat,
+  type Society,
+  type Block,
+  type Flat,
+} from "../api/tenantAdmin";
+import { Plus, Loader2 } from "lucide-react";
+
+const MasterData = () => {
+  // State
+  const [societies, setSocieties] = useState<Society[]>([]);
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [flats, setFlats] = useState<Flat[]>([]);
+
+  const [selectedSociety, setSelectedSociety] = useState<string>("");
+  const [selectedBlock, setSelectedBlock] = useState<string>("");
+
+  const [loading, setLoading] = useState(false);
+
+  // Modals
+  const [showSocietyModal, setShowSocietyModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showFlatModal, setShowFlatModal] = useState(false);
+
+  // Form fields
+  const [societyName, setSocietyName] = useState("");
+  const [societyAddress, setSocietyAddress] = useState("");
+  const [societyCity, setSocietyCity] = useState("");
+  const [blockName, setBlockName] = useState("");
+  const [flatNumber, setFlatNumber] = useState("");
+  const [flatType, setFlatType] = useState<string>("2BHK"); // Default to 2BHK
+
+  // Fetch Societies on mount
+  useEffect(() => {
+    fetchSocieties();
+  }, []);
+
+  const FLAT_TYPES = ["1BHK", "2BHK", "3BHK", "4BHK", "Villa", "Studio"];
+
+  const fetchSocieties = async () => {
+    setLoading(true);
+    try {
+      const data = await getAllSocieties();
+      setSocieties(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch Blocks when society changes
+  useEffect(() => {
+    if (!selectedSociety) {
+      setBlocks([]);
+      setFlats([]);
+      return;
+    }
+    const fetchBlocks = async () => {
+      try {
+        const data = await getBlocksBySociety(selectedSociety);
+        setBlocks(data);
+        setFlats([]);
+        setSelectedBlock("");
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchBlocks();
+  }, [selectedSociety]);
+
+  // Fetch Flats when block changes
+  useEffect(() => {
+    if (!selectedBlock) {
+      setFlats([]);
+      return;
+    }
+    const fetchFlats = async () => {
+      try {
+        const data = await getFlatsByBlock(selectedBlock);
+        setFlats(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchFlats();
+  }, [selectedBlock]);
+
+  // Handlers
+  const handleCreateSociety = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createSociety({
+        name: societyName,
+        address: societyAddress,
+        city: societyCity,
+      });
+      setShowSocietyModal(false);
+      setSocietyName("");
+      setSocietyAddress("");
+      setSocietyCity("");
+      fetchSocieties();
+    } catch (err) {
+      alert("Failed to create society");
+    }
+  };
+
+  const handleCreateBlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createBlock({ societyId: selectedSociety, name: blockName });
+      setShowBlockModal(false);
+      setBlockName("");
+      // Refresh blocks
+      const data = await getBlocksBySociety(selectedSociety);
+      setBlocks(data);
+    } catch (err) {
+      alert("Failed to create block");
+    }
+  };
+
+  const handleCreateFlat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createFlat({
+        blockId: selectedBlock,
+        societyId: selectedSociety,
+        flatNumber,
+        flatType: flatType
+      });
+      setShowFlatModal(false);
+      setFlatNumber("");
+      setFlatType("2BHK"); // Reset dropdown
+      // Refresh flats
+      const data = await getFlatsByBlock(selectedBlock);
+      setFlats(data);
+    } catch (err) {
+      alert("Failed to create flat");
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Master Data Management</h1>
+        <button
+          onClick={() => setShowSocietyModal(true)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+        >
+          <Plus size={18} /> New Society
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="animate-spin" size={24} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Column 1: Societies */}
+          <div className="bg-white rounded-lg shadow border border-slate-200">
+            <div className="p-4 border-b bg-slate-50 font-semibold">
+              Societies ({societies.length})
+            </div>
+            <div className="divide-y max-h-[60vh] overflow-y-auto">
+              {societies.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => setSelectedSociety(s.id)}
+                  className={`p-4 cursor-pointer hover:bg-blue-50 transition ${selectedSociety === s.id ? "bg-blue-100 border-l-4 border-blue-500" : ""}`}
+                >
+                  <p className="font-medium text-slate-800">{s.name}</p>
+                  <p className="text-xs text-slate-500">{s.city}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Blocks */}
+          <div className="bg-white rounded-lg shadow border border-slate-200">
+            <div className="p-4 border-b bg-slate-50 font-semibold flex justify-between items-center">
+              <span>Blocks ({blocks.length})</span>
+              {selectedSociety && (
+                <button
+                  onClick={() => setShowBlockModal(true)}
+                  className="text-xs bg-blue-600 text-white px-2 py-1 rounded flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add
+                </button>
+              )}
+            </div>
+            <div className="divide-y max-h-[60vh] overflow-y-auto">
+              {!selectedSociety ? (
+                <div className="p-4 text-slate-400 text-center">
+                  Select a society
+                </div>
+              ) : (
+                blocks.map((b) => (
+                  <div
+                    key={b.id}
+                    onClick={() => setSelectedBlock(b.id)}
+                    className={`p-4 cursor-pointer hover:bg-green-50 transition ${selectedBlock === b.id ? "bg-green-100 border-l-4 border-green-500" : ""}`}
+                  >
+                    <p className="font-medium text-slate-800">{b.name}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Column 3: Flats */}
+          <div className="bg-white rounded-lg shadow border border-slate-200">
+            <div className="p-4 border-b bg-slate-50 font-semibold flex justify-between items-center">
+              <span>Flats ({flats.length})</span>
+              {selectedBlock && (
+                <button
+                  onClick={() => setShowFlatModal(true)}
+                  className="text-xs bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add
+                </button>
+              )}
+            </div>
+            <div className="divide-y max-h-[60vh] overflow-y-auto">
+              {!selectedBlock ? (
+                <div className="p-4 text-slate-400 text-center">
+                  Select a block
+                </div>
+              ) : (
+                flats.map((f) => (
+                  <div key={f.id} className="p-4">
+                    <p className="font-medium text-slate-800">{f.flatNumber}</p>
+                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">{f.flatType}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Modals --- */}
+
+      {showSocietyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[400px]">
+            <h2 className="text-xl font-bold mb-4">Create Society</h2>
+            <form onSubmit={handleCreateSociety} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Name"
+                value={societyName}
+                onChange={(e) => setSocietyName(e.target.value)}
+                className="w-full border p-2 rounded"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Address"
+                value={societyAddress}
+                onChange={(e) => setSocietyAddress(e.target.value)}
+                className="w-full border p-2 rounded"
+                required
+              />
+              <input
+                type="text"
+                placeholder="City"
+                value={societyCity}
+                onChange={(e) => setSocietyCity(e.target.value)}
+                className="w-full border p-2 rounded"
+                required
+              />
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSocietyModal(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showBlockModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[300px]">
+            <h2 className="text-xl font-bold mb-4">Create Block</h2>
+            <form onSubmit={handleCreateBlock} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Block Name (e.g. Block A)"
+                value={blockName}
+                onChange={(e) => setBlockName(e.target.value)}
+                className="w-full border p-2 rounded"
+                required
+              />
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBlockModal(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showFlatModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[300px]">
+            <h2 className="text-xl font-bold mb-4">Create Flat</h2>
+            <form onSubmit={handleCreateFlat} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Flat Number (e.g. 101)"
+                value={flatNumber}
+                onChange={(e) => setFlatNumber(e.target.value)}
+                className="w-full border p-2 rounded"
+                required
+              />
+              {/* NEW: Flat Type Dropdown */}
+              <select
+                value={flatType}
+                onChange={(e) => setFlatType(e.target.value)}
+                className="w-full border p-2 rounded bg-white"
+              >
+                {FLAT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFlatModal(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MasterData;
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Notices.tsx
+SIZE  : 3.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Notices.tsx
+import { useState, useEffect } from 'react';
+import { getNotices, createNotice, type NoticeDto } from '../api/notice';
+import { useAuth } from '../context/AuthContext';
+import { Megaphone, Plus } from 'lucide-react';
+
+const Notices = () => {
+  const { currentUser } = useAuth();
+  const [notices, setNotices] = useState<NoticeDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+
+  const fetchNotices = async () => {
+    if (!currentUser?.societyId) return;
+    setLoading(true);
+    try {
+      const data = await getNotices(currentUser.societyId);
+      setNotices(data);
+    } catch (err) {
+      console.error("Failed to fetch notices", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchNotices(); }, [currentUser?.societyId]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser?.societyId) return;
+    try {
+      await createNotice({
+        societyId: currentUser.societyId,
+        title: newTitle,
+        description: newDesc,
+        category: 0,
+        isPinned: false
+      });
+      setIsModalOpen(false);
+      setNewTitle('');
+      setNewDesc('');
+      fetchNotices(); // Refresh list
+    } catch (err) {
+      alert('Failed to create notice');
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Notice Board</h1>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+        >
+          <Plus size={18} /> Post Notice
+        </button>
+      </div>
+
+      {loading ? <div className="text-center py-10 text-slate-500">Loading...</div> : (
+        <div className="grid gap-4">
+          {notices.length === 0 ? <div className="text-slate-500">No notices found.</div> : 
+            notices.map(n => (
+              <div key={n.id} className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <h3 className="text-lg font-semibold text-slate-800">{n.title}</h3>
+                  {n.isPinned && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">📌 Pinned</span>}
+                </div>
+                <p className="mt-2 text-slate-600">{n.description}</p>
+                <p className="mt-4 text-xs text-slate-400">{new Date(n.createdAt).toLocaleString()}</p>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[400px]">
+            <h2 className="text-xl font-bold mb-4">Post New Notice</h2>
+            <form onSubmit={handleCreate}>
+              <input type="text" placeholder="Title" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full border p-2 mb-3 rounded" required />
+              <textarea placeholder="Description" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="w-full border p-2 mb-4 rounded h-24" required />
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Post</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Notices;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\SuperAdminSocietyPicker.tsx
+SIZE  : 10 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/SuperAdminSocietyPicker.tsx
+import { useState, useEffect } from 'react';
+import {useNavigate } from 'react-router-dom';
+import { getAllSocietiesForSuperAdmin, type SocietyListDto } from '../api/tenant';
+import { useAuth } from '../context/AuthContext';
+import { Building, Loader2, Plus, Trash2, AlertCircle } from 'lucide-react';
+import apiClient from '../api/client';
+import {API_URLS} from "../api/apiConfig";
+
+export default function SuperAdminSocietyPicker() {
+    console.log("🦅 SuperAdminSocietyPicker RENDERED!"); // ADD THIS
+  const { currentUser, switchContext } = useAuth();
+  const navigate = useNavigate();
+
+  const [societies, setSocieties] = useState<SocietyListDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Create Society State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newSocietyName, setNewSocietyName] = useState('');
+  const [newSocietyAddress, setNewSocietyAddress] = useState('');
+  const [newSocietyCity, setNewSocietyCity] = useState('');
+
+  const fetchSocieties = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getAllSocietiesForSuperAdmin();
+      setSocieties(data);
+    } catch (err) {
+      console.error('Failed to load societies', err);
+      setError('Failed to fetch societies. Check TenantService (5104) and network.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSocieties();
+  }, []);
+
+  const handleSelectSociety = async (society: SocietyListDto) => {
+    setSwitchingId(society.id);
+    setError(null);
+    try {
+      const mockUserForContext = {
+         uniqueKey: `${currentUser?.id || ""}_${society.id}_sa`, // ADD THIS (Appends _sa to guarantee uniqueness)
+        id: currentUser?.id || '',
+        name: society.name,
+        flat: 'SuperAdmin',
+        societyId: society.id,
+        flatId: '',
+        role: 'SuperAdmin',
+        memberType: 'SuperAdmin',
+        isSuperAdmin: true
+      };
+      await switchContext(mockUserForContext);
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to switch context', err);
+      setError('Context switch failed. Ensure IdentityService (5103) is running.');
+      setSwitchingId(null);
+    }
+  };
+
+  const handleDeleteSociety = async (societyId: string, societyName: string) => {
+    if (!confirm(`⚠️ CRITICAL: Are you sure you want to delete "${societyName}"? This will remove all blocks, flats, and members permanently.`)) return;
+    
+    setDeletingId(societyId);
+    setError(null);
+    try {
+      await apiClient.delete(`${API_URLS.TENANT}/superadmin/societies/${societyId}`);
+      setSocieties(prev => prev.filter(s => s.id !== societyId)); // Optimistic UI update
+    } catch (err) {
+      console.error('Failed to delete society', err);
+      setError('Failed to delete society. Check backend logs.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleCreateSociety = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSocietyName.trim()) return;
+    
+    setCreating(true);
+    setError(null);
+    try {
+      await apiClient.post(`${API_URLS.TENANT}/superadmin/societies`, {
+        name: newSocietyName,
+        code: newSocietyName.substring(0, 3).toUpperCase(), // Auto-generate code
+        address: newSocietyAddress,
+        city: newSocietyCity
+      });
+      setShowCreateModal(false);
+      setNewSocietyName('');
+      setNewSocietyAddress('');
+      setNewSocietyCity('');
+      fetchSocieties(); // Refresh list
+    } catch (err) {
+      console.error('Failed to create society', err);
+      setError('Failed to create society.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
+      <div className="max-w-6xl w-full">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 flex items-center justify-center gap-3">
+            <Building className="w-8 h-8 text-blue-600" /> SuperAdmin Portal
+          </h1>
+          <p className="text-slate-500 mt-2">
+            Select a society to manage, or create a new one. You will enter the society context with elevated permissions.
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mb-6 flex items-center gap-2">
+            <AlertCircle size={20} /> {error}
+          </div>
+        )}
+
+        <div className="flex justify-end mb-6">
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-md transition font-medium"
+          >
+            <Plus size={18} /> Create New Society
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>
+        ) : societies.length === 0 ? (
+          <div className="text-center py-20 text-slate-500">No societies found. Create one to get started!</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {societies.map(s => (
+              <div 
+                key={s.id} 
+                className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition flex flex-col relative group"
+              >
+                {/* Delete Button - top right */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleDeleteSociety(s.id, s.name); }}
+                  disabled={deletingId === s.id}
+                  className="absolute top-3 right-3 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition opacity-0 group-hover:opacity-100"
+                  title="Delete Society"
+                >
+                  {deletingId === s.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                </button>
+
+                {/* Society Info - clickable area */}
+                <button 
+                  onClick={() => handleSelectSociety(s)}
+                  disabled={switchingId !== null}
+                  className="text-left flex-1 focus:outline-none"
+                >
+                  <h3 className="text-lg font-semibold text-slate-800 mb-1">{s.name}</h3>
+                  <p className="text-sm text-slate-500">{s.address || s.city || 'Click to manage'}</p>
+                  <span className="mt-3 inline-block text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded w-fit">Society</span>
+                </button>
+
+                {/* Loading indicator for context switch */}
+                {switchingId === s.id && (
+                  <div className="mt-4 flex items-center gap-2 text-blue-600 text-sm">
+                    <Loader2 size={16} className="animate-spin" /> Switching context...
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* CREATE SOCIETY MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[450px] shadow-xl">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Plus size={20} className="text-blue-600" /> Create New Society
+            </h2>
+            <form onSubmit={handleCreateSociety} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Society Name *</label>
+                <input 
+                  type="text" 
+                  value={newSocietyName} 
+                  onChange={(e) => setNewSocietyName(e.target.value)} 
+                  className="w-full border p-2 rounded" 
+                  placeholder="e.g., Sunrise Residency" 
+                  required 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                <input 
+                  type="text" 
+                  value={newSocietyAddress} 
+                  onChange={(e) => setNewSocietyAddress(e.target.value)} 
+                  className="w-full border p-2 rounded" 
+                  placeholder="123 Main St" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+                <input 
+                  type="text" 
+                  value={newSocietyCity} 
+                  onChange={(e) => setNewSocietyCity(e.target.value)} 
+                  className="w-full border p-2 rounded" 
+                  placeholder="Bangalore" 
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreateModal(false)} 
+                  className="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={creating}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-slate-400 flex items-center gap-2"
+                >
+                  {creating && <Loader2 size={16} className="animate-spin" />} Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Vehicles.tsx
+SIZE  : 6.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Vehicles.tsx
+import { useState, useEffect } from 'react';
+import { getSocietyVehicles, getSocietySlots, type VehicleDto, type ParkingSlotDto } from '../api/vehicle';
+import { useAuth } from '../context/AuthContext';
+import { Loader2, Car, MapPin } from 'lucide-react';
+
+const vehicleTypeMap: Record<number, string> = {
+  0: 'Two Wheeler',
+  1: 'Four Wheeler',
+  2: 'Visitor',
+};
+
+const Vehicles = () => {
+  const { currentUser } = useAuth();
+  const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
+  const [slots, setSlots] = useState<ParkingSlotDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchVehicleData = async () => {
+      if (!currentUser?.societyId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const [vehicleData, slotData] = await Promise.all([
+          getSocietyVehicles(currentUser.societyId),
+          getSocietySlots(currentUser.societyId)
+        ]);
+        setVehicles(vehicleData);
+        setSlots(slotData);
+      } catch (err) {
+        console.error('Failed to fetch vehicle data:', err);
+        setError('Failed to load vehicle data. Ensure VehicleService (5112) is running.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVehicleData();
+  }, [currentUser?.societyId]);
+
+  if (loading) {
+    return (
+      <div className="p-8 flex justify-center items-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-blue-500 w-8 h-8" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Vehicles & Parking</h1>
+      
+      {/* SECTION 1: The 2D Parking Visualizer */}
+      <div className="mb-10">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <MapPin className="text-blue-600" size={20} />
+          Parking Slots (Live View)
+        </h2>
+        
+        {slots.length === 0 ? (
+          <p className="text-slate-500">No parking slots configured for this society.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {slots.map((slot) => (
+              <div
+                key={slot.id}
+                className={`
+                  relative border-2 rounded-lg flex flex-col items-center justify-center p-4 transition-all min-h-[120px]
+                  ${slot.isOccupied 
+                    ? 'bg-green-50 border-green-200 hover:border-green-400' 
+                    : 'bg-slate-50 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50'
+                  }
+                `}
+              >
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  {slot.slotNumber}
+                </span>
+
+                {slot.isOccupied ? (
+                  <div className="text-center">
+                    <Car className="mx-auto text-green-600 mb-2" size={32} />
+                    <div className="text-xs text-green-700 font-medium">Occupied</div>
+                  </div>
+                ) : (
+                  <div className="text-slate-300 text-center">
+                    <Car size={32} className="mx-auto mb-1" />
+                    <div className="text-xs mt-1 font-medium">Empty</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/*5112 SECTION 2: Registered Vehicles List */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Registered Vehicles ({vehicles.length})</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Vehicle Number</th>
+                  <th className="px-6 py-3 font-medium">Type</th>
+                  <th className="px-6 py-3 font-medium">Category</th>
+                  <th className="px-6 py-3 font-medium">Status</th>
+                  <th className="px-6 py-3 font-medium">Parking Slot</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vehicles.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                      No vehicles registered in this society.
+                    </td>
+                  </tr>
+                ) : vehicles.map((vehicle) => (
+                  <tr key={vehicle.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-mono font-medium text-slate-800">{vehicle.vehicleNumber}</td>
+                    <td className="px-6 py-4 text-slate-600">{vehicleTypeMap[vehicle.vehicleType] || 'Unknown'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${vehicle.category === 0 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {vehicle.category === 0 ? 'Resident' : 'Guest'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${vehicle.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {vehicle.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {vehicle.parkingSlotId ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                          {vehicle.parkingSlotId.substring(0, 8)}...
+                        </span>
+                      ) : (
+                        <span className="text-red-500 text-xs font-medium">No Slot Allocated</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Vehicles;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Visitors.tsx
+SIZE  : 33.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Visitors.tsx
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Plus,
+  LogOut,
+  Key,
+  ShieldCheck,
+  Users,
+  LogIn,
+  UserCheck,
+  UserPlus,
+} from "lucide-react";
+import {
+  getSocietyVisitors,
+  preApproveVisitor,
+  markVisitorExit,
+  regenerateOtp,
+  manualEntry,
+  walkInEntry,
+  type VisitorDto,
+  type PreApproveVisitorCommand,
+  getMyVisitors,
+} from "../api/visitor";
+import { useAuth } from "../context/AuthContext";
+import { format, isToday, parseISO } from "date-fns";
+
+const normalizeStatus = (status: any) => {
+  if (status === null || status === undefined) return "Unknown";
+  const statusStr = String(status).toLowerCase().trim();
+  const statusNum = parseInt(statusStr);
+  if (statusNum === 1) return "Entered";
+  if (statusNum === 2) return "Exited";
+  if (statusNum === 0) return "Pending";
+  if (statusStr === "inside" || statusStr === "entered") return "Entered";
+  if (statusStr === "exited" || statusStr === "exit") return "Exited";
+  if (
+    statusStr === "pending" ||
+    statusStr === "preapproved" ||
+    statusStr === "pre-approved"
+  )
+    return "Pending";
+  return "Unknown";
+};
+
+const Visitors = () => {
+  const { currentUser } = useAuth();
+
+  const [visitors, setVisitors] = useState<VisitorDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  const [exitLoading, setExitLoading] = useState<string | null>(null);
+  const [manualEntryLoading, setManualEntryLoading] = useState<string | null>(
+    null,
+  );
+  const [otpLoading, setOtpLoading] = useState<string | null>(null);
+  const [generatedOtp, setGeneratedOtp] = useState<{
+    visitorId: string;
+    otp: string;
+    expiresAt: string;
+  } | null>(null);
+  // Pre-approve modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [preApproveResult, setPreApproveResult] = useState<{
+    visitorName: string;
+    otp: string;
+  } | null>(null);
+  const [newVisitor, setNewVisitor] = useState<PreApproveVisitorCommand>({
+    visitorName: "",
+    visitorMobile: "",
+    vehicleNumber: "",
+    purpose: "",
+    invitedByUserId: currentUser?.id || "",
+    societyId: currentUser?.societyId || "",
+    flatId: currentUser?.flatId || "",
+    expectedDate: new Date().toISOString().split("T")[0],
+  });
+
+  // Walk-in entry modal
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
+  const [walkInVisitor, setWalkInVisitor] = useState<PreApproveVisitorCommand>({
+    visitorName: "",
+    visitorMobile: "",
+    vehicleNumber: "",
+    purpose: "",
+    invitedByUserId: currentUser?.id || "",
+    societyId: currentUser?.societyId || "",
+    flatId: currentUser?.flatId || "",
+    expectedDate: new Date().toISOString().split("T")[0],
+  });
+  const [walkInLoading, setWalkInLoading] = useState(false);
+
+  // Manual entry modal
+  const [isManualEntryModalOpen, setIsManualEntryModalOpen] = useState(false);
+  const [manualEntryVisitorId, setManualEntryVisitorId] = useState("");
+  const [manualEntryVisitorName, setManualEntryVisitorName] = useState("");
+  const [manualEntryReason, setManualEntryReason] = useState("");
+
+  // --- Fetch ALL society visitors (Admin view) ---
+  /*const fetchVisitors = async () => {
+    if (!currentUser?.societyId) {
+      setVisitors([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getSocietyVisitors(currentUser.societyId);
+      setVisitors(data);
+    } catch (err: any) {
+      console.error("Failed to load visitors:", err);
+      setError("Failed to load visitors.");
+    } finally {
+      setLoading(false);
+    }
+  };*/
+    // --- Fetch visitors based on Role ---
+  const fetchVisitors = async () => {
+    if (!currentUser) {
+      setVisitors([]);
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    try {
+      // ADMIN/SUPERADMIN: Fetch the whole society's visitor log
+      if (currentUser.role === 'Admin' || currentUser.role === 'SuperAdmin') {
+        if (!currentUser.societyId) return;
+        const data = await getSocietyVisitors(currentUser.societyId);
+        setVisitors(data);
+      } 
+      // RESIDENT: Fetch only their personal visitors
+      else {
+        if (!currentUser.id) return;
+        const data = await getMyVisitors(currentUser.id);
+        setVisitors(data);
+      }
+    } catch (err: any) {
+      console.error("Failed to load visitors:", err);
+      setError("Failed to load visitors. (Check permissions)");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVisitors();
+  }, [currentUser?.societyId]);
+
+  // --- Stats ---
+  const stats = useMemo(() => {
+    const todayVisitors = visitors.filter((v) => {
+      try {
+        return isToday(parseISO(v.expectedDate));
+      } catch {
+        return false;
+      }
+    });
+    return {
+      total: todayVisitors.length,
+      pending: todayVisitors.filter(
+        (v) => normalizeStatus(v.status) === "Pending",
+      ).length,
+      inside: todayVisitors.filter(
+        (v) => normalizeStatus(v.status) === "Entered",
+      ).length,
+      exited: todayVisitors.filter(
+        (v) => normalizeStatus(v.status) === "Exited",
+      ).length,
+    };
+  }, [visitors]);
+
+  // --- Filtered visitors ---
+  const filteredVisitors = useMemo(() => {
+    if (statusFilter === "All") return visitors;
+    return visitors.filter((v) => normalizeStatus(v.status) === statusFilter);
+  }, [visitors, statusFilter]);
+
+  // --- Handle Pre-Approve ---
+  const handlePreApprove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    try {
+      const commandToSend: PreApproveVisitorCommand = {
+        ...newVisitor,
+        societyId: currentUser.societyId,
+        flatId: currentUser.flatId,
+        invitedByUserId: currentUser.id,
+      };
+      const result = await preApproveVisitor(commandToSend);
+      setPreApproveResult({
+        visitorName: newVisitor.visitorName,
+        otp: result.otp,
+      });
+    } catch (err: any) {
+      alert(
+        "Failed to pre-approve: " +
+          (err.response?.data?.message || err.message),
+      );
+    }
+  };
+
+  const handleClosePreApproveModal = () => {
+    setIsModalOpen(false);
+    setPreApproveResult(null);
+    setNewVisitor({
+      visitorName: "",
+      visitorMobile: "",
+      vehicleNumber: "",
+      purpose: "",
+      invitedByUserId: currentUser?.id || "",
+      societyId: currentUser?.societyId || "",
+      flatId: currentUser?.flatId || "",
+      expectedDate: new Date().toISOString().split("T")[0],
+    });
+    fetchVisitors();
+  };
+
+  // --- Handle Walk-in Entry ---
+  const handleWalkInEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    setWalkInLoading(true);
+    try {
+      const commandToSend: PreApproveVisitorCommand = {
+        ...walkInVisitor,
+        societyId: currentUser.societyId,
+        flatId: currentUser.flatId,
+        invitedByUserId: currentUser.id,
+      };
+      await walkInEntry(commandToSend);
+      setIsWalkInModalOpen(false);
+      setWalkInVisitor({
+        visitorName: "",
+        visitorMobile: "",
+        vehicleNumber: "",
+        purpose: "",
+        invitedByUserId: currentUser?.id || "",
+        societyId: currentUser?.societyId || "",
+        flatId: currentUser?.flatId || "",
+        expectedDate: new Date().toISOString().split("T")[0],
+      });
+      fetchVisitors();
+    } catch (err: any) {
+      alert(
+        "Walk-in entry failed: " + (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setWalkInLoading(false);
+    }
+  };
+
+  // --- Handle Get OTP ---
+  const handleGetOtp = async (visitorId: string) => {
+    setOtpLoading(visitorId);
+    try {
+      const result = await regenerateOtp(visitorId);
+      setGeneratedOtp({
+        visitorId,
+        otp: result.otp,
+        expiresAt: result.expiresAt,
+      });
+    } catch (err: any) {
+      alert(
+        "Failed to get OTP: " + (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setOtpLoading(null);
+    }
+  };
+
+  // --- Handle Manual Entry ---
+  const handleOpenManualEntry = (visitorId: string, visitorName: string) => {
+    setManualEntryVisitorId(visitorId);
+    setManualEntryVisitorName(visitorName);
+    setManualEntryReason("");
+    setIsManualEntryModalOpen(true);
+  };
+
+  const handleManualEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualEntryReason.trim()) {
+      alert("Please provide a reason.");
+      return;
+    }
+    setManualEntryLoading(manualEntryVisitorId);
+    try {
+      await manualEntry({
+        preApprovalId: manualEntryVisitorId,
+        reason: manualEntryReason.trim(),
+      });
+      setIsManualEntryModalOpen(false);
+      fetchVisitors();
+    } catch (err: any) {
+      alert(
+        "Manual entry failed: " + (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setManualEntryLoading(null);
+    }
+  };
+
+  // --- Handle Mark Exit ---
+  const handleMarkExit = async (visitorId: string) => {
+    if (!confirm("Mark this visitor as exited?")) return;
+    setExitLoading(visitorId);
+    try {
+      await markVisitorExit({ preApprovalId: visitorId });
+      fetchVisitors();
+    } catch (err: any) {
+      alert(
+        "Failed to mark exit: " + (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setExitLoading(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Entered":
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "Exited":
+        return "bg-slate-100 text-slate-600 border-slate-200";
+      case "Pending":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      default:
+        return "bg-red-100 text-red-700 border-red-200";
+    }
+  };
+
+  const formatExpiry = (expiresAt: string) => {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return "Expired";
+    return `${Math.floor(diff / 60000)} min remaining`;
+  };
+
+  return (
+    <div className="p-8">
+      {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Visitor Management</h1>
+        
+        {/* ONLY ADMINS CAN DO WALK-IN / MANUAL ENTRY FROM THIS PORTAL */}
+        {(currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin') && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsWalkInModalOpen(true)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition"
+            >
+              <UserPlus size={18} />
+              Walk-in Entry
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+            >
+              <Plus size={18} />
+              Pre-Approve
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 flex items-center gap-3">
+          <div className="p-2 bg-blue-50 rounded-full text-blue-600">
+            <Users size={20} />
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Today's Visitors</p>
+            <p className="text-xl font-bold">{stats.total}</p>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 flex items-center gap-3">
+          <div className="p-2 bg-yellow-50 rounded-full text-yellow-600">
+            <UserCheck size={20} />
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Pending Entry</p>
+            <p className="text-xl font-bold">{stats.pending}</p>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 flex items-center gap-3">
+          <div className="p-2 bg-green-50 rounded-full text-green-600">
+            <LogIn size={20} />
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Currently Inside</p>
+            <p className="text-xl font-bold">{stats.inside}</p>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 flex items-center gap-3">
+          <div className="p-2 bg-slate-100 rounded-full text-slate-600">
+            <LogOut size={20} />
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Exited</p>
+            <p className="text-xl font-bold">{stats.exited}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-sm text-slate-500">Filter:</span>
+        {["All", "Pending", "Entered", "Exited"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition ${statusFilter === s ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+          {error}
+        </div>
+      )}
+
+      {/* Visitor Table */}
+      {loading ? (
+        <div className="text-center py-10 text-slate-500">
+          Loading visitors...
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4 font-medium">Visitor ID</th>
+                  <th className="px-6 py-4 font-medium">Visitor</th>
+                  <th className="px-6 py-4 font-medium">Contact</th>
+                  <th className="px-6 py-4 font-medium">Purpose</th>
+                  <th className="px-6 py-4 font-medium">Expected</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredVisitors.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
+                      No visitors found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredVisitors.map((visitor) => {
+                    const currentStatus = normalizeStatus(visitor.status);
+                    const isOtpShowing = generatedOtp?.visitorId === visitor.id;
+                    return (
+                      <tr
+                        key={visitor.id}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
+                        <td
+                          className="px-6 py-4 text-xs font-mono text-slate-400 max-w-[120px] truncate"
+                          title={visitor.id}
+                        >
+                          {visitor.id.substring(0, 8)}...
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-800">
+                          {visitor.visitorName || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {visitor.visitorMobile || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {visitor.purpose || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {visitor.expectedDate
+                            ? format(
+                                parseISO(visitor.expectedDate),
+                                "dd MMM yyyy",
+                              )
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(currentStatus)}`}
+                          >
+                            {currentStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          {/* ADMIN / SUPERADMIN GATE ACTIONS */}
+                          {(currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin') && (
+                            <>
+                              {currentStatus === "Pending" && (
+                                <>
+                                  <button
+                                    onClick={() => handleGetOtp(visitor.id)}
+                                    disabled={otpLoading === visitor.id}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs hover:bg-amber-100 transition disabled:opacity-50"
+                                  >
+                                    <Key size={12} />
+                                    {otpLoading === visitor.id
+                                      ? "..."
+                                      : isOtpShowing
+                                        ? "New OTP"
+                                        : "Get OTP"}
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleOpenManualEntry(
+                                        visitor.id,
+                                        visitor.visitorName,
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded text-xs hover:bg-green-100 transition"
+                                  >
+                                    <ShieldCheck size={12} /> Manual Entry
+                                  </button>
+                                </>
+                              )}
+                              {currentStatus === "Entered" && (
+                                <button
+                                  onClick={() => handleMarkExit(visitor.id)}
+                                  disabled={exitLoading === visitor.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100 transition disabled:opacity-50"
+                                >
+                                  {exitLoading === visitor.id ? "..." : "Mark Exit"}
+                                </button>
+                              )}
+                              {currentStatus === "Exited" && (
+                                <span className="text-xs text-slate-400">Complete</span>
+                              )}
+                            </>
+                          )}
+
+                          {/* RESIDENT VIEW ONLY */}
+                          {currentUser?.role === 'Resident' && (
+                            <span className="text-xs text-slate-400 italic">
+                              {currentStatus === "Exited" ? "Complete" : "Monitor Only"}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* OTP Toast */}
+      {generatedOtp && (
+        <div className="fixed bottom-6 right-6 bg-amber-50 border-2 border-amber-300 rounded-lg p-4 shadow-lg z-40 max-w-xs">
+          <div className="flex items-start justify-between mb-2">
+            <p className="text-sm font-semibold text-amber-700">🔑 Gate OTP</p>
+            <button
+              onClick={() => setGeneratedOtp(null)}
+              className="text-amber-400 hover:text-amber-600 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+          <p className="text-2xl font-mono font-bold text-amber-600 tracking-widest mb-1">
+            {generatedOtp.otp}
+          </p>
+          <p className="text-xs text-amber-500">
+            Expires in {formatExpiry(generatedOtp.expiresAt)}
+          </p>
+          <p className="text-xs text-slate-400 mt-2">
+            Share this OTP with the security guard
+          </p>
+        </div>
+      )}
+
+      {/* ============ PRE-APPROVE MODAL ============ */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
+            {preApproveResult ? (
+              <>
+                <div className="text-center mb-4">
+                  <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-green-600 text-xl">✓</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-green-700">
+                    Visitor Pre-Approved!
+                  </h2>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-amber-700 mb-2">
+                    <strong>{preApproveResult.visitorName}</strong> has been
+                    pre-approved. Share this OTP with the security guard:
+                  </p>
+                  <div className="flex items-center justify-center gap-2 bg-white border-2 border-amber-300 rounded-lg py-3 px-4">
+                    <Key size={20} className="text-amber-600" />
+                    <span className="text-3xl font-mono font-bold text-amber-700 tracking-widest">
+                      {preApproveResult.otp}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-500 mt-2 text-center">
+                    This OTP expires in 30 minutes.
+                  </p>
+                </div>
+                <button
+                  onClick={handleClosePreApproveModal}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold mb-4">Pre-Approve Visitor</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  Visitor will receive an OTP for gate entry verification.
+                </p>
+                <form onSubmit={handlePreApprove} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Visitor Name
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full border rounded p-2"
+                      value={newVisitor.visitorName}
+                      onChange={(e) =>
+                        setNewVisitor({
+                          ...newVisitor,
+                          visitorName: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Visitor Mobile
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full border rounded p-2"
+                      value={newVisitor.visitorMobile}
+                      onChange={(e) =>
+                        setNewVisitor({
+                          ...newVisitor,
+                          visitorMobile: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Purpose
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full border rounded p-2"
+                      value={newVisitor.purpose}
+                      onChange={(e) =>
+                        setNewVisitor({
+                          ...newVisitor,
+                          purpose: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Vehicle (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full border rounded p-2"
+                      value={newVisitor.vehicleNumber}
+                      onChange={(e) =>
+                        setNewVisitor({
+                          ...newVisitor,
+                          vehicleNumber: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      type="button"
+                      onClick={handleClosePreApproveModal}
+                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Pre-Approve
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============ WALK-IN ENTRY MODAL ============ */}
+      {isWalkInModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold mb-2">Walk-in Entry</h2>
+            <p className="text-sm text-slate-500 mb-2">
+              Register a visitor who arrived without pre-approval and mark them
+              as entered immediately.
+            </p>
+            <div className="bg-orange-50 border border-orange-200 p-3 rounded-md mb-4 text-sm text-orange-700">
+              ⚠️ No OTP will be generated. Visitor will be marked as Entered
+              directly. Use only for unexpected visitors" Entered directly. Use
+              only for unexpected visitors at the gate.
+            </div>
+            <form onSubmit={handleWalkInEntry} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Visitor Name *
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={walkInVisitor.visitorName}
+                  onChange={(e) =>
+                    setWalkInVisitor({
+                      ...walkInVisitor,
+                      visitorName: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Visitor Mobile *
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={walkInVisitor.visitorMobile}
+                  onChange={(e) =>
+                    setWalkInVisitor({
+                      ...walkInVisitor,
+                      visitorMobile: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Purpose *
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full border rounded p-2"
+                  placeholder="e.g., Delivery, Meeting, Repair"
+                  value={walkInVisitor.purpose}
+                  onChange={(e) =>
+                    setWalkInVisitor({
+                      ...walkInVisitor,
+                      purpose: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Vehicle (Optional)
+                </label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={walkInVisitor.vehicleNumber}
+                  onChange={(e) =>
+                    setWalkInVisitor({
+                      ...walkInVisitor,
+                      vehicleNumber: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsWalkInModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={walkInLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <UserPlus size={16} />
+                  {walkInLoading ? "Processing..." : "Allow Walk-in Entry"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============ MANUAL ENTRY MODAL ============ */}
+      {isManualEntryModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold mb-2">Manual Entry Override</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Mark <strong>{manualEntryVisitorName}</strong> as entered without
+              OTP verification.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-md mb-4 text-sm text-amber-700">
+              ⚠️ This bypasses OTP verification. Use only when the guard has
+              confirmed the visitor's identity by calling the resident.
+            </div>
+            <form onSubmit={handleManualEntry} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Reason for manual entry *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  className="w-full border rounded p-2 text-sm"
+                  placeholder="e.g., Visitor's phone is dead, confirmed with resident by phone"
+                  value={manualEntryReason}
+                  onChange={(e) => setManualEntryReason(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsManualEntryModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!!manualEntryLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  {manualEntryLoading
+                    ? "Processing..."
+                    : "Confirm Manual Entry"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Visitors;
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\visitors_DummyData.tsx
+SIZE  : 4.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ 
+// src/pages/Visitors.tsx
+import  { useState } from 'react';
+import { initialVisitors, type Visitor } from '../api/mockData';
+import { Check, X, Plus } from 'lucide-react';
+
+const Visitors = () => {
+  // 1. Initialize state with the mock data
+  const [visitors, setVisitors] = useState<Visitor[]>(initialVisitors);
+
+  // 2. Function to handle Approval
+  const handleApprove = (id: number) => {
+    // We create a NEW array (don't modify the old one directly!)
+    const updatedVisitors = visitors.map(visitor => {
+      if (visitor.id === id) {
+        return { ...visitor, status: 'Approved' as const };
+      }
+      return visitor;
+    });
+    setVisitors(updatedVisitors);
+  };
+
+  // 3. Function to handle Rejection
+  const handleReject = (id: number) => {
+    const updatedVisitors = visitors.map(visitor => {
+      if (visitor.id === id) {
+        return { ...visitor, status: 'Rejected' as const };
+      }
+      return visitor;
+    });
+    setVisitors(updatedVisitors);
+  };
+
+  // Helper to pick badge colors
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Approved': return 'bg-green-100 text-green-700';
+      case 'Rejected': return 'bg-red-100 text-red-700';
+      default: return 'bg-orange-100 text-orange-700'; // Pending
+    }
+  };
+
+  return (
+    <div className="p-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Visitor Management</h1>
+        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">
+          <Plus size={18} />
+          Pre-approve Visitor
+        </button>
+      </div>
+
+      {/* Table Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+              <tr>
+                <th className="px-6 py-4 font-medium">Time</th>
+                <th className="px-6 py-4 font-medium">Visitor Name</th>
+                <th className="px-6 py-4 font-medium">Type</th>
+                <th className="px-6 py-4 font-medium">Purpose</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {visitors.map((visitor) => (
+                <tr key={visitor.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-slate-600">{visitor.time}</td>
+                  
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-slate-800">{visitor.name}</div>
+                  </td>
+                  
+                  <td className="px-6 py-4 text-sm text-slate-600">{visitor.type}</td>
+                  
+                  <td className="px-6 py-4 text-sm text-slate-600">{visitor.purpose}</td>
+                  
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(visitor.status)}`}>
+                      {visitor.status}
+                    </span>
+                  </td>
+                  
+                  <td className="px-6 py-4 text-right">
+                    {/* Show buttons only if Pending */}
+                    {visitor.status === 'Pending' ? (
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleApprove(visitor.id)}
+                          className="p-2 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition"
+                          title="Approve"
+                        >
+                          <Check size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleReject(visitor.id)}
+                          className="p-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition"
+                          title="Reject"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">Processed</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {visitors.length === 0 && (
+          <div className="p-8 text-center text-slate-500">No visitors found.</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Visitors;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\types\index.ts
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ export interface User {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface Society {
+  id: string;
+  name: string;
+}
+
+export interface Visitor {
+  id: number;
+  name: string;
+  type: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  purpose: string;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\utils\jwt.ts
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/utils/jwt.ts
+export const parseJwt = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tailwind.config.js
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ /** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tsconfig.app.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tsconfig.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\tsconfig.node.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "module": "nodenext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+

@@ -38,7 +38,11 @@ public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
         await _userRepository.UpdateAsync(user);
 
         // 4. Generate the JWT Wristband!
-        var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName);
+        //var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName);
+                // 4. Generate the JWT Wristband! (Include Role for initial routing)
+        var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName, role: user.Role);
+
+      
 
         return token;
     }

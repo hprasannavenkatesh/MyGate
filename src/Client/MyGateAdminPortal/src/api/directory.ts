@@ -16,14 +16,14 @@ export interface DirectoryEntryDto {
 
 export const getDirectory = async (societyId: string): Promise<DirectoryEntryDto[]> => {
   const response = await apiClient.get<DirectoryEntryDto[]>(
-    `${API_URLS.DIRECTORY}/society/${societyId}`
+    `${API_URLS.DIRECTORY}/Directory/society/${societyId}`
   );
   return response.data;
 };
 
 export const getCategories = async (societyId: string): Promise<string[]> => {
   const response = await apiClient.get<string[]>(
-    `${API_URLS.DIRECTORY}/categories/${societyId}`
+    `${API_URLS.DIRECTORY}/Directory/categories/${societyId}`
   );
   return response.data;
 };

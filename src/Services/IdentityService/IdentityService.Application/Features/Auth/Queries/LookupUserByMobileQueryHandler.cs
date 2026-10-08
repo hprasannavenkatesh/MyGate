@@ -35,7 +35,8 @@ public class LookupUserByMobileQueryHandler
             user.FullName,
             user.MobileNumber,
             user.Email,
-            user.IsMobileVerified
+            user.IsMobileVerified,
+            user.Role
         );
     }
 }

@@ -1,0 +1,372 @@
+{
+  "version": "2.0.0",
+
+  "tasks": [
+
+    // ============================================================
+    // 1. BUILD THE ENTIRE SOLUTION
+    // ============================================================
+
+   /* {
+      "label": "🔨 Build MyGateApp Solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/MyGateApp.slnx"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true,
+        "showReuseMessage": false
+      }
+    },*/
+
+    // ============================================================
+    // 2. START ALL SERVICES
+    // ============================================================
+
+    {
+      "label": "▶ Start MyGate Services",
+      "dependsOn": [
+        "Identity (5103)",
+        "Tenant (5104)",
+        "Visitor (5105)",
+        "Billing (5107)",
+        "Helpdesk (5108)",
+        "Notice (5109)",
+        "Amenity (5110)",
+        "DailyHelp (5111)",
+        "Vehicle (5112)",
+        "Directory (5113)",
+        "Emergency (5114)",
+        "RealtimeGateway (5116)"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+
+    // ============================================================
+    // 3. MASTER TASK
+    // ============================================================
+
+    {
+      "label": "🚀 START ALL MyGate",
+      "dependsOn": [
+        "🔨 Build MyGateApp Solution",
+        "▶ Start MyGate Services"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+
+    // ============================================================
+    // 4. IDENTITY SERVICE
+    // ============================================================
+
+    {
+      "label": "Identity (5103)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/IdentityService/IdentityService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 5. TENANT SERVICE
+    // ============================================================
+
+    {
+      "label": "Tenant (5104)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/TenantService/TenantService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 6. VISITOR SERVICE
+    // ============================================================
+
+    {
+      "label": "Visitor (5105)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/VisitorService/VisitorService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 7. BILLING SERVICE
+    // ============================================================
+
+    {
+      "label": "Billing (5107)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/BillingService/BillingService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 8. HELPDESK SERVICE
+    // ============================================================
+
+    {
+      "label": "Helpdesk (5108)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/HelpdeskService/HelpdeskService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 9. NOTICE BOARD SERVICE
+    // ============================================================
+
+    {
+      "label": "Notice (5109)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/NoticeBoardService/NoticeBoardService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 10. AMENITY SERVICE
+    // ============================================================
+
+    {
+      "label": "Amenity (5110)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/AmenityService/AmenityService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 11. DAILY HELP SERVICE
+    // ============================================================
+
+    {
+      "label": "DailyHelp (5111)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/DailyHelpService/DailyHelpService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 12. VEHICLE SERVICE
+    // ============================================================
+
+    {
+      "label": "Vehicle (5112)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/VehicleService/VehicleService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 13. DIRECTORY SERVICE
+    // ============================================================
+
+    {
+      "label": "Directory (5113)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/DirectoryService/DirectoryService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+    // ============================================================
+    // 14. EMERGENCY SERVICE
+    // ============================================================
+
+    {
+      "label": "Emergency (5114)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/EmergencyService/EmergencyService.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+
+     // ============================================================
+    // 14. RealtimeGateway SERVICE
+    // ============================================================
+
+    {
+      "label": "RealtimeGateway (5116)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/Services/RealtimeGateway/RealtimeGateway.API"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {        
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "showReuseMessage": false,
+        "clear": false
+      }
+    }
+  ]
+}

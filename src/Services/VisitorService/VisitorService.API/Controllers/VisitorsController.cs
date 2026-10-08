@@ -23,7 +23,7 @@ public class VisitorsController : BaseController
 
     // ADMIN: Get ALL! Get all visitors for a society
     [HttpGet("society/{societyId}")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Guard")]
     public async Task<IActionResult> GetSocietyVisitors(Guid societyId)
     {
         var query = new GetSocietyVisitorsQuery { SocietyId = societyId };
@@ -71,7 +71,7 @@ public class VisitorsController : BaseController
 
     // ADMIN: Manual entry override (no OTP)
     [HttpPost("{id}/manual-entry")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Guard")]
     public async Task<IActionResult> ManualEntry(Guid id, [FromBody] ManualEntryCommand command)
     {
         command.PreApprovalId = id;

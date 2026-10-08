@@ -66,6 +66,7 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
                 {
                     5 => "Co-Owner",
                     4 => "Admin",       // CommitteeMember gets Admin access
+                    6 => "Guard",        // NEW: Guard gets Guard role
                     0 => "Resident",    // Owner gets Resident access
                     1 => "Resident",    // Tenant gets Resident access
                     2 => "Resident",    // FamilyOfOwner gets Resident access
@@ -79,6 +80,7 @@ public class SelectContextCommandHandler : IRequestHandler<SelectContextCommand,
                 assignedRole = request.MemberType?.ToLowerInvariant() switch
                 {
                     "committeemember" => "Admin",
+                    "guard" => "Guard",  // NEW: String fallback
                     "admin" => "Admin",
                     _ => "Resident" // "Owner", "Tenant", etc. default to Resident
                 };

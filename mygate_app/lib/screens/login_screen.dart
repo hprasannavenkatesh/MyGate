@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isOtpSent = false;
   String? _jwtToken;
 
-  Future<void> _navigateToGuardWithContext(String basicToken) async {
+ /* Future<void> _navigateToGuardWithContext(String basicToken) async {
     try {
       final userId = await AuthService.getUserId();
 
@@ -70,6 +70,74 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Guard Login Error: $e')));
+      }
+    }
+  }*/
+
+    Future<void> _navigateToGuardWithContext(String basicToken) async {
+    try {
+      final userId = await AuthService.getUserId();
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.mySocietiesUrl}?userId=$userId'),
+        headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final societies = jsonDecode(response.body) as List;
+        
+        if (societies.isEmpty) {
+          throw Exception('No society assigned to this guard. Please contact Admin.');
+        }
+
+        // If Guard belongs to only 1 society, auto-select it (Fast Path)
+        if (societies.length == 1) {
+          final society = societies[0];
+          final contextResponse = await http.post(
+            Uri.parse(ApiConfig.selectContextUrl),
+            headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'userId': userId,
+              'societyId': society['societyId'],
+              'flatId': society['flatId'],
+              'memberType': society['memberType'],
+            }),
+          );
+
+          if (contextResponse.statusCode == 200) {
+            final data = jsonDecode(contextResponse.body);
+            final fatToken = data['token'];
+
+            await AuthService.cacheTokenClaims(fatToken);   
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('society_id', society['societyId']);
+            await prefs.setString('flat_id', society['flatId']);
+            await prefs.setString('flat_number', society['flatNumber']);
+
+            if (mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (ctx) => GuardScreen(token: fatToken)));
+            }
+          } else {
+            throw Exception('Failed to generate guard context token.');
+          }
+        } else {
+          // If Guard belongs to >1 society, force them to pick (Standard Path)
+          if (mounted) {
+            Navigator.pushReplacement(
+              context, 
+              MaterialPageRoute(builder: (ctx) => SocietySelectionScreen(token: basicToken))
+            );
+          }
+        }
+      } else {
+        throw Exception('Failed to fetch guard societies.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Guard Login Error: $e'),
+          backgroundColor: Colors.red,
+        ));
       }
     }
   }
@@ -148,11 +216,23 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(controller: _mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone))),
               const SizedBox(height: 20),
               SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _requestOtp, child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Send OTP', style: TextStyle(fontSize: 18)))),
-            ] else ...[
-              TextField(controller: _otpController, keyboardType: TextInputType.number, maxLength: 4, decoration: const InputDecoration(labelText: '4-Digit OTP', border: OutlineInputBorder(), prefixIcon: Icon(Icons.password))),
-              const SizedBox(height: 20),
-              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _verifyOtp, style: ElevatedButton.styleFrom(backgroundColor: _isGuardMode ? Colors.orange : Colors.green), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Login', style: TextStyle(fontSize: 18)))),
-            ]
+                     ] else ...[
+            TextField(controller: _otpController, keyboardType: TextInputType.number, maxLength: 4, decoration: const InputDecoration(labelText: '4-Digit OTP', border: OutlineInputBorder(), prefixIcon: Icon(Icons.password))),
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _verifyOtp, style: ElevatedButton.styleFrom(backgroundColor: _isGuardMode ? Colors.orange : Colors.green), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Login', style: TextStyle(fontSize: 18)))),
+            
+            // --- ADD THIS HERE ---
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isOtpSent = false;
+                  _otpController.clear();
+                });
+              },
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text('Change Mobile Number'),
+            ),
+          ]
           ],
         ),
       ),

@@ -16,7 +16,7 @@ export interface NoticeDto {
 // GET notices for a society
 export const getNotices = async (societyId: string): Promise<NoticeDto[]> => {
   const response = await apiClient.get<NoticeDto[]>(
-    `${API_URLS.NOTICE}/society/${societyId}`
+    `${API_URLS.NOTICE}/Notices?societyId=${societyId}`
   );
   return response.data;
 };

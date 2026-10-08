@@ -34,6 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const mapMemberTypeToInt = (memberType: string): string => {
   const lower = memberType?.toLowerCase();
   if (lower === "committeemember" || lower === "admin") return "4";
+   if (lower === "guard") return "6"; // NEW
   if (lower === "owner") return "0";
   if (lower === "tenant") return "1";
   if (lower === "familyofowner") return "2";
@@ -80,6 +81,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               ? "CommitteeMember"
               : "Owner";
 
+   // 🚨🚨🚨 AUTH CONTEXT DEBUG 🚨🚨🚨
+          console.log("=== AUTH CONTEXT INIT DEBUG ===");
+          console.log("1. Raw decoded token:", decoded);
+          console.log("2. userId:", userId);
+          console.log("3. role string from token:", role);
+          console.log("4. isSuperAdmin:", isSuperAdmin);
+          console.log("5. decoded.SocietyId:", decoded.SocietyId);
+          console.log("6. decoded.FlatId:", decoded.FlatId);
+          console.log("7. typeof decoded.SocietyId:", typeof decoded.SocietyId);
+          console.log("==============================");
+
           // Set current user from token immediately
           const initialUser = {
             uniqueKey: `${userId}_${decoded.FlatId || "no-flat"}`, // ADD THIS
@@ -87,7 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             name: decoded.FullName || "Unknown",
             isSuperAdmin: isSuperAdmin,
             flat: decoded.FlatId ? `Flat ${decoded.FlatId}` : "No Context",
-            societyId: decoded.SocietyId || "",
+            //societyId: decoded.SocietyId || "",
+            societyId: decoded.SocietyId || decoded.societyId || "", // Handle basic token missing societyID
             flatId: decoded.FlatId || "",
            // role: role, //decoded.role || decoded.Role || "",
            role: normalizeRole(role), // Normalize role for frontend

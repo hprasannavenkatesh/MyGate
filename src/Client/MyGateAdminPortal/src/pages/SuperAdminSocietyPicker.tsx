@@ -1,11 +1,11 @@
 // src/pages/SuperAdminSocietyPicker.tsx
 import { useState, useEffect } from 'react';
-import {useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getAllSocietiesForSuperAdmin, type SocietyListDto } from '../api/tenant';
 import { useAuth } from '../context/AuthContext';
 import { Building, Loader2, Plus, Trash2, AlertCircle } from 'lucide-react';
 import apiClient from '../api/client';
-import {API_URLS} from "../api/apiConfig";
+import { API_URLS } from "../api/apiConfig";
 
 export default function SuperAdminSocietyPicker() {
   const { currentUser, switchContext } = useAuth();
@@ -17,12 +17,19 @@ export default function SuperAdminSocietyPicker() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Create Society State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newSocietyName, setNewSocietyName] = useState('');
   const [newSocietyAddress, setNewSocietyAddress] = useState('');
   const [newSocietyCity, setNewSocietyCity] = useState('');
+
+  // 1. CHECK FOR TOKEN - If no token, force to login
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
 
   const fetchSocieties = async () => {
     setLoading(true);
@@ -30,9 +37,16 @@ export default function SuperAdminSocietyPicker() {
     try {
       const data = await getAllSocietiesForSuperAdmin();
       setSocieties(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load societies', err);
-      setError('Failed to fetch societies. Check TenantService (5104) and network.');
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch societies. Check IdentityService (5103) & TenantService (5104).';
+      setError(msg);
+      
+      // If 401 Unauthorized, the token is bad, force login
+      if (err.response?.status === 401) {
+        localStorage.removeItem("auth_token");
+        navigate("/login", { replace: true });
+      }
     } finally {
       setLoading(false);
     }
@@ -46,22 +60,32 @@ export default function SuperAdminSocietyPicker() {
     setSwitchingId(society.id);
     setError(null);
     try {
+      if (!currentUser) {
+        throw new Error("Auth context not ready. Please try again.");
+      }
+
       const mockUserForContext = {
-         uniqueKey: `${currentUser?.id || ""}_${society.id}_sa`, // ADD THIS (Appends _sa to guarantee uniqueness)
-        id: currentUser?.id || '',
+        uniqueKey: `${currentUser.id}_${society.id}_sa`,
+        id: currentUser.id,
         name: society.name,
         flat: 'SuperAdmin',
         societyId: society.id,
-        flatId: '',
+        flatId: '', // SuperAdmin doesn't map to a specific flat
         role: 'SuperAdmin',
         memberType: 'SuperAdmin',
         isSuperAdmin: true
       };
+      
       await switchContext(mockUserForContext);
-      navigate('/');
-    } catch (err) {
+      
+      // Force a full page reload to the root. 
+      // This guarantees AuthContext re-initializes with the new Fat Token 
+      // and RequireAuth evaluates correctly with the new societyId.
+      window.location.href = '/'; 
+      
+    } catch (err: any) {
       console.error('Failed to switch context', err);
-      setError('Context switch failed. Ensure IdentityService (5103) is running.');
+      setError(err.message || 'Context switch failed. Ensure IdentityService (5103) is running.');
       setSwitchingId(null);
     }
   };
@@ -73,7 +97,7 @@ export default function SuperAdminSocietyPicker() {
     setError(null);
     try {
       await apiClient.delete(`${API_URLS.TENANT}/superadmin/societies/${societyId}`);
-      setSocieties(prev => prev.filter(s => s.id !== societyId)); // Optimistic UI update
+      setSocieties(prev => prev.filter(s => s.id !== societyId));
     } catch (err) {
       console.error('Failed to delete society', err);
       setError('Failed to delete society. Check backend logs.');
@@ -91,7 +115,7 @@ export default function SuperAdminSocietyPicker() {
     try {
       await apiClient.post(`${API_URLS.TENANT}/superadmin/societies`, {
         name: newSocietyName,
-        code: newSocietyName.substring(0, 3).toUpperCase(), // Auto-generate code
+        code: newSocietyName.substring(0, 3).toUpperCase(),
         address: newSocietyAddress,
         city: newSocietyCity
       });
@@ -99,7 +123,7 @@ export default function SuperAdminSocietyPicker() {
       setNewSocietyName('');
       setNewSocietyAddress('');
       setNewSocietyCity('');
-      fetchSocieties(); // Refresh list
+      fetchSocieties(); 
     } catch (err) {
       console.error('Failed to create society', err);
       setError('Failed to create society.');
@@ -116,7 +140,7 @@ export default function SuperAdminSocietyPicker() {
             <Building className="w-8 h-8 text-blue-600" /> SuperAdmin Portal
           </h1>
           <p className="text-slate-500 mt-2">
-            Select a society to manage, or create a new one. You will enter the society context with elevated permissions.
+            Select a society to manage, or create a new one. 
           </p>
         </div>
 
@@ -137,43 +161,40 @@ export default function SuperAdminSocietyPicker() {
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>
-        ) : societies.length === 0 ? (
+        ) : !societies || societies.length === 0 ? (
           <div className="text-center py-20 text-slate-500">No societies found. Create one to get started!</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {societies.map(s => (
-              <div 
-                key={s.id} 
-                className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition flex flex-col relative group"
-              >
-                {/* Delete Button - top right */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleDeleteSociety(s.id, s.name); }}
-                  disabled={deletingId === s.id}
-                  className="absolute top-3 right-3 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition opacity-0 group-hover:opacity-100"
-                  title="Delete Society"
-                >
-                  {deletingId === s.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                </button>
+              s && s.id ? (
+                <div key={s.id} className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition flex flex-col relative group">
+                  
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDeleteSociety(s.id, s.name); }}
+                    disabled={deletingId === s.id}
+                    className="absolute top-3 right-3 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition opacity-0 group-hover:opacity-100"
+                    title="Delete Society"
+                  >
+                    {deletingId === s.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  </button>
 
-                {/* Society Info - clickable area */}
-                <button 
-                  onClick={() => handleSelectSociety(s)}
-                  disabled={switchingId !== null}
-                  className="text-left flex-1 focus:outline-none"
-                >
-                  <h3 className="text-lg font-semibold text-slate-800 mb-1">{s.name}</h3>
-                  <p className="text-sm text-slate-500">{s.address || s.city || 'Click to manage'}</p>
-                  <span className="mt-3 inline-block text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded w-fit">Society</span>
-                </button>
+                  <button 
+                    onClick={() => handleSelectSociety(s)}
+                    disabled={switchingId !== null}
+                    className="text-left flex-1 focus:outline-none"
+                  >
+                    <h3 className="text-lg font-semibold text-slate-800 mb-1">{s.name}</h3>
+                    <p className="text-sm text-slate-500">{s.address || s.city || 'Click to manage'}</p>
+                    <span className="mt-3 inline-block text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded w-fit">Society</span>
+                  </button>
 
-                {/* Loading indicator for context switch */}
-                {switchingId === s.id && (
-                  <div className="mt-4 flex items-center gap-2 text-blue-600 text-sm">
-                    <Loader2 size={16} className="animate-spin" /> Switching context...
-                  </div>
-                )}
-              </div>
+                  {switchingId === s.id && (
+                    <div className="mt-4 flex items-center gap-2 text-blue-600 text-sm">
+                      <Loader2 size={16} className="animate-spin" /> Switching context...
+                    </div>
+                  )}
+                </div>
+              ) : null
             ))}
           </div>
         )}

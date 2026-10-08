@@ -1,0 +1,2281 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET  (continued — Part 5)
+║  Generated : 2026-10-06 12:43:55
+║  Root      : C:\MyGateApp\src\Services
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\Controllers\SuperAdminController.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using TenantService.Application.Features.Societies.Commands;
+using TenantService.Application.Features.Societies.Queries;
+
+namespace TenantService.API.Controllers;
+
+[ApiController]
+[Route("api/superadmin")]
+[Authorize(Roles = "SuperAdmin")] // 🔒 LOCKED DOWN: Only SuperAdmins can hit this controller
+public class SuperAdminController : ControllerBase
+{
+    private readonly IMediator _mediator;
+
+    public SuperAdminController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    // ==========================================
+    // LAYER 2: CROSS-SOCIETY ENDPOINTS
+    // ==========================================
+
+    /// <summary>
+    /// Gets ALL societies. Used by the SuperAdmin Society Picker in React.
+    /// </summary>
+    [HttpGet("societies")]
+      [Authorize(Roles = "SuperAdmin")] // FIXED: Was missing — anyone could list all societies
+    public async Task<IActionResult> GetAllSocieties()
+    {
+        var result = await _mediator.Send(new GetAllSocietiesQuery());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Creates a brand new society. SuperAdmin only.
+    /// </summary>
+    [HttpPost("societies")]
+     [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> CreateSociety([FromBody] CreateSocietyCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetAllSocieties), new { id }, new { Id = id });
+    }
+
+    /// <summary>
+    /// Deletes a society and all its associated data (Blocks, Flats, Members).
+    /// </summary>
+    [HttpDelete("societies/{id}")]
+     [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> DeleteSociety(Guid id)
+    {
+        // We will create this command next
+        await _mediator.Send(new DeleteSocietyCommand { SocietyId = id });
+        return NoContent();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\Program.cs
+SIZE  : 3.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+using TenantService.Infrastructure.Repositories;
+using Microsoft.OpenApi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+           policy.SetIsOriginAllowed(origin => true) // <--- THE MAGIC LINE! Allows any origin BUT works with Auth headers.
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+
+builder.Services.AddDbContext<TenantDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("TenantDb")));
+
+builder.Services.AddScoped<ISocietyMemberRepository, SocietyMemberRepository>();
+builder.Services.AddScoped<ISocietyRepository, SocietyRepository>();
+builder.Services.AddScoped<IFlatRepository, FlatRepository>();
+
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(TenantService.Application.Features.Societies.Queries.GetUserSocietiesQuery).Assembly));
+
+// --- NEW: JWT Bouncer (Exact same as Identity) ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+// --- NEW: Swagger Token UI ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+    });
+    /*c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });*/
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
+// ----------------------------------------
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication(); // MUST be before Authorization!
+app.UseAuthorization();
+
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5104",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.API\TenantService.API.csproj
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments> <!-- ADD THIS LINE -->                                                                                             
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TenantService.Application\TenantService.Application.csproj" />
+    <ProjectReference Include="..\TenantService.Infrastructure\TenantService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\AddMemberCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class AddMemberCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public Guid UserId { get; set; }       // The person being added
+    public Guid FlatId { get; set; }       // The flat they are moving into
+    public string MemberType { get; set; } = string.Empty; // "Owner", "Tenant", etc.
+    public bool IsPrimary { get; set; } = false;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\AddMemberCommandHandler.cs
+SIZE  : 5.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class AddMemberCommandHandler : IRequestHandler<AddMemberCommand, Guid>
+{
+    private readonly ISocietyMemberRepository _repository;
+
+    public AddMemberCommandHandler(ISocietyMemberRepository repository)
+    {
+        _repository = repository;
+    }
+
+    /*
+        public async Task<Guid> Handle(AddMemberCommand request, CancellationToken cancellationToken)
+        {
+            // 1. Parse the string to our Enum
+            if (!Enum.TryParse<MemberType>(request.MemberType, out var memberType))
+            {
+                throw new ArgumentException($"Invalid MemberType: {request.MemberType}");
+            }
+
+     // ✨ NEW Business Rule: The "One Primary Per Flat" Rule
+            if (request.IsPrimary)
+            {
+                  Console.WriteLine($"🔍 DEBUG: Checking for existing Primary on FlatId: {request.FlatId}");
+
+
+                // Fetch all existing members for this specific flat
+                var existingMembers = await _repository.GetByFlatIdAsync(request.FlatId, cancellationToken);
+
+                // Find the current Primary member (if any)
+                var currentPrimary = existingMembers.FirstOrDefault(m => m.IsPrimary);
+
+                if (currentPrimary != null)
+                {
+                    // Demote the current primary to Co-Owner automatically to prevent duplicates
+                    currentPrimary.UpdateMemberType(MemberType.CoOwner); // Assuming you have a CoOwner enum
+                    currentPrimary.SetPrimary(false); // Assuming you have a setter for IsPrimary
+
+                    _repository.Update(currentPrimary);
+                      // ✅ CRITICAL FIX: We MUST save the demotion to the database 
+                    // BEFORE adding the new primary member!
+                    await _repository.SaveChangesAsync(cancellationToken);
+                     // This prevents the second SaveChanges from overwriting our demotion!
+                    Console.WriteLine($"✅ DEMOTION SAVED: Old primary is now demoted.");
+                }
+                 else
+                {
+                    Console.WriteLine($"✅ DEBUG: No existing Primary found. Safe to assign.");
+                }
+            }
+
+            // 2. Use our Domain Entity to create the record
+            var member = new SocietyMember(
+                request.SocietyId,
+                request.UserId,
+                request.FlatId,
+                memberType,
+                request.IsPrimary
+            );
+
+            // 3. Save to database
+            var result = await _repository.AddAsync(member);
+
+            return result.Id;
+        }
+        */
+
+    public async Task<Guid> Handle(AddMemberCommand request, CancellationToken cancellationToken)
+    {
+        // 1. Parse the string to our Enum
+        if (!Enum.TryParse<MemberType>(request.MemberType, out var memberType))
+        {
+            throw new ArgumentException($"Invalid MemberType: {request.MemberType}");
+        }
+
+       
+
+        // ✨ 4. Business Rule: The "One Primary Per Flat" Rule
+        // We check and demote AFTER adding the new member to the EF Core context,
+        // but BEFORE calling SaveChanges. This keeps the tracker clean.
+        if (request.IsPrimary)
+        {
+            var existingMembers = await _repository.GetByFlatIdAsync(request.FlatId, cancellationToken);
+           /* var currentPrimary = existingMembers.FirstOrDefault(m => m.IsPrimary);
+
+            if (currentPrimary != null)
+            {
+                // Demote the old primary to Co-Owner automatically
+                currentPrimary.UpdateMemberType(MemberType.CoOwner);
+                currentPrimary.SetPrimary(false);
+                _repository.Update(currentPrimary);
+                await _repository.SaveChangesAsync(cancellationToken);
+            }*/
+             var currentPrimaries = existingMembers.Where(m => m.IsPrimary).ToList();
+            
+            if (currentPrimaries.Any())
+            {
+                foreach (var primary in currentPrimaries)
+                {
+                    primary.UpdateMemberType(MemberType.CoOwner); 
+                    primary.SetPrimary(false); 
+                    _repository.Update(primary);
+                }
+                
+                // Save ALL the demotions to the database BEFORE adding the new member
+                await _repository.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        // 5. Save everything in one single transaction
+       // await _repository.SaveChangesAsync(cancellationToken);
+        // 2. Create the new member entity
+        var member = new SocietyMember(
+            request.SocietyId,
+            request.UserId,
+            request.FlatId,
+            memberType,
+            request.IsPrimary
+        );
+
+        // 3. Add to context (DO NOT SAVE YET)
+         var result = await _repository.AddAsync(member);
+
+        return result.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateBlockCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateBlockCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateBlockCommandHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateBlockCommandHandler : IRequestHandler<CreateBlockCommand, Guid>
+{
+    private readonly IFlatRepository _repository;
+    public CreateBlockCommandHandler(IFlatRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateBlockCommand request, CancellationToken cancellationToken)
+    {
+        var block = new Block(request.SocietyId, request.Name);
+        return (await _repository.AddBlockAsync(block)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateFlatCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateFlatCommand : IRequest<Guid>
+{
+    public Guid BlockId { get; set; }
+    public Guid SocietyId { get; set; }
+    public string FlatNumber { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateFlatCommandHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateFlatCommandHandler : IRequestHandler<CreateFlatCommand, Guid>
+{
+    private readonly IFlatRepository _repository;
+    public CreateFlatCommandHandler(IFlatRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateFlatCommand request, CancellationToken cancellationToken)
+    {
+        var flat = new Flat(request.SocietyId,request.BlockId, request.FlatNumber, request.Type);
+        return (await _repository.AddFlatAsync(flat)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateSocietyCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateSocietyCommand : IRequest<Guid>
+{
+    public string Name { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\CreateSocietyCommandHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class CreateSocietyCommandHandler : IRequestHandler<CreateSocietyCommand, Guid>
+{
+    private readonly ISocietyRepository _repository;
+    public CreateSocietyCommandHandler(ISocietyRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(CreateSocietyCommand request, CancellationToken cancellationToken)
+    {
+        var society = new Society(request.Name, request.Code, request.Address, request.City);
+        return (await _repository.AddAsync(society)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\DeleteSocietyCommand.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public record DeleteSocietyCommand : IRequest<Unit>
+{
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Commands\DeleteSocietyCommandHandler.cs
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Interfaces;
+using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class DeleteSocietyCommandHandler : IRequestHandler<DeleteSocietyCommand, Unit>
+{
+    private readonly ISocietyRepository _societyRepo;
+    private readonly IFlatRepository _flatRepo;
+    private readonly ISocietyMemberRepository _memberRepo;
+
+    public DeleteSocietyCommandHandler(
+        ISocietyRepository societyRepo,
+        IFlatRepository flatRepo,
+        ISocietyMemberRepository memberRepo)
+    {
+        _societyRepo = societyRepo;
+        _flatRepo = flatRepo;
+        _memberRepo = memberRepo;
+    }
+
+    public async Task<Unit> Handle(DeleteSocietyCommand request, CancellationToken cancellationToken)
+    {
+        var society = await _societyRepo.GetByIdAsync(request.SocietyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Society with ID {request.SocietyId} not found.");
+
+        // 1. Delete all members in this society
+        var members = await _memberRepo.GetBySocietyIdAsync(request.SocietyId, cancellationToken);
+        foreach (var member in members)
+            _memberRepo.Remove(member);
+        await _memberRepo.SaveChangesAsync(cancellationToken);
+
+        // 2. Delete all flats and blocks in this society
+        var blocks = await _flatRepo.GetBlocksBySocietyAsync(request.SocietyId, cancellationToken);
+        foreach (var block in blocks)
+        {
+            var flats = await _flatRepo.GetFlatsByBlockAsync(block.Id, cancellationToken);
+            foreach (var flat in flats)
+                _flatRepo.RemoveFlat(flat);
+            _flatRepo.RemoveBlock(block);
+        }
+        await _societyRepo.SaveChangesAsync(cancellationToken);
+
+        // 3. Delete the society itself
+        _societyRepo.Delete(society);
+        await _societyRepo.SaveChangesAsync(cancellationToken);
+
+        return Unit.Value;
+    }
+}
+
+/*using TenantService.Domain.Interfaces;
+using MediatR;
+
+namespace TenantService.Application.Features.Societies.Commands;
+
+public class DeleteSocietyCommandHandler : IRequestHandler<DeleteSocietyCommand, Unit>
+{
+     private readonly ISocietyRepository _societyRepository;
+
+    public DeleteSocietyCommandHandler(ISocietyRepository societyRepository)
+    {
+        _societyRepository = societyRepository;
+    }
+
+public async Task<Unit> Handle(DeleteSocietyCommand request, CancellationToken cancellationToken)
+{
+    var society = await _societyRepository.GetByIdAsync(request.SocietyId, cancellationToken)
+        ?? throw new KeyNotFoundException($"Society with ID {request.SocietyId} not found.");
+
+    _societyRepository.Delete(society);
+    await _societyRepository.SaveChangesAsync(cancellationToken); // This now works!
+
+    return Unit.Value;
+}
+}*/
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetAllSocietiesQuery.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public record GetAllSocietiesQuery : IRequest<IReadOnlyList<Society>>;
+
+public class GetAllSocietiesQueryHandler : IRequestHandler<GetAllSocietiesQuery, IReadOnlyList<Society>>
+{
+    private readonly Domain.Interfaces.ISocietyRepository _repo;
+    public GetAllSocietiesQueryHandler(Domain.Interfaces.ISocietyRepository repo) => _repo = repo;
+
+    public async Task<IReadOnlyList<Society>> Handle(GetAllSocietiesQuery request, CancellationToken cancellationToken)
+        => await _repo.GetAllAsync(cancellationToken);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetBlocksBySocietyQuery.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public record GetBlocksBySocietyQuery : IRequest<IReadOnlyList<Block>>
+{
+    public Guid SocietyId { get; init; }
+}
+
+public class GetBlocksBySocietyQueryHandler : IRequestHandler<GetBlocksBySocietyQuery, IReadOnlyList<Block>>
+{
+    private readonly Domain.Interfaces.IFlatRepository _repo;
+    public GetBlocksBySocietyQueryHandler(Domain.Interfaces.IFlatRepository repo) => _repo = repo;
+
+    public async Task<IReadOnlyList<Block>> Handle(GetBlocksBySocietyQuery request, CancellationToken cancellationToken)
+        => await _repo.GetBlocksBySocietyAsync(request.SocietyId, cancellationToken);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetFlatsByBlockQuery.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public record GetFlatsByBlockQuery : IRequest<IReadOnlyList<Flat>>
+{
+    public Guid BlockId { get; init; }
+}
+
+public class GetFlatsByBlockQueryHandler : IRequestHandler<GetFlatsByBlockQuery, IReadOnlyList<Flat>>
+{
+    private readonly Domain.Interfaces.IFlatRepository _repo;
+    public GetFlatsByBlockQueryHandler(Domain.Interfaces.IFlatRepository repo) => _repo = repo;
+
+    public async Task<IReadOnlyList<Flat>> Handle(GetFlatsByBlockQuery request, CancellationToken cancellationToken)
+        => await _repo.GetFlatsByBlockAsync(request.BlockId, cancellationToken);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetSocietyByIdQuery.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain.Entities;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public record GetSocietyByIdQuery : IRequest<Society?>
+{
+    public Guid Id { get; init; }
+}
+
+public class GetSocietyByIdQueryHandler : IRequestHandler<GetSocietyByIdQuery, Society?>
+{
+    private readonly Domain.Interfaces.ISocietyRepository _repo;
+    public GetSocietyByIdQueryHandler(Domain.Interfaces.ISocietyRepository repo) => _repo = repo;
+
+    public async Task<Society?> Handle(GetSocietyByIdQuery request, CancellationToken cancellationToken)
+        => await _repo.GetByIdAsync(request.Id, cancellationToken);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetUserSocietiesQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public class GetUserSocietiesQuery : IRequest<List<UserSocietyDto>>
+{
+    public Guid UserId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\Features\Societies\Queries\GetUserSocietiesQueryHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using TenantService.Domain;
+using TenantService.Domain.Interfaces;
+
+namespace TenantService.Application.Features.Societies.Queries;
+
+public class GetUserSocietiesQueryHandler : IRequestHandler<GetUserSocietiesQuery, List<UserSocietyDto>>
+{
+    private readonly ISocietyMemberRepository _repository;
+
+    public GetUserSocietiesQueryHandler(ISocietyMemberRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<List<UserSocietyDto>> Handle(GetUserSocietiesQuery request, CancellationToken cancellationToken)
+    {
+        // Just pass the userId to the repository and return the list!
+        return await _repository.GetByUserIdAsync(request.UserId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Application\TenantService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TenantService.Domain\TenantService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\DTOs\UserSocietyDto.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Domain;
+
+public class UserSocietyDto
+{
+    public Guid SocietyId { get; set; }
+    public string SocietyName { get; set; } = string.Empty;
+    public Guid FlatId { get; set; }
+    public string FlatNumber { get; set; } = string.Empty;
+    public string BlockName { get; set; } = string.Empty;
+    public string MemberType { get; set; } = string.Empty; // "Owner", "Tenant", etc.
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\Block.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class Block
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public string Name { get; private set; } = null!; // e.g., "A", "B"
+    
+    // Navigation property (EF Core will use this to link tables)
+    public virtual Society? Society { get; private set; }
+
+    private Block() { }
+
+    public Block(Guid societyId, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Block name is required.");
+        
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        Name = name;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\Flat.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class Flat
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set;} 
+    public Guid BlockId { get; private set; }
+    public string FlatNumber { get; private set; } = null!; // e.g., "101"
+    public string Type { get; private set; } = null!; // e.g., "2BHK"
+
+    public virtual Block? Block { get; private set; }
+
+    private Flat() { }
+
+    public Flat(Guid societyId,Guid blockId, string flatNumber, string type)
+    {
+        if (string.IsNullOrWhiteSpace(flatNumber)) throw new ArgumentException("Flat number is required.");
+
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        BlockId = blockId;
+        FlatNumber = flatNumber;
+        Type = type;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\MemberType.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace TenantService.Domain.Entities;
+
+public enum MemberType
+{
+    Owner,
+    Tenant,
+    FamilyMemberOfOwner,
+    FamilyMemberOfTenant,
+      CommitteeMember = 4,   // <--- ADD THIS FOR ADMIN ACCESS
+       CoOwner = 5 // NEW: For spouses/demoted primaries
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\Society.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class Society
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public string Name { get; private set; } = null!;
+    public string Code { get; private set; } = null!; // e.g., "SUN-APT"
+    public string Address { get; private set; } = null!;
+    public string City { get; private set; } = null!;
+    
+    private Society() { }
+
+    public Society(string name, string code, string address, string city)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Society name is required.");
+        if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Society code is required.");
+
+        Id = Guid.NewGuid();
+        Name = name;
+        Code = code;
+        Address = address;
+        City = city;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Entities\SocietyMember.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace TenantService.Domain.Entities;
+
+public class SocietyMember
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public Guid UserId { get; private set; } // This comes from IdentityService!
+    public Guid FlatId { get; private set; }
+    public MemberType MemberType { get; private set; }
+    public bool IsPrimary { get; private set; }
+    
+    public virtual Flat? Flat { get; private set; }
+
+    private SocietyMember() { }
+
+    public SocietyMember(Guid societyId, Guid userId, Guid flatId, MemberType memberType, bool isPrimary = false)
+    {
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        UserId = userId;
+        FlatId = flatId;
+        MemberType = memberType;
+        IsPrimary = isPrimary;
+    }
+
+        //  NEW: Allow demoting a primary member
+    public void SetPrimary(bool isPrimary)
+    {
+        IsPrimary = isPrimary;
+    }
+
+    //  NEW: Allow changing member type (e.g., demoting to CoOwner)
+    public void UpdateMemberType(MemberType newType)
+    {
+        MemberType = newType;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\IBlockRepository.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface IBlockRepository
+{
+    Task<Block?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<Block>> GetBySocietyAsync(Guid societyId, CancellationToken ct = default);
+    void Add(Block block);
+    void Update(Block block);
+    void Remove(Block block);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\IFlatRepository.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface IFlatRepository
+{
+    Task<Block> AddBlockAsync(Block block);
+    Task<Flat> AddFlatAsync(Flat flat);
+
+      // NEW: Read operations (Crucial for React Admin Portal)
+    Task<IReadOnlyList<Block>> GetBlocksBySocietyAsync(Guid societyId, CancellationToken ct = default);
+    Task<IReadOnlyList<Flat>> GetFlatsByBlockAsync(Guid blockId, CancellationToken ct = default);
+    
+    // NEW: Delete operations
+    void RemoveFlat(Flat flat);
+    void RemoveBlock(Block block);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\ISocietyMemberRepository.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain;
+using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface ISocietyMemberRepository
+{
+    // We will use LINQ in the database to join the tables and return the exact DTO shape!
+    Task<List<UserSocietyDto>> GetByUserIdAsync(Guid userId);
+
+    // NEW: Method to add a member to a flat
+    Task<SocietyMember> AddAsync(SocietyMember member);
+
+    void Update(SocietyMember member);
+
+    Task<IReadOnlyList<SocietyMember>> GetByFlatIdAsync(Guid flatId, CancellationToken cancellationToken = default);
+
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    // ADD:
+    Task<IReadOnlyList<SocietyMember>> GetBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default);
+    void Remove(SocietyMember member);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\Interfaces\ISocietyRepository.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+
+namespace TenantService.Domain.Interfaces;
+
+public interface ISocietyRepository
+{
+    Task<Society> AddAsync(Society society);
+    Task<IReadOnlyList<Society>> GetAllAsync(CancellationToken ct = default);
+    Task<Society?> GetByIdAsync(Guid id, CancellationToken ct = default); // ADDED
+    void Add(Society society);
+    void Update(Society society);
+    void Delete(Society society);
+      Task<int> SaveChangesAsync(CancellationToken ct = default); // <-- ADD THIS
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Domain\TenantService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Persistence\TenantDbContext.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace TenantService.Infrastructure.Persistence;
+
+public class TenantDbContext : DbContext
+{
+    public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)
+    {
+    }
+
+    // One DbSet for each table we want in SQL Server
+    public DbSet<Society> Societies => Set<Society>();
+    public DbSet<Block> Blocks => Set<Block>();
+    public DbSet<Flat> Flats => Set<Flat>();
+    public DbSet<SocietyMember> SocietyMembers => Set<SocietyMember>();
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\BlockRepository.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.EntityFrameworkCore;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class BlockRepository : IBlockRepository
+{
+    private readonly TenantDbContext _context;
+    public BlockRepository(TenantDbContext context) => _context = context;
+
+    public async Task<Block?> GetByIdAsync(Guid id, CancellationToken ct = default) 
+        => await _context.Blocks.FindAsync(id, ct);
+
+    public async Task<IReadOnlyList<Block>> GetBySocietyAsync(Guid societyId, CancellationToken ct = default) 
+        => await _context.Blocks.Where(b => b.SocietyId == societyId).OrderBy(b => b.Name).ToListAsync(ct);
+
+    public void Add(Block block) => _context.Blocks.Add(block);
+    public void Update(Block block) => _context.Blocks.Update(block);
+    public void Remove(Block block) => _context.Blocks.Remove(block);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\FlatRepository.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.EntityFrameworkCore;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class FlatRepository : IFlatRepository
+{
+    private readonly TenantDbContext _context;
+    public FlatRepository(TenantDbContext context) => _context = context;
+
+    public async Task<Block> AddBlockAsync(Block block)
+    {
+        await _context.Blocks.AddAsync(block);
+        await _context.SaveChangesAsync();
+        return block;
+    }
+
+    public async Task<Flat> AddFlatAsync(Flat flat)
+    {
+        await _context.Flats.AddAsync(flat);
+        await _context.SaveChangesAsync();
+        return flat;
+    }
+
+      public async Task<Flat?> GetByIdAsync(Guid id, CancellationToken ct = default) 
+        => await _context.Flats.FindAsync(id, ct);
+
+
+    public async Task<IReadOnlyList<Flat>> GetByBlockAsync(Guid blockId, CancellationToken ct = default) 
+        => await _context.Flats.Where(f => f.BlockId == blockId).OrderBy(f => f.FlatNumber).ToListAsync(ct);
+
+    //public void Add(Flat flat) => _context.Flats.Add(flat);
+    //public void Remove(Flat flat) => _context.Flats.Remove(flat);
+
+        // NEW: Read operations
+    public async Task<IReadOnlyList<Block>> GetBlocksBySocietyAsync(Guid societyId, CancellationToken ct = default)
+        => await _context.Blocks.AsQueryable().Where(b => b.SocietyId == societyId).OrderBy(b => b.Name).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Flat>> GetFlatsByBlockAsync(Guid blockId, CancellationToken ct = default)
+        => await _context.Flats.AsQueryable().Where(f => f.BlockId == blockId).OrderBy(f => f.FlatNumber).ToListAsync(ct);
+
+    // NEW: Delete operations
+    public void RemoveFlat(Flat flat) => _context.Flats.Remove(flat);
+    public void RemoveBlock(Block block) => _context.Blocks.Remove(block);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\SocietyMemberRepository.cs
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using TenantService.Domain;
+using TenantService.Domain.Interfaces;
+using TenantService.Domain.Entities;
+using TenantService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class SocietyMemberRepository : ISocietyMemberRepository
+{
+    private readonly TenantDbContext _context;
+
+    public SocietyMemberRepository(TenantDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<UserSocietyDto>> GetByUserIdAsync(Guid userId)
+    {
+        // Here we use LINQ to join Members -> Flats -> Blocks -> Societies!
+        return await _context.SocietyMembers
+            .Where(m => m.UserId == userId)
+            .Include(m => m.Flat!)         // Tell EF Core to load the Flat
+            .ThenInclude(f => f.Block!)    // Tell EF Core to load the Block inside the Flat
+            .ThenInclude(b => b.Society!)  // Tell EF Core to load the Society inside the Block
+            .Select(m => new UserSocietyDto
+            {
+                SocietyId = m.SocietyId,
+                SocietyName = m.Flat!.Block!.Society!.Name,
+                FlatId = m.FlatId,
+                FlatNumber = m.Flat.FlatNumber,
+                BlockName = m.Flat.Block.Name,
+                MemberType = m.MemberType.ToString()
+            })
+            .ToListAsync();
+    }
+
+    public async Task<SocietyMember> AddAsync(SocietyMember member)
+    {
+        await _context.SocietyMembers.AddAsync(member);
+        await _context.SaveChangesAsync();
+        return member;
+    }
+
+    public void Update(SocietyMember member) => _context.SocietyMembers.Update(member);
+
+    public async Task<IReadOnlyList<SocietyMember>> GetByFlatIdAsync(Guid flatId, CancellationToken cancellationToken = default)
+    {
+        return await _context.SocietyMembers
+            .Where(m => m.FlatId == flatId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    // ADD:
+    public async Task<IReadOnlyList<SocietyMember>> GetBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.SocietyMembers
+            .Where(m => m.SocietyId == societyId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public void Remove(SocietyMember member) => _context.SocietyMembers.Remove(member);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\Repositories\SocietyRepository.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.EntityFrameworkCore;
+using TenantService.Domain.Entities;
+using TenantService.Domain.Interfaces;
+using TenantService.Infrastructure.Persistence;
+
+namespace TenantService.Infrastructure.Repositories;
+
+public class SocietyRepository : ISocietyRepository
+{
+    private readonly TenantDbContext _context;
+    public SocietyRepository(TenantDbContext context) => _context = context;
+
+    public async Task<Society> AddAsync(Society society)
+    {
+        await _context.Societies.AddAsync(society);
+        await _context.SaveChangesAsync();
+        return society;
+    }
+
+      public async Task<Society?> GetByIdAsync(Guid id, CancellationToken ct = default) 
+        => await _context.Societies.FindAsync(id, ct);
+
+         public async Task<IReadOnlyList<Society>> GetAllAsync(CancellationToken ct = default) 
+        => await _context.Societies.AsQueryable().OrderBy(s => s.Name).ToListAsync(ct);
+
+       
+    public void Add(Society society) => _context.Societies.Add(society);
+    public void Update(Society society) => _context.Societies.Update(society);
+
+    public void Delete(Society society) => _context.Societies.Remove(society);
+
+    public async Task<int> SaveChangesAsync(CancellationToken ct = default) 
+    => await _context.SaveChangesAsync(ct);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : TenantService\TenantService.Infrastructure\TenantService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TenantService.Domain\TenantService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\appsettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateVehicleServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VehicleService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+    protected bool IsAdmin => Role == "Admin";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Controllers\ParkingSlotsController.cs
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Application.Features.ParkingSlots.Commands.AssignSlot;
+using VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+using VehicleService.Application.Features.ParkingSlots.Queries.GetSlotsBySociety;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VehicleService.API.Controllers;
+
+public class ParkingSlotsController : BaseController
+{
+    private readonly IMediator _mediator;
+    public ParkingSlotsController(IMediator mediator) => _mediator = mediator;
+
+    
+
+    [HttpPut("assign")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")] 
+    public async Task<ActionResult> AssignSlot([FromBody] AssignSlotCommand command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+     // NEW: Get Slots (Admin can see all, or filter by type/availability)
+    [HttpGet]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<IReadOnlyList<ParkingSlotDto>>> GetSlots(
+        [FromQuery] Guid societyId, 
+        [FromQuery] int? type = null, 
+        [FromQuery] bool? isOccupied = null)
+    {
+        // Map nullable int to nullable VehicleType enum
+        VehicleService.Domain.Enums.VehicleType? slotType = type.HasValue ? (VehicleService.Domain.Enums.VehicleType)type.Value : null;
+
+        var result = await _mediator.Send(new GetSlotsBySocietyQuery 
+        { 
+            SocietyId = societyId, 
+            Type = slotType, 
+            IsOccupied = isOccupied 
+        });
+        return Ok(result);
+    }
+
+    // NEW: Create Slot (Admin only)
+    [HttpPost]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<Guid>> CreateSlot([FromBody] CreateSlotCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetSlots), new { societyId = command.SocietyId }, id);
+    }
+
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Controllers\VehiclesController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle;
+using VehicleService.Application.Features.Vehicles.Queries.GetMyVehicles;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+
+namespace VehicleService.API.Controllers;
+
+public class VehiclesController : BaseController
+{
+    private readonly IMediator _mediator;
+    public VehiclesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("my-vehicles")]
+    public async Task<ActionResult<IReadOnlyList<VehicleDto>>> GetMyVehicles([FromQuery] Guid societyId)
+    {
+        var result = await _mediator.Send(new GetMyVehiclesQuery { SocietyId = societyId, UserId = UserId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<Guid>> Register([FromBody] RegisterVehicleCommand command)
+    {
+        // Override OwnerId with actual JWT User ID
+        command = command with { OwnerId = UserId };
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetMyVehicles), new { societyId = command.SocietyId }, id);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Program.cs
+SIZE  : 3.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using VehicleService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using VehicleService.Domain.Interfaces;
+using VehicleService.Infrastructure.Repositories;
+using FluentValidation;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin()   
+         policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<VehicleDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IParkingSlotRepository, ParkingSlotRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+
+// --- MediatR & Validation ---
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle.RegisterVehicleCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle.RegisterVehicleCommand).Assembly);
+
+// Note: If you want FluentValidation to auto-run, you need to add the behavior:
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Vehicle Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ADD THIS BLOCK RIGHT HERE:
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (InvalidOperationException ex)
+    {
+        context.Response.StatusCode = 400;
+        await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message.ToString());
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+    }
+});
+
+
+app.MapControllers();
+
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5112",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.API\VehicleService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleService.Application\VehicleService.Application.csproj" />
+    <ProjectReference Include="..\VehicleService.Infrastructure\VehicleService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\DTOs\ParkingSlotDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Application.DTOs;
+
+public record ParkingSlotDto(
+    Guid Id,
+    string SlotNumber,
+    VehicleType SlotType,
+    Guid? BlockId,
+    Guid? FlatId,       // NEW
+    bool IsAllotted,     // NEW (Helper: true if FlatId has a value)
+    bool IsOccupied);
+    
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\DTOs\VehicleDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Application.DTOs;
+
+public record VehicleDto(
+    Guid Id,
+    string VehicleNumber,
+    VehicleType VehicleType,
+    string? MakeModel,
+    string? AssignedSlotNumber,
+    bool HasParkingSlot);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\AssignSlot\AssignSlotCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.AssignSlot;
+
+public record AssignSlotCommand : IRequest<Unit>
+{
+    public Guid VehicleId { get; init; }
+    public Guid SlotId { get; init; }
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\AssignSlot\AssignSlotCommandHandler.cs
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.AssignSlot;
+
+public class AssignSlotCommandHandler : IRequestHandler<AssignSlotCommand, Unit>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public AssignSlotCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Unit> Handle(AssignSlotCommand request, CancellationToken cancellationToken)
+    {
+        var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(request.VehicleId, cancellationToken)
+            ?? throw new KeyNotFoundException("Vehicle not found.");
+        
+        if (vehicle.SocietyId != request.SocietyId) throw new UnauthorizedAccessException();
+
+        var slot = await _unitOfWork.ParkingSlots.GetByIdAsync(request.SlotId, cancellationToken)
+            ?? throw new KeyNotFoundException("Parking slot not found.");
+
+        if (slot.SocietyId != request.SocietyId) throw new UnauthorizedAccessException();
+
+        // THE CORE BUSINESS RULE: Type mismatch check!
+        // Residents (2W/4W) must match slots (2W/4W). 
+        // Visitors must go to Visitor slots.
+        if (vehicle.VehicleType != slot.SlotType)
+            throw new InvalidOperationException($"Cannot park a {vehicle.VehicleType} in a {slot.SlotType} slot.");
+
+        if (slot.IsOccupied)
+            throw new InvalidOperationException("This parking slot is already occupied.");
+
+        // If vehicle was in another slot, free up the old slot
+        if (vehicle.ParkingSlotId.HasValue && vehicle.ParkingSlotId != request.SlotId)
+        {
+            var oldSlot = await _unitOfWork.ParkingSlots.GetByIdAsync(vehicle.ParkingSlotId.Value, cancellationToken);
+            if (oldSlot != null) oldSlot.MarkVacant();
+        }
+
+        // Assign new slot
+        vehicle.AssignSlot(request.SlotId);
+        slot.MarkOccupied();
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\CreateSlot\CreateSlotCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+
+public record CreateSlotCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string SlotNumber { get; init; } = string.Empty;
+    public VehicleType SlotType { get; init; }
+    public string? BlockName { get; init; }
+
+        public Guid? BlockId { get; init; }   // NEW
+    public Guid? FlatId { get; init; }     // NEW
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\CreateSlot\CreateSlotCommandHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+
+public class CreateSlotCommandHandler : IRequestHandler<CreateSlotCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateSlotCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(CreateSlotCommand request, CancellationToken cancellationToken)
+    {
+        var isTaken = await _unitOfWork.ParkingSlots.IsSlotNumberTakenAsync(request.SocietyId, request.SlotNumber, cancellationToken);
+        if (isTaken) throw new InvalidOperationException($"Slot number '{request.SlotNumber}' already exists in this society.");
+
+        var slot = Domain.Entities.ParkingSlot.Create(
+            request.SocietyId, request.SlotNumber, request.SlotType, request.BlockId, request.FlatId);
+
+        _unitOfWork.ParkingSlots.Add(slot);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return slot.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\ParkingSlots\Commands\CreateSlot\CreateSlotCommandValidator.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using FluentValidation;
+
+namespace VehicleService.Application.Features.ParkingSlots.Commands.CreateSlot;
+
+public class CreateSlotCommandValidator : AbstractValidator<CreateSlotCommand>
+{
+    public CreateSlotCommandValidator()
+    {
+        RuleFor(x => x.SocietyId).NotEmpty();
+        RuleFor(x => x.SlotNumber).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.SlotType).IsInEnum();
+        
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Commands\RegisterVehicle\RegisterVehicleCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle;
+
+public record RegisterVehicleCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public Guid FlatId { get; init; }
+    public Guid OwnerId { get; init; } // <-- ADD THIS LINE
+    public string VehicleNumber { get; init; } = string.Empty;
+    public VehicleType VehicleType { get; init; }
+    public string? MakeModel { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Commands\RegisterVehicle\RegisterVehicleCommandHandler.cs
+SIZE  : 1.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Commands.RegisterVehicle;
+
+public class RegisterVehicleCommandHandler : IRequestHandler<RegisterVehicleCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public RegisterVehicleCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(RegisterVehicleCommand request, CancellationToken cancellationToken)
+    {
+        var isTaken = await _unitOfWork.Vehicles.IsVehicleNumberTakenAsync(request.SocietyId, request.VehicleNumber, cancellationToken);
+        if (isTaken) throw new InvalidOperationException("A vehicle with this number is already registered in the society.");
+
+        // THE NEW VALIDATION: Enforce Flat Vehicle Limits
+        var currentCount = await _unitOfWork.Vehicles.CountActiveVehiclesByTypeAsync(
+            request.SocietyId, request.FlatId, request.VehicleType, cancellationToken);
+
+        if (request.VehicleType == VehicleType.FourWheeler && currentCount >= 1)
+            throw new InvalidOperationException("This flat has reached the maximum limit of 1 Four-Wheeler.");
+
+        if (request.VehicleType == VehicleType.TwoWheeler && currentCount >= 2)
+            throw new InvalidOperationException("This flat has reached the maximum limit of 2 Two-Wheelers.");
+
+        var vehicle = Domain.Entities.Vehicle.CreateResidentVehicle(
+            request.SocietyId, request.OwnerId, request.FlatId, request.VehicleNumber, request.VehicleType, request.MakeModel);
+
+        _unitOfWork.Vehicles.Add(vehicle);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return vehicle.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetMyVehicles\GetMyVehiclesQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Queries.GetMyVehicles;
+
+public record GetMyVehiclesQuery : IRequest<IReadOnlyList<VehicleDto>>
+{
+    public Guid SocietyId { get; init; }
+    public Guid UserId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetMyVehicles\GetMyVehiclesQueryHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.Vehicles.Queries.GetMyVehicles;
+
+public class GetMyVehiclesQueryHandler : IRequestHandler<GetMyVehiclesQuery, IReadOnlyList<VehicleDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetMyVehiclesQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<VehicleDto>> Handle(GetMyVehiclesQuery request, CancellationToken cancellationToken)
+    {
+        var vehicles = await _unitOfWork.Vehicles.GetByOwnerAsync(request.SocietyId, request.UserId, cancellationToken);
+        return vehicles.Select(v => new VehicleDto(
+            v.Id,
+            v.VehicleNumber,
+            v.VehicleType,
+            v.MakeModel,
+            v.ParkingSlot?.SlotNumber,
+            v.ParkingSlotId.HasValue
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetSlotsBySociety\GetSlotsBySocietyQuery.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Domain.Enums;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Queries.GetSlotsBySociety;
+
+public record GetSlotsBySocietyQuery : IRequest<IReadOnlyList<ParkingSlotDto>>
+{
+    public Guid SocietyId { get; init; }
+    public VehicleType? Type { get; init; }
+    public bool? IsOccupied { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\Features\Vehicles\Queries\GetSlotsBySociety\GetSlotsBySocietyQueryHandler.cs
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Application.DTOs;
+using VehicleService.Domain.Interfaces;
+using MediatR;
+
+namespace VehicleService.Application.Features.ParkingSlots.Queries.GetSlotsBySociety;
+
+public class GetSlotsBySocietyQueryHandler : IRequestHandler<GetSlotsBySocietyQuery, IReadOnlyList<ParkingSlotDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetSlotsBySocietyQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<ParkingSlotDto>> Handle(GetSlotsBySocietyQuery request, CancellationToken cancellationToken)
+    {
+        var slots = await _unitOfWork.ParkingSlots.GetBySocietyAsync(
+            request.SocietyId, request.Type, request.IsOccupied, cancellationToken);
+
+        return slots.Select(s => new ParkingSlotDto(
+            s.Id,
+    s.SlotNumber,
+    s.SlotType,
+    s.BlockId,
+    s.FlatId,
+    s.FlatId.HasValue, // IsAllotted
+    s.IsOccupied
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Application\VehicleService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VehicleService.Domain\VehicleService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Entities\BaseEntity.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public Guid Id { get; protected set; } = Guid.NewGuid();
+    public DateTimeOffset CreatedAt { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; protected set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Entities\ParkingSlot.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Entities;
+
+public class ParkingSlot : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public string SlotNumber { get; private set; } = string.Empty;
+    public VehicleType SlotType { get; private set; }
+
+ // NEW: Location Mapping
+    public Guid? BlockId { get; private set; }
+    public Guid? FlatId { get; private set; } // If populated, this slot is strictly allotted to this flat
+    
+    public string? BlockName { get; private set; }
+    public bool IsOccupied { get; private set; } = false;
+    
+    public virtual Vehicle? ParkedVehicle { get; private set; }
+
+    private ParkingSlot() { }
+
+   public static ParkingSlot Create(Guid societyId, string slotNumber, VehicleType slotType, Guid? blockId, Guid? flatId)
+    {
+        if (string.IsNullOrWhiteSpace(slotNumber)) throw new ArgumentException("Slot number is required.");
+
+        return new ParkingSlot
+        {
+            SocietyId = societyId,
+            SlotNumber = slotNumber.Trim(),
+            SlotType = slotType,
+            BlockId = blockId,
+            FlatId = flatId
+        };
+    }
+
+    public void MarkOccupied() { IsOccupied = true; UpdatedAt = DateTimeOffset.UtcNow; }
+    public void MarkVacant() { IsOccupied = false; UpdatedAt = DateTimeOffset.UtcNow; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Entities\Vehicle.cs
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Entities;
+
+public class Vehicle : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public Guid OwnerId { get; private set; } 
+    public Guid FlatId { get; private set; }
+    
+    public VehicleType VehicleType { get; private set; }
+    public VehicleCategory Category { get; private set; } // NEW: Resident or Guest
+    
+    public string VehicleNumber { get; private set; } = string.Empty;
+    public string? MakeModel { get; private set; }
+    
+    // NEW: Time tracking for Guests
+    public DateTimeOffset? CheckInTime { get; private set; }
+    public DateTimeOffset? ExpectedCheckOutTime { get; private set; }
+    
+    public Guid? ParkingSlotId { get; private set; }
+    public virtual ParkingSlot? ParkingSlot { get; private set; }
+
+    private Vehicle() { }
+
+    public static Vehicle CreateResidentVehicle(Guid societyId, Guid ownerId, Guid flatId, string vehicleNumber, VehicleType vehicleType, string? makeModel)
+    {
+        if (string.IsNullOrWhiteSpace(vehicleNumber)) throw new ArgumentException("Vehicle number is required.");
+        if (vehicleType == VehicleType.Visitor) throw new ArgumentException("Residents cannot register as Visitor type.");
+
+        return new Vehicle
+        {
+            SocietyId = societyId,
+            OwnerId = ownerId,
+            FlatId = flatId,
+            VehicleNumber = vehicleNumber.Trim().ToUpper(),
+            VehicleType = vehicleType,
+            Category = VehicleCategory.Resident,
+            MakeModel = makeModel?.Trim()
+        };
+    }
+
+    // NEW: Factory method for Guests
+    public static Vehicle CreateGuestVehicle(Guid societyId, Guid flatId, string vehicleNumber, VehicleType vehicleType, string? makeModel, DateTimeOffset expectedCheckout)
+    {
+        if (string.IsNullOrWhiteSpace(vehicleNumber)) throw new ArgumentException("Vehicle number is required.");
+
+        return new Vehicle
+        {
+            SocietyId = societyId,
+            OwnerId = Guid.Empty, // Guest doesn't have an app account
+            FlatId = flatId,
+            VehicleNumber = vehicleNumber.Trim().ToUpper(),
+            VehicleType = vehicleType,
+            Category = VehicleCategory.Guest,
+            MakeModel = makeModel?.Trim(),
+            CheckInTime = DateTimeOffset.UtcNow,
+            ExpectedCheckOutTime = expectedCheckout
+        };
+    }
+
+    public void AssignSlot(Guid slotId)
+    {
+        ParkingSlotId = slotId;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void RemoveSlot()
+    {
+        ParkingSlotId = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Enums\VehicleCategory.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Enums;
+
+// Ownership type
+public enum VehicleCategory
+{
+    Resident = 0,
+    Guest = 1
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Enums\VehicleType.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Enums;
+
+public enum VehicleType
+{
+    TwoWheeler = 0,
+    FourWheeler = 1,
+      Visitor = 2 
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Interfaces\IParkingSlotRepository.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Interfaces;
+
+public interface IParkingSlotRepository
+{
+    Task<ParkingSlot?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ParkingSlot>> GetAvailableSlotsAsync(Guid societyId, VehicleType type, CancellationToken cancellationToken = default);
+    Task<bool> IsSlotNumberTakenAsync(Guid societyId, string slotNumber, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ParkingSlot>> GetBySocietyAsync(Guid societyId, VehicleType? type = null, bool? isOccupied = null, CancellationToken cancellationToken = default);
+    
+    void Add(ParkingSlot slot);
+    void Update(ParkingSlot slot);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Interfaces\IUnitOfWork.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace VehicleService.Domain.Interfaces;
+
+public interface IUnitOfWork : IDisposable
+{
+    IParkingSlotRepository ParkingSlots { get; }
+    IVehicleRepository Vehicles { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\Interfaces\IVehicleRepository.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using VehicleService.Domain.Enums;
+
+namespace VehicleService.Domain.Interfaces;
+
+public interface IVehicleRepository
+{
+    Task<IReadOnlyList<Vehicle>> GetByOwnerAsync(Guid societyId, Guid ownerId, CancellationToken cancellationToken = default);
+    Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> IsVehicleNumberTakenAsync(Guid societyId, string vehicleNumber, CancellationToken cancellationToken = default);
+
+    Task<int> CountActiveVehiclesByTypeAsync(Guid societyId, Guid flatId, VehicleType type, CancellationToken cancellationToken = default);
+
+    void Add(Vehicle vehicle);
+    void Update(Vehicle vehicle);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Domain\VehicleService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : VehicleService\VehicleService.Infrastructure\Data\VehicleDbContext.cs
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using VehicleService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace VehicleService.Infrastructure.Data;
+
+public class VehicleDbContext : DbContext
+{
+    public VehicleDbContext(DbContextOptions<VehicleDbContext> options) : base(options) { }
+
+    public DbSet<ParkingSlot> ParkingSlots => Set<ParkingSlot>();
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ParkingSlot>(entity =>
+        {
+            entity.ToTable("ParkingSlots");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SlotNumber).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SlotType).IsRequired();
+
+            // Indexes — merged from both duplicate blocks
+            entity.HasIndex(e => new { e.SocietyId, e.SlotNumber }).IsUnique();
+            entity.HasIndex(e => e.BlockId);
+            entity.HasIndex(e => e.FlatId);
+        });
+
+        modelBuilder.Entity<Vehicle>(entity =>
+        {
+            entity.ToTable("Vehicles");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VehicleNumber).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.VehicleType).IsRequired();
+
+            entity.HasOne(e => e.ParkingSlot)
+                  .WithOne(e => e.ParkedVehicle)
+                 //.WithMany() //Assuming ParkingSlot doesn't have a List<Vehicle> property.
+                  .HasForeignKey<Vehicle>(e => e.ParkingSlotId)
+                  //.HasForeignKey(e => e.ParkingSlotId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.SocietyId, e.VehicleNumber });
+            entity.HasIndex(e => e.FlatId);
+            entity.HasIndex(e => e.OwnerId);
+        });
+    }
+}
+

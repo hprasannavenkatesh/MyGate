@@ -33,7 +33,17 @@ public class LoginQueryHandler : IRequestHandler<LoginQuery, string>
         }
 
         // 3. Generate the JWT Wristband!
-        var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName);
+        //var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName);
+        // 3. Generate the JWT Wristband! (Include Role for initial routing)
+  // 🚨🚨🚨 DEBUG: What is the Role right now? 🚨🚨🚨
+        Console.WriteLine($"=== LOGIN HANDLER DEBUG ===");
+        Console.WriteLine("User: {user}");
+        Console.WriteLine($"UserId: {user.Id}");
+        Console.WriteLine($"Role from DB: '{user.Role}'");
+        Console.WriteLine($"Is Role NullOrEmpty?: {string.IsNullOrEmpty(user.Role)}");
+        Console.WriteLine($"===========================");
+        
+        var token = _tokenService.GenerateToken(user.Id, user.MobileNumber, user.FullName, role: user.Role);
 
         return token;
     }

@@ -92,4 +92,62 @@ class VisitorService {
     );
     return response.statusCode == 200;
   }
+
+     // --- GUARD & ADMIN ENDPOINTS ---
+
+  // Fetch all visitors for a society (Guard/Admin)
+  static Future<List<dynamic>> getSocietyVisitors(String societyId) async {
+    final token = await AuthService.getToken();
+    final response = await http.get(
+      Uri.parse('${ApiConfig.visitorService}/api/Visitors/society/$societyId'), // Fixed ApiConfig
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load society visitors');
+  }
+
+  // Guard Verify OTP at gate
+  static Future<bool> guardVerifyOtp(String preApprovalId, String otp) async {
+    final token = await AuthService.getToken();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorService}/api/Visitors/verify-otp'), // Fixed ApiConfig
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'preApprovalId': preApprovalId, 'otp': otp}),
+    );
+    return response.statusCode == 200;
+  }
+
+  // Guard Mark Exit
+  static Future<void> guardMarkExit(String preApprovalId) async {
+    final token = await AuthService.getToken();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorService}/api/Visitors/mark-exit'), // Fixed ApiConfig
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'preApprovalId': preApprovalId}),
+    );
+    if (response.statusCode != 200) throw Exception('Failed to mark exit');
+  }
+
+  // Guard Walk-in / Manual Entry
+  static Future<void> guardManualEntry(String preApprovalId, String reason) async {
+    final token = await AuthService.getToken();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorService}/api/Visitors/$preApprovalId/manual-entry'), // Fixed ApiConfig
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'preApprovalId': preApprovalId, 'reason': reason}),
+    );
+    if (response.statusCode != 200) throw Exception('Failed to mark manual entry');
+  }
+
+  // Pre-Approve (Required for Walk-in flow)
+  static Future<Map<String, dynamic>> preApproveVisitor(Map<String, dynamic> payload) async {
+    final token = await AuthService.getToken();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorService}/api/Visitors/pre-approve'), // Fixed ApiConfig
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to pre-approve visitor');
+  }
 }
