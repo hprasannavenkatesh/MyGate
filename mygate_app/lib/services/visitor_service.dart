@@ -150,4 +150,45 @@ class VisitorService {
     if (response.statusCode == 200) return jsonDecode(response.body);
     throw Exception('Failed to pre-approve visitor');
   }
+
+   // FIX: Added missing regenerateOtp method for Admin parity
+  // Matches .NET RegenerateOtpCommand endpoint
+  static Future<Map<String, dynamic>> regenerateOtp(String preApprovalId) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorsBaseUrl}/$preApprovalId/regenerate-otp'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to regenerate OTP');
+  }
+
+    // ADMIN: Manual Walk-in Entry
+  /*static Future<bool> manualWalkIn(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorsBaseUrl}/walk-in'),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }*/
+    // Guard/Admin: Manual Entry Override (Bypasses OTP)
+  static Future<bool> manualWalkIn(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final preApprovalId = payload['preApprovalId'];
+    
+    // FIX: Use the base URL without appending the controller name again, 
+    // and format the ID into the route exactly as the .NET backend expects it.
+    final response = await http.post(
+      Uri.parse('${ApiConfig.visitorService}/api/Visitors/$preApprovalId/manual-entry'),
+      headers: headers,
+      body: jsonEncode({
+        'preApprovalId': preApprovalId, 
+        'reason': payload['reason'] ?? 'Manual entry at gate'
+      }),
+    );
+    
+    return response.statusCode == 200 || response.statusCode == 204;
+  }
 }

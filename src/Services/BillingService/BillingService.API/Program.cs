@@ -10,6 +10,11 @@ using BillingService.Infrastructure.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+// Add this right after builder.Services.AddControllers();
+builder.Services.AddHttpClient("TenantService", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5104"); // TenantService URL
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFlutter", policy =>

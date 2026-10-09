@@ -18,6 +18,7 @@ const MasterData = () => {
   const [societies, setSocieties] = useState<Society[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [flats, setFlats] = useState<Flat[]>([]);
+  const [flatTypes, setFlatTypes] = useState<string[]>(["2BHK"]); // Dynamic types
 
   const [selectedSociety, setSelectedSociety] = useState<string>("");
   const [selectedBlock, setSelectedBlock] = useState<string>("");
@@ -42,8 +43,6 @@ const MasterData = () => {
     fetchSocieties();
   }, []);
 
-  const FLAT_TYPES = ["1BHK", "2BHK", "3BHK", "4BHK", "Villa", "Studio"];
-
   const fetchSocieties = async () => {
     setLoading(true);
     try {
@@ -56,24 +55,46 @@ const MasterData = () => {
     }
   };
 
-  // Fetch Blocks when society changes
+  // Fetch Blocks AND Dynamic Flat Types when society changes
   useEffect(() => {
     if (!selectedSociety) {
       setBlocks([]);
       setFlats([]);
+      setFlatTypes(["2BHK"]); // Reset to default
       return;
     }
-    const fetchBlocks = async () => {
+    
+    const fetchBlocksAndTypes = async () => {
       try {
-        const data = await getBlocksBySociety(selectedSociety);
-        setBlocks(data);
+        // 1. Fetch Blocks
+        const blocksData = await getBlocksBySociety(selectedSociety);
+        setBlocks(blocksData);
         setFlats([]);
         setSelectedBlock("");
+
+        // 2. Fetch Flats for all blocks to extract unique Types
+        const allFlats: Flat[] = [];
+        for (const block of blocksData) {
+          const flatsInBlock = await getFlatsByBlock(block.id);
+          allFlats.push(...flatsInBlock);
+        }
+
+        // 3. Extract unique, non-empty types (handle both flatType number and type string)
+        const uniqueTypes = [...new Set(
+          allFlats
+            .map(f => f.flatType?.toString() || f.type || "") 
+            .filter(t => t.trim() !== "")
+        )];
+        
+        // Update state: Use DB types if found, otherwise fallback to default
+        setFlatTypes(uniqueTypes.length > 0 ? uniqueTypes : ["2BHK"]);
+
       } catch (err) {
         console.error(err);
       }
     };
-    fetchBlocks();
+    
+    fetchBlocksAndTypes();
   }, [selectedSociety]);
 
   // Fetch Flats when block changes
@@ -137,7 +158,7 @@ const MasterData = () => {
       });
       setShowFlatModal(false);
       setFlatNumber("");
-      setFlatType("2BHK"); // Reset dropdown
+      setFlatType(flatTypes[0]); // Reset to first available type
       // Refresh flats
       const data = await getFlatsByBlock(selectedBlock);
       setFlats(data);
@@ -184,7 +205,7 @@ const MasterData = () => {
           </div>
 
           {/* Column 2: Blocks */}
-          <div className="bg-white rounded-lg shadow border border-slate-200">
+          <div className="bg-white rounded-lg shadow border border-slate-200G200">
             <div className="p-4 border-b bg-slate-50 font-semibold flex justify-between items-center">
               <span>Blocks ({blocks.length})</span>
               {selectedSociety && (
@@ -237,7 +258,9 @@ const MasterData = () => {
                 flats.map((f) => (
                   <div key={f.id} className="p-4">
                     <p className="font-medium text-slate-800">{f.flatNumber}</p>
-                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">{f.flatType}</span>
+                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                       {f.flatType || f.type || 'Unspecified'}
+                     </span>
                   </div>
                 ))
               )}
@@ -343,13 +366,13 @@ const MasterData = () => {
                 className="w-full border p-2 rounded"
                 required
               />
-              {/* NEW: Flat Type Dropdown */}
+              {/* Dynamic Flat Type Dropdown */}
               <select
                 value={flatType}
                 onChange={(e) => setFlatType(e.target.value)}
                 className="w-full border p-2 rounded bg-white"
               >
-                {FLAT_TYPES.map((type) => (
+                {flatTypes.map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>

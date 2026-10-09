@@ -21,7 +21,8 @@ export interface Flat {
   blockId: string;
   societyId: string;
   flatNumber: string;
-  flatType: number; // 0 = Flat, 1 = Villa, etc.
+  //flatType: number; // 0 = Flat, 1 = Villa, etc.
+  type:string;
 }
 
 // --- Society APIs ---

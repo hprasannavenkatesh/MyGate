@@ -32,7 +32,8 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
         visitorName: _nameController.text,
         visitorMobile: _mobileController.text,
         purpose: _purposeController.text.isEmpty ? 'Visit' : _purposeController.text,
-        expectedDate: DateTime.now().toIso8601String(),
+        //expectedDate: DateTime.now().toIso8601String(),
+        expectedDate: DateTime.now().toUtc().add(const Duration(hours: 23, minutes: 59, seconds: 59)).toIso8601String(),
         invitedByUserId: userId,
       );
 

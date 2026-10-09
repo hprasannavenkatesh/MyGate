@@ -7,7 +7,7 @@
     // 1. BUILD THE ENTIRE SOLUTION
     // ============================================================
 
-   /* {
+    {
       "label": "🔨 Build MyGateApp Solution",
       "type": "process",
       "command": "dotnet",
@@ -25,7 +25,7 @@
         "clear": true,
         "showReuseMessage": false
       }
-    },*/
+    },
 
     // ============================================================
     // 2. START ALL SERVICES

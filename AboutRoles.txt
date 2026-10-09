@@ -1,0 +1,41 @@
+This is an excellent architectural question. The MyGate app uses a two-tier role system to figure this out, bridging the gap between global identity and society-specific context.
+
+Here is exactly how it works, and the specific code files where the logic lives.
+
+The Concept: "Basic Token" vs. "Fat Token"
+The Basic Token (Identity Level): When you first log in, the system checks the Users table. If your Role column says SuperAdmin, you get a Basic Token with Role: SuperAdmin. SuperAdmins do not belong to the SocietyMembers table.
+The Fat Token (Context Level): When a normal user (Admin, Resident, Guard) selects a flat/society, the system looks at the SocietyMembers table, reads the MemberType (e.g., CommitteeMember), maps it to a security role (Admin), and generates a Fat Token with Role: Admin, SocietyId: xxx, FlatId: yyy.
+1. .NET Backend (Where the Mapping Happens)
+File: IdentityService.Application/Features/Auth/Commands/SelectContextCommandHandler.cs
+This is the "Brain" of the role mapping. When Flutter or React sends a request to select a context, this handler decides the final role to bake into the JWT.
+
+SuperAdmin Check: It checks the Users table first. If user.Role == "SuperAdmin", it hardcodes the JWT role as SuperAdmin and bypasses all MemberType logic.
+Admin/Resident Mapping: If they aren't SuperAdmin, it looks at the MemberType passed from the frontend (or fetched from DB), and maps it:
+CommitteeMember (int 4 or string) → Admin
+Owner, Tenant (int 0, 1 or string) → Resident
+Guard (int 6 or string) → Guard
+File: IdentityService.Infrastructure/Services/TokenService.cs
+This is the "Stamp". Once the handler figures out the role, it calls _tokenService.GenerateToken(..., role: assignedRole) which injects both ClaimTypes.Role and a custom "role" claim into the JWT string.
+
+File: IdentityService.Application/Features/Auth/Queries/LoginQueryHandler.cs
+This handles the initial login. It reads user.Role directly from the Users table and passes it to the TokenService so the Basic Token immediately tells the frontend if this is a SuperAdmin (so React can show the Society Picker, and Flutter can route correctly).
+
+2. React Frontend (Where the Role is Read)
+File: src/contexts/AuthContext.tsx (or similar auth file)
+React reads the JWT payload on login.
+
+It looks for the "role" claim (or ClaimTypes.Role URI).
+SuperAdmin Detection: If the role is SuperAdmin, React bypasses the "Select Society" screen and renders the <SuperAdminSocietyPicker /> on the Global Dashboard, allowing them to impersonate/select any society.
+Admin Detection: If the role is Admin, React locks them into their specific SocietyId context from the token.
+3. Flutter Frontend (Where the Role is Read & Mapped)
+File: lib/services/auth_service.dart
+When Flutter receives a token (either from Login or Select Context), it calls cacheTokenClaims(token). This method decodes the JWT and extracts the role claim, saving it to SharedPreferences as cached_user_role. It specifically checks for claims['role'], claims['Role'], or the long Microsoft URI claim.
+
+File: lib/screens/society_selection_screen.dart
+This is where the user picks their society.
+
+The Check: If AuthService.getUserRole() returns SuperAdmin, Flutter can optionally bypass this screen or show a global dashboard.
+The Payload: When a normal user taps a society, Flutter sends the memberType (e.g., "CommitteeMember" or "Owner") to the .NET SelectContextCommandHandler so .NET can securely map it to the Admin or Resident role in the Fat Token.
+Summary of the Database Truth
+SuperAdmin: Determined ONLY by the Role = 'SuperAdmin' column in the Users table (Identity DB). They have NO rows in SocietyMembers.
+Admin: Determined by a combination of Role = 'Resident' (or generic) in Users table, AND MemberType = 4 (CommitteeMember) in the SocietyMembers table for a specific society. The .NET SelectContextCommandHandler is the code that translates that 4 into Role = 'Admin' inside the JWT.

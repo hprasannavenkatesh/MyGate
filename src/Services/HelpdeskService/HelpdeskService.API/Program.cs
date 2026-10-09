@@ -61,5 +61,33 @@ var app = builder.Build();
 app.UseSwagger(); app.UseSwaggerUI();
 app.UseCors("AllowFlutter");
 app.UseAuthentication(); app.UseAuthorization();
+// ADD THIS BLOCK RIGHT BEFORE app.MapControllers();
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    var authHeader = context.Request.Headers["Authorization"].ToString();
+    
+    logger.LogInformation("=== HELPDESK REQUEST DEBUG ===");
+    logger.LogInformation("Path: {Path}", context.Request.Path);
+    logger.LogInformation("Has Auth Header: {HasAuth}", !string.IsNullOrEmpty(authHeader));
+    if (!string.IsNullOrEmpty(authHeader))
+    {
+        logger.LogInformation("Token Prefix: {TokenPrefix}", authHeader.Substring(0, Math.Min(20, authHeader.Length))); // Log first 20 chars
+    }
+    logger.LogInformation("User Is Authenticated: {IsAuth}", context.User.Identity?.IsAuthenticated ?? false);
+    logger.LogInformation("==============================");
+
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Request failed");
+        throw;
+    }
+});
+
+
 app.MapControllers();
 app.Run();

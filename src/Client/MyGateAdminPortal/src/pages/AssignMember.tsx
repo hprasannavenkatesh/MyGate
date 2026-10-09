@@ -421,7 +421,7 @@ const AssignMember = () => {
               <option value="">{loadingFlats ? 'Loading...' : '-- Select Flat --'}</option>
               {flats.map((f) => (
                 <option key={f.id} value={f.id}>
-                  {String(f.flatNumber)} - {String(f.flatType)}
+                  {String(f.flatNumber)} - {String(f.type)}
                 </option>
               ))}
             </select>
@@ -434,7 +434,7 @@ const AssignMember = () => {
             <span>
               <strong>{selectedSociety?.name}</strong> &rarr;{' '}
               <strong>{selectedBlock?.name}</strong> &rarr;{' '}
-              <strong>{String(selectedFlat.flatNumber)}</strong> ({String(selectedFlat.flatType)})
+              <strong>{String(selectedFlat.flatNumber)}</strong> ({String(selectedFlat.type)})
             </span>
           </div>
         )}

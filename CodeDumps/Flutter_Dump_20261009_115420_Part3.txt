@@ -1,0 +1,2499 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — Flutter  (continued — Part 3)
+║  Generated : 2026-10-09 11:54:22
+║  Root      : C:\MyGateApp\mygate_app
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_visitors_screen.dart
+SIZE  : 13.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../../services/visitor_service.dart';
+import '../../services/auth_service.dart';
+
+class AdminVisitorsScreen extends StatefulWidget {
+  const AdminVisitorsScreen({super.key});
+
+  @override
+  State<AdminVisitorsScreen> createState() => _AdminVisitorsScreenState();
+}
+
+class _AdminVisitorsScreenState extends State<AdminVisitorsScreen> {
+  List<dynamic> _visitors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVisitors();
+  }
+
+  Future<void> _fetchVisitors() async {
+    setState(() => _isLoading = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final data = await VisitorService.getSocietyVisitors(societyId);
+      if (mounted) setState(() => _visitors = data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _markExit(String visitorId) async {
+    try {
+      await VisitorService.guardMarkExit(visitorId);
+      _fetchVisitors(); 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Exit Marked!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _regenerateOtp(String visitorId) async {
+    try {
+      final result = await VisitorService.regenerateOtp(visitorId);
+      final newOtp = result['otp'] ?? 'N/A';
+      _fetchVisitors(); 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New OTP: $newOtp'), 
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+    // ==========================================
+  // NEW: PRE-APPROVE & WALK-IN FLOWS
+  // ==========================================
+  Future<void> _showPreApproveDialog() async {
+    final nameController = TextEditingController();
+    final mobileController = TextEditingController();
+    final flatIdController = TextEditingController();
+    final purposeController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Pre-Approve Visitor'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Visitor Name *', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number *', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: flatIdController, decoration: const InputDecoration(labelText: 'Flat ID (GUID) *', border: OutlineInputBorder(), hintText: 'Paste Flat ID')),
+                const SizedBox(height: 12),
+                TextField(controller: purposeController, decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder())),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty || mobileController.text.isEmpty || flatIdController.text.isEmpty) return;
+
+                final societyId = await AuthService.getSocietyId();
+                final userId = await AuthService.getUserId();
+
+                final payload = {
+                  'societyId': societyId,
+                  'flatId': flatIdController.text.trim(),
+                  'visitorName': nameController.text.trim(),
+                  'visitorMobile': mobileController.text.trim(),
+                  'expectedDate': DateTime.now().toUtc().toIso8601String().split('T').first,
+                  'purpose': purposeController.text.trim().isEmpty ? 'Admin Pre-Approved' : purposeController.text.trim(),
+                  'invitedByUserId': userId,
+                };
+
+                try {
+                  final result = await VisitorService.preApproveVisitor(payload);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  
+                  final otp = result['otp'] ?? 'N/A';
+                  _fetchVisitors();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('✅ Pre-Approved! Gate OTP: $otp'), backgroundColor: Colors.green, duration: const Duration(seconds: 5)),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              },
+              child: const Text('Pre-Approve'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showWalkInDialog() async {
+    final nameController = TextEditingController();
+    final mobileController = TextEditingController();
+    final flatIdController = TextEditingController();
+    final purposeController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Walk-in Entry'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Visitor Name *', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number *', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: flatIdController, decoration: const InputDecoration(labelText: 'Flat ID (GUID) *', border: OutlineInputBorder(), hintText: 'Paste Flat ID')),
+                const SizedBox(height: 12),
+                TextField(controller: purposeController, decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder())),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty || mobileController.text.isEmpty || flatIdController.text.isEmpty) return;
+
+                final societyId = await AuthService.getSocietyId();
+
+                final payload = {
+                  'societyId': societyId,
+                  'flatId': flatIdController.text.trim(),
+                  'visitorName': nameController.text.trim(),
+                  'visitorMobile': mobileController.text.trim(),
+                  'purpose': purposeController.text.trim().isEmpty ? 'Walk-in' : purposeController.text.trim(),
+                };
+
+                try {
+                  final success = await VisitorService.manualWalkIn(payload);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  
+                  if (success) {
+                    _fetchVisitors();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('✅ Walk-in Logged!'), backgroundColor: Colors.green),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              },
+              child: const Text('Log Walk-in'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _getStatusText(dynamic status) {
+    if (status == 0 || status == 'Pending') return 'Pending';
+    if (status == 1 || status == 'Inside') return 'Inside';
+    if (status == 2 || status == 'Exited') return 'Exited';
+    if (status == 3 || status == 'Expired') return 'Expired';
+    return 'Unknown';
+  }
+
+  Color _getStatusColor(dynamic status) {
+    if (status == 0 || status == 'Pending') return Colors.orange.shade100;
+    if (status == 1 || status == 'Inside') return Colors.green.shade100;
+    if (status == 2 || status == 'Exited') return Colors.grey.shade200;
+    return Colors.red.shade100;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Visitor Management')),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _visitors.isEmpty 
+              ? const Center(child: Text('No visitors found.'))
+              : ListView.builder(
+                  itemCount: _visitors.length,
+                  itemBuilder: (context, index) {
+                    final v = _visitors[index];
+                    final status = v['status'];
+                    
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    v['visitorName'] ?? 'Unknown', 
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                                  )
+                                ),
+                                Chip(
+                                  label: Text(_getStatusText(status), style: const TextStyle(fontSize: 12)),
+                                  backgroundColor: _getStatusColor(status),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text('Mobile: ${v['visitorMobile'] ?? 'N/A'}'),
+                            Text('Purpose: ${v['purpose'] ?? 'N/A'}'),
+                            Text('Date: ${v['expectedDate']?.substring(0, 10) ?? 'N/A'}'),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (status == 0 || status == 'Pending') 
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: ActionChip(
+                                      onPressed: () => _regenerateOtp(v['id']),
+                                      avatar: const Icon(Icons.refresh, size: 16),
+                                      label: const Text('New OTP'),
+                                    ),
+                                  ),
+                                if (status == 1 || status == 'Inside') 
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: ActionChip(
+                                      onPressed: () => _markExit(v['id']),
+                                      avatar: const Icon(Icons.logout, size: 16),
+                                      label: const Text('Mark Exit'),
+                                    ),
+                                  ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+ // NEW: Admin Action Buttons for Pre-Approve and Walk-in
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'walkIn',
+            onPressed: _showWalkInDialog,
+            icon: const Icon(Icons.directions_walk),
+            label: const Text('Walk-in'),
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'preApprove',
+            onPressed: _showPreApproveDialog,
+            icon: const Icon(Icons.person_add),
+            label: const Text('Pre-Approve'),
+            backgroundColor: Colors.indigo,
+            foregroundColor: Colors.white,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\amenity_hub_screen.dart
+SIZE  : 1.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/amenity_hub_screen.dart
+import 'package:flutter/material.dart';
+import 'amenity_list_screen.dart';
+import 'my_bookings_screen.dart';
+
+class AmenityHubScreen extends StatefulWidget {
+  const AmenityHubScreen({super.key});
+
+  @override
+  State<AmenityHubScreen> createState() => _AmenityHubScreenState();
+}
+
+class _AmenityHubScreenState extends State<AmenityHubScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Amenities'),
+        centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,               // Active tab text
+          unselectedLabelColor: Colors.white60,    // Inactive tab text
+          indicatorSize: TabBarIndicatorSize.tab,  // Makes indicator span whole tab width
+          indicator: BoxDecoration(
+            color: Colors.orange.shade700,         // Bright orange background for active tab
+            borderRadius: BorderRadius.circular(8),
+          ),
+          tabs: const [
+            Tab(
+              iconMargin: EdgeInsets.only(bottom: 4),
+              icon: Icon(Icons.pool, size: 20), 
+              text: 'Book',
+            ),
+            Tab(
+              iconMargin: EdgeInsets.only(bottom: 4),
+              icon: Icon(Icons.history, size: 20), 
+              text: 'My Bookings',
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          AmenityListScreen(),
+          MyBookingsScreen(),
+        ],
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\amenity_list_screen.dart
+SIZE  : 3.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/amenity_list_screen.dart
+import 'package:flutter/material.dart';
+import '../services/amenity_service.dart';
+import 'book_amenity_screen.dart';
+
+class AmenityListScreen extends StatefulWidget {
+  const AmenityListScreen({super.key});
+
+  @override
+  State<AmenityListScreen> createState() => _AmenityListScreenState();
+}
+
+class _AmenityListScreenState extends State<AmenityListScreen> {
+  List<dynamic> _amenities = [];
+  bool _isLoading = true;
+  String? _errorMessage; // ADDED: To capture API errors
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAmenities();
+  }
+
+  Future<void> _fetchAmenities() async {
+    try {
+      final amenities = await AmenityService.getAmenities();
+      if (mounted) {
+        setState(() {
+          _amenities = amenities;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString(); // CAPTURE ERROR
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ADDED: Wrap in Scaffold so it doesn't vanish in a TabView
+    return Scaffold(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Failed to load amenities.\n\nError: $_errorMessage', 
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red, fontSize: 14)
+                    ),
+                  ),
+                )
+              : _amenities.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No amenities configured for this society yet.', 
+                        style: TextStyle(fontSize: 16, color: Colors.grey)
+                      )
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(8.0),
+                      itemCount: _amenities.length,
+                      itemBuilder: (context, index) {
+                        final a = _amenities[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: ListTile(
+                            leading: const Icon(Icons.pool, color: Colors.indigo, size: 40),
+                            title: Text(a['name'] ?? 'Amenity', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(a['description'] ?? 'Available for booking'),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                            onTap: () {
+                              Navigator.push(
+                                context, 
+                                MaterialPageRoute(
+                                  builder: (context) => BookAmenityScreen(
+                                    amenityId: a['id'] ?? '', 
+                                    amenityName: a['name'] ?? 'Amenity'
+                                  )
+                                )
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\book_amenity_screen.dart
+SIZE  : 7.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/book_amenity_screen.dart
+import 'package:flutter/material.dart';
+import '../services/amenity_service.dart';
+import '../services/auth_service.dart';
+
+class BookAmenityScreen extends StatefulWidget {
+  final String amenityId;
+  final String amenityName;
+  const BookAmenityScreen({super.key, required this.amenityId, required this.amenityName});
+
+  @override
+  State<BookAmenityScreen> createState() => _BookAmenityScreenState();
+}
+
+class _BookAmenityScreenState extends State<BookAmenityScreen> {
+  DateTime? _selectedDate;
+  List<dynamic> _availableSlots = [];
+  bool _isLoadingSlots = false;
+  bool _isBooking = false;
+  
+  int? _selectedSlotIndex; 
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _availableSlots = []; 
+        _selectedSlotIndex = null; 
+      });
+      _fetchSlots(); 
+    }
+  }
+
+  Future<void> _fetchSlots() async {
+    if (_selectedDate == null) return;
+
+    setState(() => _isLoadingSlots = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      // FIX: Corrected string interpolation syntax
+      final formattedDate = "${_selectedDate!.year.toString().padLeft(4, '0')}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
+      
+      final slots = await AmenityService.getAvailableSlots(
+        widget.amenityId, 
+        societyId, 
+        formattedDate
+      );
+
+      if (mounted) {
+        setState(() {
+          _availableSlots = slots;
+          _isLoadingSlots = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingSlots = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error fetching slots: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _submitBooking() async {
+    if (_selectedDate == null || _selectedSlotIndex == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select both a date and a time slot'), backgroundColor: Colors.orange)
+      );
+      return;
+    }
+
+    setState(() => _isBooking = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final userId = await AuthService.getUserId();
+      final flatNumber = await AuthService.getFlatNumber(); // Fetch FlatNumber
+
+      final formattedDate = "${_selectedDate!.year.toString().padLeft(4, '0')}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
+
+      final selectedSlot = _availableSlots[_selectedSlotIndex!];
+
+      // FIX: Keys exactly match C# CreateBookingCommand properties
+      final isSuccess = await AmenityService.createBooking({
+        'amenityId': widget.amenityId,
+        'societyId': societyId,
+        'userId': userId,
+        'flatNumber': flatNumber,          // ADDED
+        'bookingDate': formattedDate,       // CHANGED from 'date'
+        'startTime': selectedSlot['startTime'], 
+        'endTime': selectedSlot['endTime'],     
+      });
+
+      if (isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎉 Booking Requested!'), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Booking Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isBooking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String dateText = _selectedDate == null 
+        ? 'Select a Date' 
+        : "${_selectedDate!.day.toString().padLeft(2, '0')}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.year}";
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Book: ${widget.amenityName}'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: _pickDate,
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Booking Date',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.calendar_today),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(dateText, style: const TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            if (_isLoadingSlots)
+              const Center(child: CircularProgressIndicator())
+            else if (_selectedDate != null && _availableSlots.isEmpty)
+              const Center(
+                child: Text('No slots available for this date.', style: TextStyle(color: Colors.grey, fontSize: 16)),
+              )
+            else if (_availableSlots.isNotEmpty)
+              ...[
+                const Text('Available Slots:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _availableSlots.length,
+                    itemBuilder: (context, index) {
+                      final slot = _availableSlots[index];
+                      final isAvailable = slot['isAvailable'] == true;
+                      final isSelected = _selectedSlotIndex == index; 
+                      
+                      return Card(
+                        color: isSelected ? Colors.indigo.shade100 : (isAvailable ? Colors.white : Colors.grey.shade200),
+                        shape: RoundedRectangleBorder(
+                          side: isSelected ? const BorderSide(color: Colors.indigo, width: 2) : BorderSide.none,
+                          borderRadius: BorderRadius.circular(8)
+                        ),
+                        child: ListTile(
+                          title: Text('${slot['startTime']} - ${slot['endTime']}'),
+                          subtitle: !isAvailable ? const Text('Booked', style: TextStyle(color: Colors.red, fontSize: 12)) : null,
+                          trailing: isSelected 
+                            ? const Icon(Icons.check_circle, color: Colors.indigo, size: 28) 
+                            : const Icon(Icons.radio_button_unchecked, color: Colors.grey, size: 28),
+                          onTap: isAvailable ? () => setState(() => _selectedSlotIndex = index) : null,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isBooking ? null : _submitBooking,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                child: _isBooking 
+                    ? const CircularProgressIndicator(color: Colors.white) 
+                    : const Text('Confirm Booking', style: TextStyle(fontSize: 18, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\emergency_screen.dart
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/emergency_screen.dart
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/emergency_service.dart';
+
+class EmergencyScreen extends StatefulWidget {
+  const EmergencyScreen({super.key});
+
+  @override
+  State<EmergencyScreen> createState() => _EmergencyScreenState();
+}
+
+class _EmergencyScreenState extends State<EmergencyScreen> {
+  bool _isSOS = false;
+
+  Future<void> _triggerSOS() async {
+    setState(() => _isSOS = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final flatId = await AuthService.getFlatId();
+      
+      // FIX: Payload strictly matches C# TriggerPanicCommand
+      final isSuccess = await EmergencyService.triggerSOS({
+        'societyId': societyId,
+        'flatId': flatId,               
+        'type': 0,                      // ADDED: Integer representation of EmergencyType Enum (0 is usually the first enum value, e.g., 'General' or 'Medical')
+        'description': 'PANIC/SOS Button Pressed by Resident!',
+      });
+
+      if (isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🚨 Emergency Alert Broadcasted!'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isSOS = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Emergency / SOS'), backgroundColor: Colors.red),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Press the button to alert Security and Society Members', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 40),
+            SizedBox(
+              height: 150,
+              width: 150,
+              child: ElevatedButton(
+                onPressed: _isSOS ? null : _triggerSOS,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: const CircleBorder(), elevation: 10),
+                child: _isSOS 
+                    ? const CircularProgressIndicator(color: Colors.white) 
+                    : const Icon(Icons.sos, size: 80, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_active_visitors_screen.dart
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/guard_active_visitors_screen.dart
+import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import '../services/auth_service.dart';
+
+class GuardActiveVisitorsScreen extends StatefulWidget {
+  const GuardActiveVisitorsScreen({super.key});
+
+  @override
+  State<GuardActiveVisitorsScreen> createState() => _GuardActiveVisitorsScreenState();
+}
+
+class _GuardActiveVisitorsScreenState extends State<GuardActiveVisitorsScreen> {
+  List<dynamic> _visitors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVisitors();
+  }
+
+  Future<void> _fetchVisitors() async {
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final allVisitors = await VisitorService.getSocietyVisitors(societyId);
+      
+      // Filter for only those currently Inside (Adjust logic based on your backend enum response)
+      // If backend returns string: v['status'] == 'Inside'
+      // If backend returns int: v['status'] == 1
+      final insideVisitors = allVisitors.where((v) => v['status'] == 1 || v['status'] == 'Inside').toList();
+      
+      if (mounted) setState(() { _visitors = insideVisitors; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Currently Inside Society')),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _visitors.isEmpty 
+              ? const Center(child: Text('No visitors currently inside.'))
+              : ListView.builder(
+                  itemCount: _visitors.length,
+                  itemBuilder: (context, index) {
+                    final v = _visitors[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.directions_walk, color: Colors.green),
+                        title: Text(v['visitorName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Mobile: ${v['visitorMobile'] ?? 'N/A'}\nFlat: ${v['flatId'] ?? 'N/A'}'),
+                        isThreeLine: true,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.logout, color: Colors.red),
+                          tooltip: 'Quick Exit',
+                          onPressed: () async {
+                            await VisitorService.markExit(v['id']);
+                            _fetchVisitors(); // Refresh list
+                          }
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_mark_exit_screen.dart
+SIZE  : 2.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import '../services/auth_service.dart';
+
+class GuardMarkExitScreen extends StatefulWidget {
+  const GuardMarkExitScreen({super.key});
+
+  @override
+  State<GuardMarkExitScreen> createState() => _GuardMarkExitScreenState();
+}
+
+class _GuardMarkExitScreenState extends State<GuardMarkExitScreen> {
+  List<dynamic> _visitors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInsideVisitors();
+  }
+
+  Future<void> _fetchInsideVisitors() async {
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final allVisitors = await VisitorService.getSocietyVisitors(societyId);
+      final insideVisitors = allVisitors.where((v) => v['status'] == 1 || v['status'] == 'Inside').toList();
+      if (mounted) setState(() { _visitors = insideVisitors; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _markExit(String visitorId) async {
+    try {
+      await VisitorService.guardMarkExit(visitorId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Exit Marked!'), backgroundColor: Colors.green));
+        _fetchInsideVisitors(); // Refresh list
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mark Visitor Exit')),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _visitors.isEmpty 
+              ? const Center(child: Text('No visitors currently inside to exit.'))
+              : ListView.builder(
+                  itemCount: _visitors.length,
+                  itemBuilder: (context, index) {
+                    final v = _visitors[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.directions_walk, color: Colors.grey),
+                        title: Text(v['visitorName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Mobile: ${v['visitorMobile'] ?? 'N/A'}'),
+                        trailing: ElevatedButton.icon(
+                          onPressed: () => _markExit(v['id']),
+                          icon: const Icon(Icons.logout, size: 16),
+                          label: const Text('Mark Exit'),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_screen.dart
+SIZE  : 6.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/guard_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/emergency_service.dart';
+import 'login_screen.dart';
+import 'guard_verify_otp_screen.dart';
+import 'guard_walk_in_screen.dart';
+import 'guard_mark_exit_screen.dart';
+import 'guard_active_visitors_screen.dart';
+
+class GuardScreen extends StatefulWidget {
+  final String token;
+  const GuardScreen({super.key, required this.token});
+
+  @override
+  State<GuardScreen> createState() => _GuardScreenState();
+}
+
+class _GuardScreenState extends State<GuardScreen> {
+  String _societyName = '';
+  String _userRole = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContext();
+  }
+
+  Future<void> _loadContext() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = await AuthService.getUserRole();
+    
+    setState(() {
+      _userRole = role;
+      _societyName = prefs.getString('society_name') ?? 'Unknown Society';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Guard Portal'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout), 
+            tooltip: 'Logout',
+            onPressed: () async {
+              await AuthService.logout(); 
+              if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+            }
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // CONTEXT BANNER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+            color: Colors.orange.shade100,
+            child: Row(
+              children: [
+                const Icon(Icons.security, color: Colors.deepOrange),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_societyName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                      Text('Role: $_userRole', style: const TextStyle(color: Colors.deepOrange, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // GRID MENU
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: GridView.count(
+                crossAxisCount: 3, 
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.2,
+                children: [
+                  _buildNavCard('Verify OTP', Icons.password,  GuardVerifyOtpScreen()),
+                  _buildNavCard('Walk In', Icons.login,  GuardWalkInScreen()),
+                  _buildNavCard('Mark Exit', Icons.logout,  GuardMarkExitScreen()),
+                  _buildNavCard('Inside Now', Icons.people_alt,  GuardActiveVisitorsScreen()),
+                  _buildSosCard(), // Special SOS card
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Standard Nav Card
+  Widget _buildNavCard(String text, IconData icon, Widget screen) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: Colors.deepOrange.shade400), 
+              const SizedBox(height: 6),
+              Text(
+                text, 
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w600, 
+                  color: Colors.deepOrange.shade800 
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // SPECIAL: SOS Panic Card
+  Widget _buildSosCard() {
+    return Card(
+      elevation: 3,
+      color: Colors.red.shade50, // Fixed color shade
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.red, width: 2)),
+      child: InkWell(
+        onTap: () => _triggerPanic(),
+        borderRadius: BorderRadius.circular(8),
+        child: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.sos, size: 32, color: Colors.red), 
+              SizedBox(height: 6),
+              Text(
+                'SOS', 
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14, 
+                  fontWeight: FontWeight.bold, 
+                  color: Colors.red 
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _triggerPanic() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('🚨 Trigger SOS?'),
+        content: const Text('This will broadcast an emergency alert to all residents and admins in the society.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('TRIGGER SOS')),
+        ],
+      )
+    );
+
+    if (confirm == true) {
+      try {
+        await EmergencyService.triggerPanic(); 
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ SOS Broadcasted!'), backgroundColor: Colors.green));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_verify_otp_screen.dart
+SIZE  : 6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import '../services/auth_service.dart';
+
+class GuardVerifyOtpScreen extends StatefulWidget {
+  const GuardVerifyOtpScreen({super.key});
+
+  @override
+  State<GuardVerifyOtpScreen> createState() => _GuardVerifyOtpScreenState();
+}
+
+class _GuardVerifyOtpScreenState extends State<GuardVerifyOtpScreen> {
+  final _searchController = TextEditingController();
+  final _otpController = TextEditingController();
+  
+  List<dynamic> _searchResults = [];
+  Map<String, dynamic>? _selectedVisitor;
+  bool _isSearching = false;
+  bool _isVerifying = false;
+
+  Future<void> _searchVisitors() async {
+    if (_searchController.text.isEmpty) return;
+    setState(() { _isSearching = true; _selectedVisitor = null; });
+    
+    try {
+      // Fetch all society visitors and filter locally by Mobile or Name
+      final societyId = await AuthService.getSocietyId();
+      final allVisitors = await VisitorService.getSocietyVisitors(societyId);
+      
+      final query = _searchController.text.toLowerCase();
+      final results = allVisitors.where((v) => 
+        (v['visitorMobile']?.toString().toLowerCase().contains(query) ?? false) ||
+        (v['visitorName']?.toString().toLowerCase().contains(query) ?? false)
+      ).toList();
+
+      setState(() { _searchResults = results; _isSearching = false; });
+    } catch (e) {
+      setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_selectedVisitor == null || _otpController.text.isEmpty) return;
+    setState(() => _isVerifying = true);
+    
+    try {
+      final success = await VisitorService.guardVerifyOtp(_selectedVisitor!['id'], _otpController.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(success ? '✅ Entry Approved!' : '❌ Invalid OTP'), 
+          backgroundColor: success ? Colors.green : Colors.red
+        ));
+        if (success) {
+          _otpController.clear();
+          setState(() => _selectedVisitor = null);
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isVerifying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verify Pre-Approval OTP')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // SEARCH BOX
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search by Mobile or Name',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _searchVisitors),
+              ),
+              onSubmitted: (_) => _searchVisitors(),
+            ),
+            const SizedBox(height: 16),
+
+            // SEARCH RESULTS LIST
+            if (_isSearching) const CircularProgressIndicator(),
+            if (!_isSearching && _selectedVisitor == null)
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final v = _searchResults[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(v['visitorName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Mobile: ${v['visitorMobile']} | Date: ${v['expectedDate']?.substring(0, 10)}'),
+                        trailing: const Icon(Icons.arrow_forward),
+                        onTap: () => setState(() => _selectedVisitor = v),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            // SELECTED VISITOR & OTP ENTRY
+            if (_selectedVisitor != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Visitor: ${_selectedVisitor!['visitorName']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('Mobile: ${_selectedVisitor!['visitorMobile']}'),
+                    Text('Meeting Flat: ${_selectedVisitor!['flatId']?.substring(0, 8)}...'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 24, letterSpacing: 8),
+                decoration: const InputDecoration(labelText: 'Enter 4-Digit OTP from Visitor', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isVerifying ? null : _verifyOtp,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  child: _isVerifying ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Allow Entry', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedVisitor = null), 
+                child: const Text('← Search Again')
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_walk_in_screen.dart
+SIZE  : 2.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import '../services/auth_service.dart';
+
+class GuardWalkInScreen extends StatefulWidget {
+  const GuardWalkInScreen({super.key});
+  @override
+  State<GuardWalkInScreen> createState() => _GuardWalkInScreenState();
+}
+
+class _GuardWalkInScreenState extends State<GuardWalkInScreen> {
+  final _nameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _purposeController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _walkIn() async {
+    if (_nameController.text.isEmpty) return;
+    setState(() => _isLoading = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final userId = await AuthService.getUserId();
+      final flatId = await AuthService.getFlatId(); // Guard's flat context
+
+      // 1. Pre-approve
+      final result = await VisitorService.preApproveVisitor({
+        'societyId': societyId,
+        'flatId': flatId, 
+        'invitedByUserId': userId,
+        'visitorName': _nameController.text,
+        'visitorMobile': _mobileController.text,
+        'purpose': _purposeController.text,
+        'expectedDate': DateTime.now().toIso8601String().split('T').first,
+      });
+
+      // 2. Immediate Manual Entry (No OTP)
+      await VisitorService.guardManualEntry(result['id'], 'Walk-in at gate');
+
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Walk-in Allowed!'), backgroundColor: Colors.green));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Walk-In Entry (No OTP)')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Visitor Name *', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _purposeController, decoration: const InputDecoration(labelText: 'Purpose (e.g., Delivery)', border: OutlineInputBorder())),
+            const Spacer(),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _walkIn, style: ElevatedButton.styleFrom(backgroundColor: Colors.orange), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Allow Entry'))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\home_screen.dart
+SIZE  : 9.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/home_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import 'package:signalr_netcore/signalr_client.dart' hide ConnectionState;
+import '../services/auth_service.dart';
+import '../services/api_config.dart';
+import 'login_screen.dart';
+import 'society_selection_screen.dart';
+import 'my_visitors_screen.dart';
+import 'my_dues_screen.dart';
+import 'my_tickets_screen.dart';
+import 'notice_board_screen.dart';
+import 'amenity_hub_screen.dart'; // Merged Hub
+import 'my_daily_help_screen.dart';
+import 'my_vehicles_screen.dart';
+import 'society_directory_screen.dart';
+import 'emergency_screen.dart';
+import 'admin_management_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late HubConnection _hubConnection;
+  bool _isHubConnected = false;
+
+  // Context state
+  String _societyName = '';
+  String _flatInfo = '';
+  String _userRole = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContext();
+    _initSignalR(); 
+  }
+/*
+  Future<void> _loadContext() async {
+    final societyId = await AuthService.getSocietyId();
+    final flatId = await AuthService.getFlatId();
+    final role = await AuthService.getUserRole();
+    
+    // You can expand this to fetch the actual Society Name from an API if needed
+    // For now, showing the IDs so the user knows exactly which context they are in.
+    setState(() {
+      _userRole = role;
+      _societyName = 'Society: $societyId'; 
+      _flatInfo = 'Flat: $flatId';
+    });
+  }*/
+    Future<void> _loadContext() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = await AuthService.getUserRole();
+    
+    setState(() {
+      _userRole = role;
+      _societyName = prefs.getString('society_name') ?? 'Unknown Society'; 
+      _flatInfo = '${prefs.getString('block_name') ?? 'Block'} - ${prefs.getString('flat_number') ?? 'Flat'}';
+    });
+  }
+
+  Future<void> _initSignalR() async {
+    final societyId = await AuthService.getSocietyId();
+    if (societyId.isEmpty) return;
+
+
+    _hubConnection = HubConnectionBuilder()
+        .withUrl("${ApiConfig.emergencyGateway}/hubs/emergency",
+        options: HttpConnectionOptions(
+          transport: HttpTransportType.WebSockets,
+          logger: null,
+        ))           
+        .withAutomaticReconnect()
+        .build();
+
+    _hubConnection.on("ReceiveEmergencyAlert", (message) {
+      if (mounted) _showEmergencyPopup(message);
+    });
+
+    try {
+      await _hubConnection.start();
+      await _hubConnection.invoke("JoinSocietyGroup", args: [societyId]);
+      setState(() => _isHubConnected = true);
+    } catch (e) {
+      debugPrint("SignalR init failed: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Determine if user is an Admin type
+    bool isAdmin = _userRole == 'Admin' || _userRole == 'SuperAdmin';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('MyGate Dashboard'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz), 
+            tooltip: 'Switch Society/Flat',
+            onPressed: () async {
+              final token = await AuthService.getToken();
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context, 
+                  MaterialPageRoute(builder: (context) => SocietySelectionScreen(token: token))
+                );
+              }
+            }
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout), 
+            tooltip: 'Logout',
+            onPressed: () async {
+              await AuthService.logout(); 
+              if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+            }
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // CONTEXT BANNER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+            color: Colors.indigo.shade100,
+            child: Row(
+              children: [
+                const Icon(Icons.apartment, color: Colors.indigo),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_societyName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                      //Text(_flatInfo, style: const TextStyle(color: Colors.indigo, fontSize: 12)),
+                       Text('Role: $_userRole | $_flatInfo', style: const TextStyle(color: Colors.indigo, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                if (_isHubConnected)
+                  const Row(
+                    children: [
+                      Icon(Icons.wifi, color: Colors.green, size: 14),
+                      SizedBox(width: 4),
+                      Text('SOS Active', style: TextStyle(color: Colors.green, fontSize: 12)),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+
+          // GRID MENU
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: GridView.count(
+                crossAxisCount: 3, // 3 columns to save vertical space
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.2, // Makes cards shorter
+                children: [
+                  _buildNavCard('Visitors', Icons.people, const MyVisitorsScreen()),
+                  _buildNavCard('Dues', Icons.receipt_long, const MyDuesScreen()),
+                  _buildNavCard('Tickets', Icons.support_agent, const MyTicketsScreen()),
+                  _buildNavCard('Notices', Icons.campaign, const NoticeBoardScreen()),
+                  _buildNavCard('Amenities', Icons.pool, const AmenityHubScreen()), // Merged Hub
+                  _buildNavCard('Daily Help', Icons.cleaning_services, const MyDailyHelpScreen()),
+                  _buildNavCard('Vehicles', Icons.directions_car, const MyVehiclesScreen()),
+                  _buildNavCard('Directory', Icons.contact_phone, const SocietyDirectoryScreen()),
+                  _buildNavCard('Emergency', Icons.sos, const EmergencyScreen()),
+                  
+                  // HIDE ADMIN FOR RESIDENTS
+                  if (isAdmin) 
+                    _buildNavCard('Admin', Icons.admin_panel_settings, const AdminManagementScreen()),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Compact Card Button
+  Widget _buildNavCard(String text, IconData icon, Widget screen) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: Colors.indigo.shade400), 
+              const SizedBox(height: 6),
+              Text(
+                text, 
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w600, 
+                  color: Colors.indigo.shade800 
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEmergencyPopup(dynamic messageData) {
+    String description = "Emergency Alert Triggered!";
+    if (messageData is Map) {
+      description = messageData['description'] ?? description;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.red.shade900,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.yellow, size: 40),
+              SizedBox(width: 10),
+              Text('EMERGENCY ALERT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(description, style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5), textAlign: TextAlign.center),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.red.shade900),
+                child: const Text('ACKNOWLEDGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    try {
+      if (_hubConnection.state != HubConnectionState.Disconnected) {
+        _hubConnection.stop();
+      }
+    } catch (e) {
+      debugPrint("SignalR dispose skipped: $e");
+    }
+    super.dispose();
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\login_screen.dart
+SIZE  : 9.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/login_screen.dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
+import '../services/api_config.dart';
+import 'society_selection_screen.dart'; 
+import 'guard_screen.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isGuardMode = false; 
+  final _mobileController = TextEditingController();
+  final _otpController = TextEditingController();
+  bool _isLoading = false;
+  bool _isOtpSent = false;
+  String? _jwtToken;
+
+ /* Future<void> _navigateToGuardWithContext(String basicToken) async {
+    try {
+      final userId = await AuthService.getUserId();
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.mySocietiesUrl}?userId=$userId'),
+        headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final societies = jsonDecode(response.body) as List;
+        if (societies.isEmpty) throw Exception('No society assigned to this guard.');
+
+        final society = societies[0];
+        final contextResponse = await http.post(
+          Uri.parse(ApiConfig.selectContextUrl),
+          headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'userId': userId,
+            'societyId': society['societyId'],
+            'flatId': society['flatId'],
+            'memberType': society['memberType'],
+          }),
+        );
+
+        if (contextResponse.statusCode == 200) {
+          final data = jsonDecode(contextResponse.body);
+          final fatToken = data['token'];
+
+          await AuthService.cacheTokenClaims(fatToken);   
+          final prefs = await SharedPreferences.getInstance(); // Keep for local fallbacks if needed
+          await prefs.setString('society_id', society['societyId']);
+          await prefs.setString('flat_id', society['flatId']);
+          await prefs.setString('flat_number', society['flatNumber']);
+
+          if (mounted) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (ctx) => GuardScreen(token: fatToken)));
+          }
+        } else {
+          throw Exception('Failed to generate guard context token.');
+        }
+      } else {
+        throw Exception('Failed to fetch guard societies.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Guard Login Error: $e')));
+      }
+    }
+  }*/
+
+    Future<void> _navigateToGuardWithContext(String basicToken) async {
+    try {
+      final userId = await AuthService.getUserId();
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.mySocietiesUrl}?userId=$userId'),
+        headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final societies = jsonDecode(response.body) as List;
+        
+        if (societies.isEmpty) {
+          throw Exception('No society assigned to this guard. Please contact Admin.');
+        }
+
+        // If Guard belongs to only 1 society, auto-select it (Fast Path)
+        if (societies.length == 1) {
+          final society = societies[0];
+          final contextResponse = await http.post(
+            Uri.parse(ApiConfig.selectContextUrl),
+            headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'userId': userId,
+              'societyId': society['societyId'],
+              'flatId': society['flatId'],
+              'memberType': society['memberType'],
+            }),
+          );
+
+          if (contextResponse.statusCode == 200) {
+            final data = jsonDecode(contextResponse.body);
+            final fatToken = data['token'];
+
+            await AuthService.cacheTokenClaims(fatToken);   
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('society_id', society['societyId']);
+            await prefs.setString('flat_id', society['flatId']);
+            await prefs.setString('flat_number', society['flatNumber']);
+
+            if (mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (ctx) => GuardScreen(token: fatToken)));
+            }
+          } else {
+            throw Exception('Failed to generate guard context token.');
+          }
+        } else {
+          // If Guard belongs to >1 society, force them to pick (Standard Path)
+          if (mounted) {
+            Navigator.pushReplacement(
+              context, 
+              MaterialPageRoute(builder: (ctx) => SocietySelectionScreen(token: basicToken))
+            );
+          }
+        }
+      } else {
+        throw Exception('Failed to fetch guard societies.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Guard Login Error: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  Future<void> _requestOtp() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.requestOtpUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobileNumber': _mobileController.text}),
+      );
+      if (response.statusCode == 200) setState(() => _isOtpSent = true);
+      else _showError('Failed to send OTP');
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.loginUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobileNumber': _mobileController.text, 'otp': _otpController.text}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => _jwtToken = data['token']);
+        
+        await AuthService.cacheTokenClaims(_jwtToken!);
+
+        if (_isGuardMode) {
+          _navigateToGuardWithContext(_jwtToken!);
+        } else {
+          if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => SocietySelectionScreen(token: _jwtToken!)));
+        }
+      } else {
+        _showError('Invalid OTP');
+      }
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(_isGuardMode ? Icons.security : Icons.lock_person, size: 80, color: _isGuardMode ? Colors.orange : Colors.blue),
+            const SizedBox(height: 20),
+            Text(_isGuardMode ? 'Guard Portal' : 'Welcome to MyGate', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            
+            TextButton.icon(
+              onPressed: () => setState(() => _isGuardMode = !_isGuardMode),
+              icon: Icon(_isGuardMode ? Icons.check_box : Icons.check_box_outline_blank, color: Colors.orange),
+              label: const Text('Login as Security Guard', style: TextStyle(color: Colors.orange)),
+            ),
+            const SizedBox(height: 40),
+            
+            if (!_isOtpSent) ...[
+              TextField(controller: _mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone))),
+              const SizedBox(height: 20),
+              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _requestOtp, child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Send OTP', style: TextStyle(fontSize: 18)))),
+                     ] else ...[
+            TextField(controller: _otpController, keyboardType: TextInputType.number, maxLength: 4, decoration: const InputDecoration(labelText: '4-Digit OTP', border: OutlineInputBorder(), prefixIcon: Icon(Icons.password))),
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _verifyOtp, style: ElevatedButton.styleFrom(backgroundColor: _isGuardMode ? Colors.orange : Colors.green), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Login', style: TextStyle(fontSize: 18)))),
+            
+            // --- ADD THIS HERE ---
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isOtpSent = false;
+                  _otpController.clear();
+                });
+              },
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text('Change Mobile Number'),
+            ),
+          ]
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_bookings_screen.dart
+SIZE  : 5.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_bookings_screen.dart
+import 'package:flutter/material.dart';
+import '../services/amenity_service.dart';
+
+class MyBookingsScreen extends StatefulWidget {
+  const MyBookingsScreen({super.key});
+
+  @override
+  State<MyBookingsScreen> createState() => _MyBookingsScreenState();
+}
+
+class _MyBookingsScreenState extends State<MyBookingsScreen> {
+  List<dynamic> _bookings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookings();
+  }
+
+  Future<void> _fetchBookings() async {
+    try {
+      final bookings = await AmenityService.getMyBookings();
+      if (mounted) {
+        setState(() {
+          _bookings = bookings;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _cancelBooking(String bookingId, String societyId) async {
+    try {
+      final isSuccess = await AmenityService.cancelBooking(bookingId, societyId);
+      if (isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking Cancelled!'), backgroundColor: Colors.orange));
+        _fetchBookings(); 
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to cancel'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Pending';
+      case 1: return 'Approved';
+      case 2: return 'Rejected';
+      case 3: return 'Cancelled';
+      case 4: return 'Completed';
+      default: return 'Unknown';
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 0: return Colors.orange;
+      case 1: return Colors.green;
+      case 2: return Colors.red;
+      case 3: return Colors.grey;
+      case 4: return Colors.blue;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Amenity Bookings'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _bookings.isEmpty
+              ? const Center(child: Text('No bookings made yet.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _bookings.length,
+                  itemBuilder: (context, index) {
+                    final b = _bookings[index];
+                    final status = b['status'] is int ? b['status'] as int : 0;
+                    bool canCancel = (status == 0 || status == 1);
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(b['amenityName'] ?? 'Amenity', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 4),
+                                      Text('${b['bookingDate']} • ${b['startTime']} - ${b['endTime']}', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                                      if (b['rejectionReason'] != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Text('Reason: ${b['rejectionReason']}', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(status).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _getStatusText(status),
+                                    style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (canCancel)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () => _cancelBooking(b['id'], b['societyId']),
+                                  child: const Text('Cancel Booking', style: TextStyle(color: Colors.red)),
+                                ),
+                              )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_daily_help_screen.dart
+SIZE  : 1.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_daily_help_screen.dart
+import 'package:flutter/material.dart';
+import '../services/daily_help_service.dart';
+
+class MyDailyHelpScreen extends StatefulWidget {
+  const MyDailyHelpScreen({super.key});
+
+  @override
+  State<MyDailyHelpScreen> createState() => _MyDailyHelpScreenState();
+}
+
+class _MyDailyHelpScreenState extends State<MyDailyHelpScreen> {
+  List<dynamic> _helpers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHelpers();
+  }
+
+  Future<void> _fetchHelpers() async {
+    try {
+      final helpers = await DailyHelpService.getMyDailyHelp();
+      if (mounted) setState(() { _helpers = helpers; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Daily Help'), backgroundColor: Colors.lightGreen),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _helpers.isEmpty 
+              ? const Center(child: Text('No daily help assigned.'))
+              : ListView.builder(
+                  itemCount: _helpers.length,
+                  itemBuilder: (context, index) {
+                    final h = _helpers[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person, size: 40),
+                        title: Text(h['name'] ?? 'Helper', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(h['helpType'] ?? 'N/A'),
+                        trailing: Text(h['mobileNumber'] ?? '', style: const TextStyle(color: Colors.grey)),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_dues_screen.dart
+SIZE  : 2.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_dues_screen.dart
+import 'package:flutter/material.dart';
+import '../services/billing_service.dart'; // FIX: Added missing import
+
+class MyDuesScreen extends StatefulWidget {
+  const MyDuesScreen({super.key});
+
+  @override
+  State<MyDuesScreen> createState() => _MyDuesScreenState();
+}
+
+class _MyDuesScreenState extends State<MyDuesScreen> {
+  List<dynamic> _dues = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDues();
+  }
+
+  Future<void> _fetchDues() async {
+    try {
+      final dues = await BillingService.getMyDues();
+      if (mounted) {
+        setState(() {
+          _dues = dues;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Maintenance Dues'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _dues.isEmpty
+              ? const Center(child: Text('No dues found.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _dues.length,
+                  itemBuilder: (context, index) {
+                    final d = _dues[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: const Icon(Icons.receipt, color: Colors.purple, size: 40),
+                        title: Text(d['description'] ?? 'Maintenance Due', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Due Date: ${d['dueDate'].toString().substring(0, 10)}'),
+                        trailing: Text('₹${d['amount']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_tickets_screen.dart
+SIZE  : 2.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_tickets_screen.dart
+import 'package:flutter/material.dart';
+import '../services/helpdesk_service.dart';
+import 'raise_ticket_screen.dart';
+import 'ticket_detail_screen.dart';
+
+class MyTicketsScreen extends StatefulWidget {
+  const MyTicketsScreen({super.key});
+
+  @override
+  State<MyTicketsScreen> createState() => _MyTicketsScreenState();
+}
+
+class _MyTicketsScreenState extends State<MyTicketsScreen> {
+  List<dynamic> _tickets = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTickets();
+  }
+
+  Future<void> _fetchTickets() async {
+    try {
+      final tickets = await HelpdeskService.getMyTickets();
+      if (mounted) setState(() { _tickets = tickets; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Open';
+      case 1: return 'In Progress';
+      case 2: return 'Resolved';
+      case 3: return 'Closed';
+      default: return 'Unknown';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Support Tickets')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (context) => const RaiseTicketScreen()));
+          _fetchTickets(); // Refresh after adding
+        },
+        child: const Icon(Icons.add),
+      ),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _tickets.isEmpty 
+              ? const Center(child: Text('No tickets raised yet.'))
+              : ListView.builder(
+                  itemCount: _tickets.length,
+                  itemBuilder: (context, index) {
+                    final t = _tickets[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(t['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(t['category'] ?? 'General'),
+                        trailing: Chip(label: Text(_getStatusText(t['status'] ?? 0))),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => TicketDetailScreen(ticketId: t['id']))),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_vehicles_screen.dart
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_vehicles_screen.dart
+import 'package:flutter/material.dart';
+import '../services/vehicle_service.dart';
+import 'register_vehicle_screen.dart';
+
+class MyVehiclesScreen extends StatefulWidget {
+  const MyVehiclesScreen({super.key});
+
+  @override
+  State<MyVehiclesScreen> createState() => _MyVehiclesScreenState();
+}
+
+class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
+  List<dynamic> _vehicles = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVehicles();
+  }
+
+  Future<void> _fetchVehicles() async {
+    try {
+      final vehicles = await VehicleService.getMyVehicles();
+      if (mounted) {
+        setState(() {
+          _vehicles = vehicles;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Vehicles'),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterVehicleScreen()));
+          if (result == true) _fetchVehicles(); 
+        },
+        icon: const Icon(Icons.add), // CORRECT SYNTAX
+        label: const Text('Add Vehicle'), // CORRECT SYNTAX
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _vehicles.isEmpty
+              ? const Center(child: Text('No vehicles registered.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _vehicles.length,
+                  itemBuilder: (context, index) {
+                    final v = _vehicles[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: Icon(v['vehicleType'] == 0 ? Icons.two_wheeler : Icons.directions_car, size: 40, color: Colors.blue.shade700),
+                        title: Text(v['vehicleNumber'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                        subtitle: Text(v['makeModel'] ?? 'N/A'),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_visitors_screen.dart
+SIZE  : 3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_visitors_screen.dart
+import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import 'add_visitor_screen.dart';
+
+class MyVisitorsScreen extends StatefulWidget {
+  const MyVisitorsScreen({super.key});
+
+  @override
+  State<MyVisitorsScreen> createState() => _MyVisitorsScreenState();
+}
+
+class _MyVisitorsScreenState extends State<MyVisitorsScreen> {
+  List<dynamic> _visitors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVisitors();
+  }
+
+  Future<void> _fetchVisitors() async {
+    try {
+      final visitors = await VisitorService.getMyVisitors();
+      if (mounted) {
+        setState(() { 
+          _visitors = visitors; 
+          _isLoading = false; 
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Visitors'),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddVisitorScreen()));
+        },
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Visitor'),
+      ),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _visitors.isEmpty 
+              ? const Center(
+                  child: Text(
+                    'No visitors pre-approved yet.\nTap + to add one.', 
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, color: Colors.grey)
+                  )
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _visitors.length,
+                  itemBuilder: (context, index) {
+                    final v = _visitors[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person_outline, size: 40),
+                        title: Text(v['visitorName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Mobile: ${v['visitorMobile']}'),
+                            Text('Date: ${v['expectedDate'].toString().substring(0, 10)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                        trailing: Chip(
+                          label: Text(v['status'] == 0 ? 'Pending' : 'Expired'),
+                          backgroundColor: v['status'] == 0 ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\notice_board_screen.dart
+SIZE  : 2.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/notice_board_screen.dart
+import 'package:flutter/material.dart';
+import '../services/notice_service.dart';
+
+class NoticeBoardScreen extends StatefulWidget {
+  const NoticeBoardScreen({super.key});
+
+  @override
+  State<NoticeBoardScreen> createState() => _NoticeBoardScreenState();
+}
+
+class _NoticeBoardScreenState extends State<NoticeBoardScreen> {
+  List<dynamic> _notices = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotices();
+  }
+
+  Future<void> _fetchNotices() async {
+    try {
+      final notices = await NoticeService.getNotices();
+      if (mounted) setState(() { _notices = notices; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notice Board'), backgroundColor: Colors.teal),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _notices.isEmpty 
+              ? const Center(child: Text('No notices available.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _notices.length,
+                  itemBuilder: (context, index) {
+                    final n = _notices[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(n['title'] ?? 'Notice', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text(n['content'] ?? '', style: const TextStyle(fontSize: 14)),
+                            const SizedBox(height: 8),
+                            Text(n['createdAt'].toString().substring(0, 10), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+

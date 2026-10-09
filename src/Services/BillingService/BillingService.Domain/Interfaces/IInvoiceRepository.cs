@@ -8,4 +8,7 @@ public interface IInvoiceRepository
     Task<List<Invoice>> GetByFlatIdAsync(Guid flatId);
     // ADD this method:
     Task<List<Invoice>> GetBySocietyIdAsync(Guid societyId);
+
+     void Add(Invoice invoice); // Adds to EF Core context without saving
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default); // Saves all at once
 }

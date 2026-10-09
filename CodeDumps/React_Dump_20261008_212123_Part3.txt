@@ -1,0 +1,2672 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — React  (continued — Part 3)
+║  Generated : 2026-10-08 21:21:41
+║  Root      : C:\MyGateApp\src\Client
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\postcss.config.js
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\README.md
+SIZE  : 2.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ # React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+
+```
+
+You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+
+```
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\amenity.ts
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/amenity.ts
+import apiClient from './client';
+  import {API_URLS} from "./apiConfig";
+
+export interface AmenityDto {
+  id: string;
+  societyId: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  isActive: boolean;
+  isBookable: boolean;
+  slotDurationMinutes: number;
+  maxBookingsPerDayPerUser: number;
+  advanceBookingDaysAllowed: number;
+  operatingHoursStart: string;
+  operatingHoursEnd: string;
+  createdAt: string;
+}
+
+// GET amenities for a society
+export const getAmenities = async (societyId: string): Promise<AmenityDto[]> => {
+  const response = await apiClient.get<AmenityDto[]>(
+    `${API_URLS.AMENITY}/Amenities/society/${societyId}`
+  );
+  return response.data;
+};
+
+// POST create a new amenity (Admin only)
+export const createAmenity = async (amenity: any): Promise<string> => {
+  const response = await apiClient.post<string>(`${API_URLS.AMENITY}/Amenities`, amenity);
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\apiConfig.ts
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/apiConfig.ts
+
+// Centralized API Base URLs for all Microservices
+// Change these here when deploying to different environments (e.g., Docker, Staging, Prod)
+export const API_URLS = {
+  IDENTITY: 'http://localhost:5103/api',
+  TENANT: 'http://localhost:5104/api',
+  VISITOR: 'http://localhost:5105/api',
+  BILLING: 'http://localhost:5107/api',
+  HELPDESK: 'http://localhost:5108/api',
+  NOTICE: 'http://localhost:5109/api',
+  AMENITY: 'http://localhost:5110/api',
+  DAILY_HELP: 'http://localhost:5111/api',
+  VEHICLE: 'http://localhost:5112/api',
+ // COMMUNICATION: 'http://localhost:5113/api',
+  EMERGENCY: 'http://localhost:5114/api',
+  DIRECTORY: 'http://localhost:5113/api',
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\billing.ts
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+export interface InvoiceDto {
+  id: string;
+  societyId: string;
+  flatId: string;
+  amount: number;
+  penaltyAmount: number;
+  totalAmount: number;
+  dueDate: string;
+  invoiceNumber: string | null;
+  description: string | null;
+  status: number; // 0=Pending, 1=Paid, 2=Overdue, 3=Waived, 4=PartiallyPaid
+  generatedAt: string;
+}
+
+export const getSocietyInvoices = async (societyId: string): Promise<InvoiceDto[]> => {
+  const response = await apiClient.get<InvoiceDto[]>(
+    `${API_URLS.BILLING}/Invoices/society/${societyId}`
+  );
+  return response.data;
+};
+
+export const generateInvoice = async (payload: {
+  societyId: string;
+  flatId: string;
+  amount: number;
+  dueDate: string;
+  description?: string;
+}): Promise<string> => {
+  const response = await apiClient.post<string>(
+    `${API_URLS.BILLING}/Invoices/generate`,
+    payload
+  );
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\client.ts
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import axios from 'axios';
+
+// Create an instance
+const apiClient = axios.create({
+  //baseURL: '/api', // Uses the Vite proxy defined earlier
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 1. Request Interceptor: Add JWT Token automatically
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token'); // Save JWT here after login
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// 2. Response Interceptor: Handle 401/500 errors globally
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Redirect to login or refresh token logic
+      console.error("Unauthorized access");
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\dailyHelp.ts
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+export interface HelpTypeDto { id: string; name: string; }
+export interface StaffDto { id: string; name: string; mobileNumber: string; helpTypeId: string; helpTypeName: string; agencyName: string | null; isActive: boolean; }
+export interface AssignmentDto { id: string; staffId: string; staffName: string; staffMobile: string; helpTypeName: string; flatId: string; workingDays: string; inTime: string | null; outTime: string | null; isActive: boolean; }
+
+export const getHelpTypes = async (societyId: string): Promise<HelpTypeDto[]> => {
+  const response = await apiClient.get<HelpTypeDto[]>(`${API_URLS.DAILY_HELP}/HelpTypes/society/${societyId}`);
+  return response.data;
+};
+
+export const getStaff = async (societyId: string): Promise<StaffDto[]> => {
+  const response = await apiClient.get<StaffDto[]>(`${API_URLS.DAILY_HELP}/Staff/society/${societyId}`);
+  return response.data;
+};
+
+export const getAssignments = async (flatId: string): Promise<AssignmentDto[]> => {
+  const response = await apiClient.get<AssignmentDto[]>(`${API_URLS.DAILY_HELP}/Assignments/my-help?flatId=${flatId}`);
+  return response.data;
+};
+
+export const createHelpType = async (societyId: string, name: string): Promise<string> => {
+  const response = await apiClient.post<string>(`${API_URLS.DAILY_HELP}/HelpTypes`, { societyId, name });
+  return response.data;
+};
+
+export const createStaff = async (payload: { societyId: string; name: string; mobileNumber: string; helpTypeId: string; agencyName?: string }): Promise<string> => {
+  const response = await apiClient.post<string>(`${API_URLS.DAILY_HELP}/Staff`, payload);
+  return response.data;
+};
+
+export const assignStaff = async (payload: { staffId: string; flatId: string; societyId: string; workingDays?: string }): Promise<string> => {
+  const response = await apiClient.post<string>(`${API_URLS.DAILY_HELP}/Assignments`, payload);
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\directory.ts
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+export interface DirectoryEntryDto {
+  id: string;
+  societyId: string;
+  category: string;
+  name: string;
+  contactNumber: string;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export const getDirectory = async (societyId: string): Promise<DirectoryEntryDto[]> => {
+  const response = await apiClient.get<DirectoryEntryDto[]>(
+    `${API_URLS.DIRECTORY}/Directory/society/${societyId}`
+  );
+  return response.data;
+};
+
+export const getCategories = async (societyId: string): Promise<string[]> => {
+  const response = await apiClient.get<string[]>(
+    `${API_URLS.DIRECTORY}/Directory/categories/${societyId}`
+  );
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\helpdesk.ts
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+export interface TicketDto {
+  id: string;
+  societyId: string;
+  flatId: string;
+  createdByUserId: string;
+  title: string;
+  description: string;
+  status: number;
+  createdAt: string;
+}
+
+export const getSocietyTickets = async (societyId: string): Promise<TicketDto[]> => {
+  const response = await apiClient.get<TicketDto[]>(
+    `${API_URLS.HELPDESK}/Tickets/society/${societyId}`
+  );
+  return response.data;
+};
+
+export const updateTicketStatus = async (ticketId: string, newStatus: number): Promise<void> => {
+  await apiClient.put(`${API_URLS.HELPDESK}/Tickets/${ticketId}/status`, { newStatus });
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\memberAdmin.ts
+SIZE  : 2.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/memberAdmin.ts
+import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+// ─── User Lookup (IdentityService 5103) ───
+export interface UserLookupDto {
+  userId: string;
+  fullName: string;
+  mobileNumber: string;
+  email: string | null;
+  isMobileVerified: boolean;
+}
+
+export const lookupUser = async (mobileNumber: string): Promise<UserLookupDto | null> => {
+  try {
+    const response = await apiClient.get<UserLookupDto>(
+      `${API_URLS.IDENTITY}/Auth/lookup/${mobileNumber}`
+    );
+    return response.data;
+  } catch (err: any) {
+    if (err.response?.status === 404) return null;
+    throw err;
+  }
+};
+
+// ─── Add Member (TenantService 5104) ───
+// Matches C# AddMemberCommand EXACTLY:
+//   public Guid SocietyId { get; set; }
+//   public Guid UserId { get; set; }
+//   public Guid FlatId { get; set; }
+//   public string MemberType { get; set; }
+//   public bool IsPrimary { get; set; }
+// .NET System.Text.Json serializes to camelCase by default.
+
+export interface AddMemberPayload {
+  societyId: string;
+  userId: string;
+  flatId: string;
+  memberType: string;  // "Owner" | "Tenant" | "CommitteeMember"
+  isPrimary: boolean;
+}
+
+// --- Create Guard (IdentityService 5103) ---
+export interface CreateGuardPayload {
+  mobileNumber: string;
+  fullName: string;
+}
+
+export const createGuard = async (payload: CreateGuardPayload): Promise<{ id: string }> => {
+  const response = await apiClient.post(
+    `${API_URLS.IDENTITY}/auth/create-guard`,
+    payload
+  );
+  return response.data;
+};
+
+export const addMember = async (payload: AddMemberPayload): Promise<any> => {
+  const response = await apiClient.post(
+    `${API_URLS.TENANT}/Societies/add-member`,
+    payload
+  );
+  return response.data;
+};
+
+// ─── Register User (IdentityService 5103) ───
+export interface RegisterUserPayload {
+  mobileNumber: string;
+  fullName: string;
+  email?: string;
+  password: string; // The backend requires this now
+}
+
+export const registerUser = async (payload: RegisterUserPayload): Promise<{ id: string }> => {
+  const response = await apiClient.post(
+    `${API_URLS.IDENTITY}/auth/register`,
+    payload
+  );
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\mockData.ts
+SIZE  : 4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/mockData.ts
+//import { Users, DollarSign, Car, Activity } from 'lucide-react';
+
+export interface DashboardStats {
+  totalResidents: number;
+  pendingDues: number;
+  parkingOccupancy: number;
+  activeNotices: number;
+}
+
+export interface Activity {
+  id: number;
+  time: string;
+  service: string;
+  event: string;
+  user: string;
+}
+
+// Fake data to mimic a backend API response
+export const getDashboardData = (): { stats: DashboardStats; activities: Activity[] } => {
+  return {
+    stats: {
+      totalResidents: 124,
+      pendingDues: 45000,
+      parkingOccupancy: 65,
+      activeNotices: 3
+    },
+    activities: [
+      { id: 1, time: '10:42 AM', service: 'VisitorService', event: 'Created Pre-approval', user: 'Res-101' },
+      { id: 2, time: '10:30 AM', service: 'VehicleService', event: 'Entry Gate Opened', user: 'Guard-02' },
+      { id: 3, time: '09:15 AM', service: 'BillingService', event: 'Invoice Generated', user: 'System' },
+      { id: 4, time: '08:00 AM', service: 'AmenityService', event: 'Pool Booking', user: 'Res-204' },
+    ]
+  };
+};
+
+// src/api/mockData.ts
+
+// ... existing code (DashboardStats, Activity, getDashboardData) ...
+
+// ADD THIS NEW CODE:
+
+export interface Visitor {
+  id: number;
+  name: string;
+  type: string; // Guest, Delivery, Cab
+  purpose: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  time: string;
+}
+
+export const initialVisitors: Visitor[] = [
+  { id: 1, name: "John Doe", type: "Guest", purpose: "Meeting", status: "Pending", time: "10:30 AM" },
+  { id: 2, name: "Alice Smith", type: "Delivery", purpose: "Amazon Package", status: "Approved", time: "09:15 AM" },
+  { id: 3, name: "Bob Wilson", type: "Cab", purpose: "Uber Drop", status: "Pending", time: "10:45 AM" },
+  { id: 4, name: "Charlie Brown", type: "Service", purpose: "Plumber", status: "Rejected", time: "Yesterday" },
+];
+
+// src/api/mockData.ts
+
+// ... existing code ...
+
+// ADD THIS NEW CODE:
+
+export interface Vehicle {
+  id: number;
+  plate: string;
+  model: string;
+  type: string; // Sedan, SUV, Bike
+  flat: string;
+  slotId: string | null; // If null, the car is parked nowhere
+}
+
+export interface ParkingSlot {
+  id: string;
+  isOccupied: boolean;
+  vehicle: Vehicle | null;
+}
+
+// Mock Vehicles
+export const vehiclesData: Vehicle[] = [
+  { id: 1, plate: "KA-01-AB-1234", model: "Honda City", type: "Sedan", flat: "B-204", slotId: "A-1" },
+  { id: 2, plate: "MH-02-XY-5678", model: "Swift", type: "Hatchback", flat: "A-101", slotId: "A-2" },
+  { id: 3, plate: "TN-07-ZZ-9999", model: "Innova", type: "SUV", flat: "C-305", slotId: null }, // No slot!
+  { id: 4, plate: "KA-05-QQ-1111", model: "Baleno", type: "Hatchback", flat: "D-102", slotId: "B-1" },
+];
+
+// Mock Parking Slots (The 2D Map)
+export const parkingSlotsData: ParkingSlot[] = [
+  { id: "A-1", isOccupied: true, vehicle: vehiclesData[0] },
+  { id: "A-2", isOccupied: true, vehicle: vehiclesData[1] },
+  { id: "A-3", isOccupied: false, vehicle: null },
+  { id: "A-4", isOccupied: false, vehicle: null },
+  { id: "B-1", isOccupied: true, vehicle: vehiclesData[3] },
+  { id: "B-2", isOccupied: false, vehicle: null },
+  { id: "B-3", isOccupied: false, vehicle: null },
+  { id: "B-4", isOccupied: false, vehicle: null },
+];
+
+// src/api/mockData.ts
+
+// ... existing code ...
+
+// ADD THIS NEW CODE:
+
+export interface Bill {
+  id: number;
+  invoiceId: string;
+  flat: string;
+  month: string;
+  amount: number;
+  status: 'Paid' | 'Unpaid';
+  dueDate: string;
+}
+
+export const billsData: Bill[] = [
+  { id: 1, invoiceId: "INV-001", flat: "B-204", month: "October 2023", amount: 2500, status: "Unpaid", dueDate: "2023-10-10" },
+  { id: 2, invoiceId: "INV-002", flat: "A-101", month: "October 2023", amount: 3200, status: "Paid", dueDate: "2023-10-10" },
+  { id: 3, invoiceId: "INV-003", flat: "C-305", month: "September 2023", amount: 1500, status: "Unpaid", dueDate: "2023-09-10" },
+  { id: 4, invoiceId: "INV-004", flat: "D-102", month: "October 2023", amount: 2800, status: "Unpaid", dueDate: "2023-10-10" },
+];
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\notice.ts
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/notice.ts
+import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+export interface NoticeDto {
+  id: string;
+  societyId: string;
+  title: string;
+  description: string;
+  category: number;
+  isPinned: boolean;
+  createdByUserId: string;
+  createdAt: string;
+}
+
+// GET notices for a society
+export const getNotices = async (societyId: string): Promise<NoticeDto[]> => {
+  const response = await apiClient.get<NoticeDto[]>(
+    `${API_URLS.NOTICE}/Notices?societyId=${societyId}`
+  );
+  return response.data;
+};
+
+// POST create a new notice (Admin only)
+export const createNotice = async (notice: { societyId: string; title: string; description: string; category: number; isPinned: boolean }): Promise<string> => {
+  const response = await apiClient.post<string>(`${API_URLS.NOTICE}`, notice);
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\tenant.ts
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/tenant.ts
+import apiClient from "./client";
+import {API_URLS} from "./apiConfig";
+
+// Matches the C# SocietyDto from TenantService
+export interface SocietyDto {
+  societyId: string;
+  societyName: string;
+  blockName: string;
+  flatId: string;
+  flatNumber: string;
+  memberType: string; // "Owner", "Tenant", "CommitteeMember", etc.
+}
+
+
+export interface SocietyListDto {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+}
+
+// Fetch societies/contexts for a specific user
+export const getMySocieties = async (userId: string): Promise<SocietyDto[]> => {
+  // Explicitly grab the token to ensure the Authorization header is set
+  const token = localStorage.getItem("auth_token");
+  console.log("token in getMySocieties:", token);
+  const response = await apiClient.get<SocietyDto[]>(
+    `${API_URLS.TENANT}/Societies/my-societies`,
+    {
+      params: { userId },
+      headers: {
+        Authorization: `Bearer ${token}`, // Force the header!
+      },
+    },
+  );
+  return response.data;
+};
+
+// Fetch ALL societies for the SuperAdmin Society Picker
+export const getAllSocietiesForSuperAdmin = async (): Promise<SocietyListDto[]> => {
+  const token = localStorage.getItem("auth_token");
+ // DEBUG: Log the exact URL and Token being used
+  console.log('🪲 [DEBUG] Fetching SuperAdmin Societies');
+  console.log('🪲 [DEBUG] Token:', token);
+
+ /* const response = await apiClient.get<SocietyListDto[]>(
+     `${API_URLS.IDENTITY}/superadmin/societies`, // Hits IdentityService proxy
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );*/
+  // EXPLICIT URL: Bypass client.ts baseURL to guarantee the path is correct
+  const response = await apiClient.get<SocietyListDto[]>(
+     `http://localhost:5103/api/superadmin/societies`, 
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  
+  // DEBUG: Log the response
+  console.log('🪲 [DEBUG] SuperAdmin API Response:', response.data);
+  return response.data;
+};
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\tenantAdmin.ts
+SIZE  : 2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/tenantAdmin.ts
+import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+// --- Interfaces ---
+export interface Society {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+}
+
+export interface Block {
+  id: string;
+  societyId: string;
+  name: string;
+}
+
+export interface Flat {
+  id: string;
+  blockId: string;
+  societyId: string;
+  flatNumber: string;
+  //flatType: number; // 0 = Flat, 1 = Villa, etc.
+  type:string;
+}
+
+// --- Society APIs ---
+export const getAllSocieties = async (): Promise<Society[]> => {
+  const res = await apiClient.get<Society[]>(`${API_URLS.TENANT}/Societies`);
+  return res.data;
+};
+
+export const createSociety = async (data: { name: string; address: string; city: string }): Promise<any> => {
+  const res = await apiClient.post(`${API_URLS.TENANT}/Societies/create`, data);
+  return res.data;
+};
+
+// --- Block APIs ---
+export const getBlocksBySociety = async (societyId: string): Promise<Block[]> => {
+  const res = await apiClient.get<Block[]>(`${API_URLS.TENANT}/Societies/${societyId}/blocks`);
+  return res.data;
+};
+
+export const createBlock = async (data: { societyId: string; name: string }): Promise<any> => {
+  const res = await apiClient.post(`${API_URLS.TENANT}/Societies/create-block`, data);
+  return res.data;
+};
+
+// --- Flat APIs ---
+export const getFlatsByBlock = async (blockId: string): Promise<Flat[]> => {
+  const res = await apiClient.get<Flat[]>(`${API_URLS.TENANT}/Societies/blocks/${blockId}/flats`);
+  return res.data;
+};
+
+export const createFlat = async (data: { blockId: string; societyId: string; flatNumber: string; flatType: string }): Promise<any> => {
+      const payload = {
+    blockId: data.blockId,
+     societyId: data.societyId, 
+    flatNumber: data.flatNumber,
+    type: data.flatType // RENAMED: React calls it flatType, but .NET expects "type"
+  };
+   const res = await apiClient.post(`${API_URLS.TENANT}/Societies/create-flat`, payload);
+
+  return res.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\vehicle.ts
+SIZE  : 1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+export interface VehicleDto {
+  id: string;
+  societyId: string;
+  flatId: string;
+  ownerId: string;
+  vehicleNumber: string;
+  vehicleType: number;
+  category: number;
+  parkingSlotId: string | null;
+  isActive: boolean;
+}
+
+export interface ParkingSlotDto {
+  id: string;
+  societyId: string;
+  blockId: string;
+  flatId: string | null;
+  slotNumber: string;
+  slotType: number;
+  isOccupied: boolean;
+}
+
+export const getSocietyVehicles = async (societyId: string): Promise<VehicleDto[]> => {
+  const response = await apiClient.get<VehicleDto[]>(
+    `${API_URLS.VEHICLE}/Vehicles/society/${societyId}`
+  );
+  return response.data;
+};
+
+export const getSocietySlots = async (societyId: string): Promise<ParkingSlotDto[]> => {
+  const response = await apiClient.get<ParkingSlotDto[]>(
+    `${API_URLS.VEHICLE}/ParkingSlots/society/${societyId}`
+  );
+  return response.data;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\api\visitor.ts
+SIZE  : 3.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/api/visitor.ts
+import apiClient from './client';
+import {API_URLS} from "./apiConfig";
+
+// --- Interfaces matching your C# Classes ---
+
+// Matches: PreApproveVisitorCommand
+export interface PreApproveVisitorCommand {
+  visitorName: string;
+  visitorMobile: string;
+  vehicleNumber?: string;
+  purpose: string;
+  //inviterId: string; // Guid
+  invitedByUserId: string;   // Match C# InvitedByUserId
+  //expectedArrival: string; // DateTime
+   expectedDate: string;      // Match C# ExpectedDate
+  societyId: string; // <--- ADD THIS
+  flatId: string; // <--- ADD THIS
+}
+// NEW: Pre-approve now returns OTP too
+export interface PreApproveVisitorResult {
+  id: string;
+  otp: string;
+}
+
+
+// Updated to match PreApprovedVisitor entity fields
+export interface VisitorDto {
+  id: string;
+  societyId: string;
+  invitedByUserId: string;
+  flatId: string;
+  visitorName: string;
+  visitorMobile: string;
+  purpose?: string;
+  expectedDate: string;
+  expectedTime?: string;
+  status: string;
+  otpHash?: string;
+  otpExpiresAt?: string;
+}
+
+// Matches: VerifyVisitorOtpCommand
+export interface VerifyVisitorOtpCommand {
+  //visitorId: string;
+  preApprovalId:string;
+  otp: string;
+}
+
+// Matches: MarkVisitorExitCommand
+export interface MarkVisitorExitCommand {
+ // visitorId: string;
+  preApprovalId: string;
+}
+
+// NEW: Regenerate OTP response
+export interface RegenerateOtpResult {
+  otp: string;
+  expiresAt: string;
+}
+
+export interface ManualEntryCommand {
+  preApprovalId: string;
+  reason: string;
+}
+
+// --- API Functions ---
+
+// ADMIN: Get all visitors for a society
+export const getSocietyVisitors = async (societyId: string): Promise<VisitorDto[]> => {
+  const response = await apiClient.get<VisitorDto[]>(`${API_URLS.VISITOR}/Visitors/society/${societyId}`);
+  return response.data;
+};
+
+
+// 1. RESIDENT: GET: api/Visitors/my-visitors?inviterId=...
+export const getMyVisitors = async (inviterId: string): Promise<VisitorDto[]> => {
+  const response = await apiClient.get<VisitorDto[]>(`${API_URLS.VISITOR}/Visitors/my-visitors`, {
+    params: { inviterId }
+  });
+  return response.data;
+};
+
+
+// CHANGED: Now returns PreApproveVisitorResult (includes OTP)
+export const preApproveVisitor = async (command: PreApproveVisitorCommand): Promise<PreApproveVisitorResult> => {
+  const response = await apiClient.post<PreApproveVisitorResult>(`${API_URLS.VISITOR}/pre-approve`, command);
+  return response.data;
+};
+
+// 3. POST: api/Visitors/verify-otp
+export const verifyVisitorOtp = async (command: VerifyVisitorOtpCommand) => {
+  const response = await apiClient.post<any>(`${API_URLS.VISITOR}/verify-otp`, command);
+  return response.data;
+};
+
+// 4. POST: api/Visitors/mark-exit
+export const markVisitorExit = async (command: MarkVisitorExitCommand) => {
+  await apiClient.post(`${API_URLS.VISITOR}/mark-exit`, command);
+};
+
+// NEW: Regenerate OTP for an existing visitor
+export const regenerateOtp = async (preApprovalId: string): Promise<RegenerateOtpResult> => {
+  const response = await apiClient.post<RegenerateOtpResult>(`${API_URLS.VISITOR}/${preApprovalId}/regenerate-otp`);
+  return response.data;
+};
+
+// ADMIN: Manual entry override
+export const manualEntry = async (command: ManualEntryCommand) => {
+  await apiClient.post(`${API_URLS.VISITOR}/${command.preApprovalId}/manual-entry`, command);
+};
+
+// Walk-in entry: creates visitor AND marks as entered in one step
+export const walkInEntry = async (command: PreApproveVisitorCommand): Promise<PreApproveVisitorResult> => {
+  // Step 1: Pre-approve (creates record + generates OTP)
+  const result = await preApproveVisitor(command);
+  // Step 2: Manual entry (marks as Entered without OTP)
+  await manualEntry({ preApprovalId: result.id, reason: 'Walk-in entry at gate' });
+  return result;
+};
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\App.css
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ .counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\App.tsx
+SIZE  : 6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/App.tsx
+import React, { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Sidebar from "./components/layout/Sidebar";
+import Dashboard from "./pages/Dashboard";
+import Visitors from "./pages/Visitors";
+import Vehicles from "./pages/Vehicles";
+import Billing from "./pages/Billing";
+import Helpdesk from "./pages/Helpdesk";
+import DailyHelp from "./pages/DailyHelp";
+import Directory from "./pages/Directory";
+import Notices from "./pages/Notices";
+import Amenities from "./pages/Amenities";
+import MasterData from "./pages/MasterData";
+import AssignMember from "./pages/AssignMember";
+import Login from "./pages/Login";
+import SuperAdminSocietyPicker from "./pages/SuperAdminSocietyPicker";
+import Guards from "./pages/Guards"; // ADD Import
+
+// FIX #21: Wrapper for routes that require a logged-in user
+const RequireAuth = () => {
+  const { isInitializing, currentUser } = useAuth();
+  const [hasToken, setHasToken] = useState(false);
+
+  useEffect(() => {
+    setHasToken(!!localStorage.getItem("auth_token"));
+  }, [isInitializing, currentUser]);
+
+  if (isInitializing) {
+    return <div className="p-8 text-center text-slate-500">Initializing App...</div>;
+  }
+
+  if (!hasToken) {
+    // Redirect to Login if no token
+    return <Navigate to="/login" replace />;
+  }
+
+  // FIX #20: If SuperAdmin but no society selected, force to Picker
+  if (currentUser?.isSuperAdmin && !currentUser.societyId) {
+    return <Navigate to="/picker" replace />;
+  }
+
+  // If all checks pass, render the child routes
+  return <Outlet />;
+};
+
+
+function AppContent() {
+  const { currentUser, loading, userList, switchContext } = useAuth();
+  const navigate = useNavigate();
+
+  const handleUserChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+     const selectedKey = e.target.value;
+     const userToSwitch = userList.find((u) => u.uniqueKey === selectedKey);
+    if (userToSwitch) {
+      await switchContext(userToSwitch);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth_token");
+    navigate("/login");
+    window.location.reload(); 
+  };
+
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+      
+      {/* CRITICAL FIX: Picker must be OUTSIDE RequireAuth to prevent infinite loop */}
+      <Route path="/picker" element={<SuperAdminSocietyPicker />} />
+
+      {/* Protected Routes - Requires BOTH Token AND SocietyId */}
+      <Route element={<RequireAuth />}>
+        {/* Main Application Layout Wrapper */}
+        <Route
+          element={
+            <div className="flex bg-slate-50 min-h-screen">
+              <Sidebar />
+              <main className="flex-1 ml-64">
+                <div className="h-16 bg-white border-b flex items-center px-8 justify-between shadow-sm">
+                  <h2 className="font-semibold text-slate-700">
+                   {currentUser?.isSuperAdmin ? `🌐 SuperAdmin: ${currentUser?.name || ''}` : "Admin Portal"}
+                  </h2>
+                  <div className="flex items-center gap-4">
+                    {loading && (
+                      <span className="text-xs text-blue-500 animate-pulse">
+                        Switching Context...
+                      </span>
+                    )}
+                    {currentUser?.isSuperAdmin ? (
+                      <button
+                        onClick={() => navigate("/picker")}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        🏠 Switch Society
+                      </button>
+                    ) : (
+                      <>
+                        <div className="text-sm text-slate-500">Acting As:</div>
+                        <select
+                          disabled={loading}
+                          value={currentUser?.uniqueKey || ""} 
+                          onChange={handleUserChange}
+                          className="border border-slate-300 rounded px-3 py-1 text-sm bg-slate-50 focus:outline-none focus:border-blue-500"
+                        >
+                          {userList.map((user) => (
+                             <option key={user.uniqueKey} value={user.uniqueKey}>
+                                {user.name}
+                              </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="text-slate-400 hover:text-red-500 text-sm ml-2"
+                      title="Logout"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+                <Outlet /> {/* Page content renders here */}
+              </main>
+            </div>
+          }
+        >
+          {/* Nested Routes inside Main Layout */}
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/visitors" element={<Visitors />} />
+          <Route path="/guards" element={<Guards />} />
+          <Route path="/notices" element={<Notices />} />
+          <Route path="/amenities" element={<Amenities />} />
+          <Route path="/master" element={<MasterData />} />
+          <Route path="/helpdesk" element={<Helpdesk />} />
+          <Route path="/daily-help" element={<DailyHelp />} />
+          <Route path="/vehicles" element={<Vehicles />} />
+          <Route path="/directory" element={<Directory />} />
+          <Route path="/billing" element={<Billing />} />
+          <Route path="/assign-member" element={<AssignMember />} />
+        </Route>
+      </Route>
+
+      {/* Fallback redirect */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+// ... App function remains the same ...
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\components\layout\Sidebar.tsx
+SIZE  : 3.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Users, Car, Building, FileText, UserPlus, Ticket,ShieldCheck } from 'lucide-react'; // Removed 'Settings' and 'React'
+import { useAuth } from '../../context/AuthContext';
+
+// ADD this interface above the Sidebar component:
+interface MenuItem {
+  name: string;
+  path: string;
+  icon: React.ElementType;
+  roles: string[];
+}
+
+const Sidebar = () => {
+  const location = useLocation();
+  const { currentUser } = useAuth();  // ADD
+
+  
+   const allMenuItems: MenuItem[] = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Visitors', path: '/visitors', icon: Users, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Guards', path: '/guards', icon: ShieldCheck, roles: ['Admin', 'SuperAdmin'] }, // Residents shouldn't manage guards
+    { name: 'Notices', path: '/notices', icon: FileText , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Amenities', path: '/amenities', icon: LayoutDashboard , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Helpdesk', path: '/helpdesk', icon: Ticket, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Daily Help', path: '/daily-help', icon: Users, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Directory', path: '/directory', icon: LayoutDashboard, roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Master Data', path: '/master', icon: Building , roles: ['Admin', 'SuperAdmin'] }, // Residents shouldn't manage master data
+    { name: 'Vehicles', path: '/vehicles', icon: Car , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Billing', path: '/billing', icon: FileText , roles: ['Admin', 'SuperAdmin', 'Resident'] },
+    { name: 'Assign Member', path: '/assign-member', icon: UserPlus , roles: ['Admin', 'SuperAdmin'] }, // Admin only
+  ];
+
+   // Filter by role — if user has no role match, hide the item
+  const menuItems = allMenuItems.filter(item => 
+    !currentUser?.role || item.roles.includes(currentUser.role)
+  );
+
+  return (
+    <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col">
+      <div className="h-16 flex items-center px-6 font-bold text-xl border-b border-slate-700">
+        MYGATE <span className="text-blue-500 ml-1">ADMIN</span>
+      </div>
+      
+      <nav className="flex-1 py-4">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          return (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              className={`flex items-center px-6 py-3 transition-colors ${
+                isActive ? 'bg-blue-600 text-white border-l-4 border-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Icon className="w-5 h-5 mr-3" />
+              {item.name}
+            </NavLink>
+          );
+        })}
+      </nav>
+      
+      <div className="p-6 text-xs text-slate-500 border-t border-slate-700">
+        Ver 2.0.4 (React Build)
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\context\AuthContext.tsx
+SIZE  : 8.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/context/AuthContext.tsx
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import { parseJwt } from "../utils/jwt";
+import { getMySocieties } from "../api/tenant";
+import apiClient from '../api/client';
+import {API_URLS} from "../api/apiConfig";
+
+interface User {
+   uniqueKey: string; // ADD THIS
+  id: string;
+  name: string;
+  flat: string;
+  societyId: string;
+  flatId: string;
+  role: string;
+  memberType: string; // Added to track the raw member type
+  token?: string;
+  isSuperAdmin: boolean;
+}
+
+interface AuthContextType {
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+  loading: boolean;
+  isInitializing: boolean;
+  userList: User[];
+  switchContext: (user: User) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Helper: Map String MemberType to Integer for .NET Backend
+const mapMemberTypeToInt = (memberType: string): string => {
+  const lower = memberType?.toLowerCase();
+  if (lower === "committeemember" || lower === "admin") return "4";
+   if (lower === "guard") return "6"; // NEW
+  if (lower === "owner") return "0";
+  if (lower === "tenant") return "1";
+  if (lower === "familyofowner") return "2";
+  if (lower === "familyoftenant") return "3";
+  return "1"; // Default fallback
+};
+
+// Helper: Normalize backend roles to frontend UI roles
+const normalizeRole = (role: string): string => {
+  const lower = role?.toLowerCase();
+  if (lower === "superadmin") return "SuperAdmin";
+  if (lower === "admin" || lower === "committeemember") return "Admin"; // Treat CommitteeMember as Admin
+  if (lower === "guard") return "Guard";
+  return "Resident"; // Default fallback
+};
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [userList, setUserList] = useState<User[]>([]);
+
+  // 1. INITIAL LOAD: Read Token from Storage & Fetch Societies
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem("auth_token");
+
+      if (token) {
+        const decoded = parseJwt(token);
+        if (decoded) {
+          const userId = decoded.sub || "";
+          const role = decoded.role || decoded.Role || "";
+
+          // 🚀 NEW: Detect SuperAdmin by their fixed GUID (since Basic Token has no Role)
+          //const SUPERADMIN_ID = "a1b2c3d4-e5f6-7890-1234-567890abcdef";
+          //const isSuperAdmin =
+          //  role === "SuperAdmin" || userId === SUPERADMIN_ID;
+          const isSuperAdmin = role === "SuperAdmin";
+
+           // We must calculate the memberType first to use it in the key
+          const initialMemberType = isSuperAdmin
+            ? "SuperAdmin"
+            : normalizeRole(role) === "Admin"
+              ? "CommitteeMember"
+              : "Owner";
+
+   // 🚨🚨🚨 AUTH CONTEXT DEBUG 🚨🚨🚨
+          console.log("=== AUTH CONTEXT INIT DEBUG ===");
+          console.log("1. Raw decoded token:", decoded);
+          console.log("2. userId:", userId);
+          console.log("3. role string from token:", role);
+          console.log("4. isSuperAdmin:", isSuperAdmin);
+          console.log("5. decoded.SocietyId:", decoded.SocietyId);
+          console.log("6. decoded.FlatId:", decoded.FlatId);
+          console.log("7. typeof decoded.SocietyId:", typeof decoded.SocietyId);
+          console.log("==============================");
+
+          // Set current user from token immediately
+          const initialUser = {
+            uniqueKey: `${userId}_${decoded.FlatId || "no-flat"}`, // ADD THIS
+            id: userId,
+            name: decoded.FullName || "Unknown",
+            isSuperAdmin: isSuperAdmin,
+            flat: decoded.FlatId ? `Flat ${decoded.FlatId}` : "No Context",
+            //societyId: decoded.SocietyId || "",
+            societyId: decoded.SocietyId || decoded.societyId || "", // Handle basic token missing societyID
+            flatId: decoded.FlatId || "",
+           // role: role, //decoded.role || decoded.Role || "",
+           role: normalizeRole(role), // Normalize role for frontend
+            //memberType: decoded.role === "Admin" ? "CommitteeMember" : "Owner",
+           /* memberType: isSuperAdmin
+              ? "SuperAdmin"
+              : role === "Admin"
+                ? "CommitteeMember"
+                : "Owner",*/
+                 memberType: initialMemberType, // Use the variable we made
+            token: token,
+          };
+          setCurrentUser(initialUser);
+
+          // NORMAL ADMIN/RESIDENT LOGIC: Fetch their specific societies
+          if (!isSuperAdmin) {
+            // Fetch real societies from TenantService
+            try {
+              const societies = await getMySocieties(userId);
+              const mappedUsers = societies.map((s) => ({
+                 uniqueKey: `${userId}_${s.flatId}_${s.memberType}`, // FIX: Include memberType
+                id: userId,
+                name: `${s.societyName} - ${s.blockName} - ${s.flatNumber} (${s.memberType})`,
+                flat: `${s.blockName} - ${s.flatNumber}`,
+                societyId: s.societyId,
+                flatId: s.flatId,
+                role: s.memberType === "CommitteeMember" ? "Admin" : "Resident",
+                memberType: s.memberType,
+                isSuperAdmin: false,
+              }));
+              setUserList(mappedUsers);
+
+              // SAFETY CHECK: If the token is missing SocietyId, auto-switch context!
+              if (!initialUser.societyId && mappedUsers.length > 0) {
+                console.log(
+                  "Token missing SocietyId. Auto-switching context...",
+                );
+                await switchContext(mappedUsers[0]); // Force a fat token generation
+              }
+            } catch (err) {
+              console.error("Failed to fetch societies on init:", err);
+            }
+          }
+        }
+      }
+      setIsInitializing(false);
+    };
+
+    initializeAuth();
+  }, []);
+
+  // 2. SWITCH CONTEXT: Call API to get Fat Token
+  const switchContext = async (userToSwitchTo: User) => {
+    setLoading(true);
+    try {
+     
+      const response = await apiClient.post(
+        `${API_URLS.IDENTITY}/auth/select-context`,
+        {
+          userId: userToSwitchTo.id,
+          societyId: userToSwitchTo.societyId,
+          flatId:  userToSwitchTo.flatId || "00000000-0000-0000-0000-000000000000", // Fake FlatId for SA
+          memberType: userToSwitchTo.isSuperAdmin
+            ? "0"
+            : mapMemberTypeToInt(userToSwitchTo.memberType),
+          role: userToSwitchTo.isSuperAdmin ? "SuperAdmin" : "",
+        },
+      );
+
+      //if (response.ok) {
+       // const data = await response.json();
+       const data = response.data;
+        const newToken = data.token;
+
+        localStorage.setItem("auth_token", newToken);
+
+        const decoded = parseJwt(newToken);
+        const newRole = decoded.role || decoded.Role || "";
+        const newUser = {
+           uniqueKey: `${decoded.sub || ""}_${decoded.FlatId || "no-flat"}_${userToSwitchTo.memberType}`, // FIX: Include memberType
+          id: decoded.sub || "",
+          name: decoded.FullName || "Unknown",
+          flat: userToSwitchTo.flat,
+          societyId: decoded.SocietyId || "",
+          flatId: decoded.FlatId || "",
+         // role: newRole,
+         role: normalizeRole(newRole), // Normalize role for frontend
+          memberType: userToSwitchTo.memberType,
+          isSuperAdmin: newRole === "SuperAdmin",
+          token: newToken,
+        };
+
+        setCurrentUser(newUser);
+        console.log(
+          "✅ Context Switched! SocietyId:",
+          newUser.societyId,
+          "Role:",
+          newUser.role,
+        );
+     // } else {
+      //  const errorData = await response.json();
+      //  throw new Error(errorData.message || "Failed to switch context");
+     // }
+    } catch (error: any) {
+      console.error("Context Switch Error:", error);
+      alert(`Failed to switch context: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        setCurrentUser,
+        loading,
+        isInitializing,
+        userList,
+        switchContext,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\index.css
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ @tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\main.tsx
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Amenities.tsx
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Amenities.tsx
+import { useState, useEffect } from 'react';
+import { getAmenities, type AmenityDto } from '../api/amenity';
+import { useAuth } from '../context/AuthContext';
+import { MapPin, Clock } from 'lucide-react';
+
+const Amenities = () => {
+  const { currentUser } = useAuth();
+  const [amenities, setAmenities] = useState<AmenityDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAmenities = async () => {
+    if (!currentUser?.societyId) return;
+    setLoading(true);
+    try {
+      const data = await getAmenities(currentUser.societyId);
+      setAmenities(data);
+    } catch (err) {
+      console.error("Failed to fetch amenities", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAmenities(); }, [currentUser?.societyId]);
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Society Amenities</h1>
+
+      {loading ? <div className="text-center py-10 text-slate-500">Loading...</div> : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {amenities.length === 0 ? <div className="text-slate-500 col-span-3">No amenities configured.</div> : 
+            amenities.map(a => (
+              <div key={a.id} className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-semibold text-slate-800">{a.name}</h3>
+                  <span className={`text-xs px-2 py-1 rounded ${a.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {a.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                
+                <p className="text-sm text-slate-500 mb-4 flex-1">{a.description || 'No description'}</p>
+                
+                <div className="border-t pt-4 mt-auto space-y-2 text-sm text-slate-600">
+                  {a.location && <div className="flex items-center gap-2"><MapPin size={14} /> {a.location}</div>}
+                  <div className="flex items-center gap-2"><Clock size={14} /> {a.operatingHoursStart} - {a.operatingHoursEnd}</div>
+                  <div>Slot: {a.slotDurationMinutes} min | Max/Day: {a.maxBookingsPerDayPerUser}</div>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Amenities;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\AssignMember.tsx
+SIZE  : 22.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/AssignMember.tsx
+import { useState, useEffect } from 'react';
+import {
+  getAllSocieties,
+  getBlocksBySociety,
+  getFlatsByBlock,
+  type Society,
+  type Block,
+  type Flat,
+} from '../api/tenantAdmin';
+import {
+  lookupUser,
+  addMember,
+  registerUser,
+  type UserLookupDto,
+  type AddMemberPayload,
+} from '../api/memberAdmin';
+import { Search, UserPlus, Loader2, CheckCircle, AlertCircle, Home, Star } from 'lucide-react';
+
+const MEMBER_TYPES = ['Owner', 'Tenant', 'CommitteeMember'] as const;
+type MemberType = (typeof MEMBER_TYPES)[number];
+
+const MEMBER_TYPE_COLORS: Record<MemberType, string> = {
+  Owner: 'bg-green-100 text-green-700',
+  Tenant: 'bg-blue-100 text-blue-700',
+  CommitteeMember: 'bg-amber-100 text-amber-700',
+};
+
+const MEMBER_TYPE_DOT_COLORS: Record<MemberType, string> = {
+  Owner: 'bg-green-500',
+  Tenant: 'bg-blue-500',
+  CommitteeMember: 'bg-amber-500',
+};
+
+interface AssignmentRecord {
+  mobileNumber: string;
+  fullName: string;
+  flatNumber: string;
+  societyName: string;
+  memberType: MemberType;
+  isPrimary: boolean;
+  assignedAt: Date;
+}
+
+const AssignMember = () => {
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [searchedMobile, setSearchedMobile] = useState('');
+  const [foundUser, setFoundUser] = useState<UserLookupDto | null>(null);
+  const [userNotFound, setUserNotFound] = useState(false);
+  const [searchingUser, setSearchingUser] = useState(false);
+
+  const [societies, setSocieties] = useState<Society[]>([]);
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [flats, setFlats] = useState<Flat[]>([]);
+
+  const [selectedSocietyId, setSelectedSocietyId] = useState('');
+  const [selectedBlockId, setSelectedBlockId] = useState('');
+  const [selectedFlatId, setSelectedFlatId] = useState('');
+
+  const [memberType, setMemberType] = useState<MemberType>('Owner');
+  const [isPrimary, setIsPrimary] = useState(false);
+
+  const [loadingSocieties, setLoadingSocieties] = useState(false);
+  const [loadingBlocks, setLoadingBlocks] = useState(false);
+  const [loadingFlats, setLoadingFlats] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const [recentAssignments, setRecentAssignments] = useState<AssignmentRecord[]>([]);
+
+    const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('TempPass@123'); // Default temp password
+
+  // ── Effects ──
+
+  useEffect(() => {
+    const fetchSocieties = async () => {
+      setLoadingSocieties(true);
+      try {
+        const data = await getAllSocieties();
+        setSocieties(data);
+      } catch (err: any) {
+        setError('Failed to load societies. ' + (err.message || ''));
+      } finally {
+        setLoadingSocieties(false);
+      }
+    };
+    fetchSocieties();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSocietyId) {
+      setBlocks([]);
+      setFlats([]);
+      setSelectedBlockId('');
+      setSelectedFlatId('');
+      return;
+    }
+    const fetchBlocks = async () => {
+      setLoadingBlocks(true);
+      setBlocks([]);
+      setFlats([]);
+      setSelectedBlockId('');
+      setSelectedFlatId('');
+      try {
+        const data = await getBlocksBySociety(selectedSocietyId);
+        setBlocks(data);
+      } catch (err) {
+        setError('Failed to load blocks.');
+      } finally {
+        setLoadingBlocks(false);
+      }
+    };
+    fetchBlocks();
+  }, [selectedSocietyId]);
+
+  useEffect(() => {
+    if (!selectedBlockId) {
+      setFlats([]);
+      setSelectedFlatId('');
+      return;
+    }
+    const fetchFlats = async () => {
+      setLoadingFlats(true);
+      setFlats([]);
+      setSelectedFlatId('');
+      try {
+        const data = await getFlatsByBlock(selectedBlockId);
+        setFlats(data);
+      } catch (err) {
+        setError('Failed to load flats.');
+      } finally {
+        setLoadingFlats(false);
+      }
+    };
+    fetchFlats();
+  }, [selectedBlockId]);
+
+  // ── Handlers ──
+  const handleRegisterUser = async () => {
+    if (!mobileNumber || !newUserName || !newUserPassword) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await registerUser({ 
+        mobileNumber: mobileNumber, 
+        fullName: newUserName, 
+        email: newUserEmail || undefined,
+        password: newUserPassword
+      });
+      
+      // Auto-set the found user so the assignment form activates immediately
+      setFoundUser({ 
+        userId: result.id, 
+        fullName: newUserName, 
+        mobileNumber: mobileNumber, 
+        email: newUserEmail || null, 
+        isMobileVerified: false 
+      });
+      
+      setUserNotFound(false);
+      setSuccessMsg(`✅ User ${newUserName} registered successfully! You can now assign them to a flat.`);
+    } catch (err: any) {
+      setError('Registration failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
+  const handleSearchUser = async () => {
+    if (!mobileNumber.trim()) return;
+    setSearchingUser(true);
+    setFoundUser(null);
+    setUserNotFound(false);
+    setError('');
+    setSuccessMsg('');
+    setSearchedMobile(mobileNumber.trim());
+
+    try {
+      const user = await lookupUser(mobileNumber.trim());
+      if (user) {
+        setFoundUser(user);
+      } else {
+        setUserNotFound(true);
+      }
+    } catch (err: any) {
+      setError('User search failed. ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSearchingUser(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!foundUser) { setError('Search for a user first.'); return; }
+    if (!selectedSocietyId) { setError('Select a society.'); return; }
+    if (!selectedBlockId) { setError('Select a block.'); return; }
+    if (!selectedFlatId) { setError('Select a flat.'); return; }
+
+    setError('');
+    setSuccessMsg('');
+    setSubmitting(true);
+
+    const payload: AddMemberPayload = {
+      societyId: selectedSocietyId,
+      userId: foundUser.userId,
+      flatId: selectedFlatId,
+      memberType,
+      isPrimary,
+    };
+
+    try {
+      await addMember(payload);
+
+      const societyName = societies.find(s => s.id === selectedSocietyId)?.name || '';
+      const flatObj = flats.find(f => f.id === selectedFlatId);
+      const flatDisplay = flatObj ? String(flatObj.flatNumber) : selectedFlatId;
+
+      setRecentAssignments(prev => [{
+        mobileNumber: searchedMobile,
+        fullName: foundUser.fullName,
+        flatNumber: flatDisplay,
+        societyName,
+        memberType,
+        isPrimary,
+        assignedAt: new Date(),
+      }, ...prev]);
+
+      setSuccessMsg(
+        'Assigned ' + foundUser.fullName + ' as ' + memberType + ' of ' + flatDisplay
+      );
+
+      setMobileNumber('');
+      setSearchedMobile('');
+      setFoundUser(null);
+      setUserNotFound(false);
+    } catch (err: any) {
+      const detail = err.response?.data?.detail
+        || err.response?.data?.message
+        || err.response?.data?.errors?.[0]
+        || err.message;
+      setError('Assignment failed: ' + detail);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const selectedSociety = societies.find(s => s.id === selectedSocietyId);
+  const selectedBlock = blocks.find(b => b.id === selectedBlockId);
+  const selectedFlat = flats.find(f => f.id === selectedFlatId);
+  const isFormComplete = !!(foundUser && selectedSocietyId && selectedBlockId && selectedFlatId);
+
+  // ── Render ──
+
+  return (
+    <div className="p-8 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-2">
+        <UserPlus className="w-8 h-8 text-blue-600" />
+        <h1 className="text-2xl font-bold">Assign Member</h1>
+      </div>
+      <p className="text-sm text-slate-500 mb-6">
+        Search a registered user by mobile number, then assign them to a flat
+        as Owner, Tenant, or Committee Member.
+      </p>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-4">
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
+          <span className="text-sm">{error}</span>
+          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+        </div>
+      )}
+
+      {/* Success */}
+      {successMsg && (
+        <div className="flex items-start gap-2 bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg mb-4">
+          <CheckCircle size={18} className="mt-0.5 shrink-0" />
+          <span className="text-sm font-medium">{successMsg}</span>
+          <button onClick={() => setSuccessMsg('')} className="ml-auto text-green-400 hover:text-green-600 text-lg leading-none">&times;</button>
+        </div>
+      )}
+
+      {/* ═══ 1. FIND USER ═══ */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4">1. Find User</h2>
+
+        <div className="flex gap-3">
+          <input
+            type="tel"
+            placeholder="e.g. 9876543210"
+            value={mobileNumber}
+            onChange={(e) => {
+              setMobileNumber(e.target.value);
+              if (e.target.value !== searchedMobile) {
+                setFoundUser(null);
+                setUserNotFound(false);
+              }
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearchUser(); }}
+            maxLength={15}
+            disabled={searchingUser}
+            className="flex-1 border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-slate-100"
+          />
+          <button
+            onClick={handleSearchUser}
+            disabled={searchingUser || !mobileNumber.trim()}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-md transition text-sm font-medium"
+          >
+            {searchingUser ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            {searchingUser ? 'Searching...' : 'Search'}
+          </button>
+        </div>
+
+        {foundUser && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle size={18} className="text-green-600" />
+              <span className="font-semibold text-slate-800">{foundUser.fullName}</span>
+              {foundUser.isMobileVerified && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Verified</span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500">
+              Mobile: {foundUser.mobileNumber}
+              {foundUser.email ? ' | Email: ' + foundUser.email : ''}
+            </p>
+            <p className="text-xs text-slate-400">User ID: {foundUser.userId}</p>
+          </div>
+        )}
+
+        {userNotFound && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-lg mb-4">
+            <div className="flex items-start gap-2 mb-3">
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+              <span className="font-medium">No registered user found for <strong>{searchedMobile}</strong>.</span>
+            </div>
+            <p className="text-sm mb-3">Register them now to assign to a flat:</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="Full Name *"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                className="border border-amber-300 rounded-md px-3 py-2 text-sm bg-white"
+              />
+              <input
+                type="email"
+                placeholder="Email (Optional)"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                className="border border-amber-300 rounded-md px-3 py-2 text-sm bg-white"
+              />
+              <input
+                type="password"
+                placeholder="Password *"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                className="border border-amber-300 rounded-md px-3 py-2 text-sm bg-white"
+              />
+            </div>
+            <button
+              onClick={handleRegisterUser}
+              disabled={!newUserName || !newUserPassword}
+              className="mt-3 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Register & Continue
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ 2. SELECT FLAT ═══ */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4">2. Select Flat</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Society</label>
+            <select
+              value={selectedSocietyId}
+              onChange={(e) => setSelectedSocietyId(e.target.value)}
+              disabled={loadingSocieties}
+              className="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-blue-500 disabled:bg-slate-100"
+            >
+              <option value="">{loadingSocieties ? 'Loading...' : '-- Select Society --'}</option>
+              {societies.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Block</label>
+            <select
+              value={selectedBlockId}
+              onChange={(e) => setSelectedBlockId(e.target.value)}
+              disabled={!selectedSocietyId || loadingBlocks}
+              className="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-blue-500 disabled:bg-slate-100"
+            >
+              <option value="">{loadingBlocks ? 'Loading...' : '-- Select Block --'}</option>
+              {blocks.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Flat</label>
+            <select
+              value={selectedFlatId}
+              onChange={(e) => setSelectedFlatId(e.target.value)}
+              disabled={!selectedBlockId || loadingFlats}
+              className="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-blue-500 disabled:bg-slate-100"
+            >
+              <option value="">{loadingFlats ? 'Loading...' : '-- Select Flat --'}</option>
+              {flats.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {String(f.flatNumber)} - {String(f.type)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {selectedFlat && (
+          <div className="mt-4 p-3 bg-slate-50 rounded-md flex items-center gap-2 text-sm text-slate-600">
+            <Home size={16} className="text-slate-400" />
+            <span>
+              <strong>{selectedSociety?.name}</strong> &rarr;{' '}
+              <strong>{selectedBlock?.name}</strong> &rarr;{' '}
+              <strong>{String(selectedFlat.flatNumber)}</strong> ({String(selectedFlat.type)})
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ 3. MEMBER TYPE + OPTIONS + SUBMIT ═══ */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4">3. Member Type</h2>
+
+        <div className="flex gap-4 mb-4">
+          {MEMBER_TYPES.map((type) => (
+            <label
+              key={type}
+              className={
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 cursor-pointer transition ' +
+                (memberType === type
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 hover:border-slate-300')
+              }
+            >
+              <input
+                type="radio"
+                name="memberType"
+                value={type}
+                checked={memberType === type}
+                onChange={() => setMemberType(type)}
+                className="accent-blue-600"
+              />
+              <span className={'inline-flex items-center gap-1.5 text-sm font-medium px-2 py-0.5 rounded-full ' + MEMBER_TYPE_COLORS[type]}>
+                <span className={'w-2 h-2 rounded-full ' + MEMBER_TYPE_DOT_COLORS[type]}></span>
+                {type}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {/* Is Primary */}
+        {/* ✨ IsPrimary Checkbox & Smart Warning */}
+        {/* Only show this option for Owners and CommitteeMembers. Tenants are rarely Primary Contacts. */}
+        {memberType !== 'Tenant' && (
+          <div className="mb-6">
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              <Star size={16} className={isPrimary ? 'text-amber-500' : 'text-slate-400'} />
+              <span>
+                Primary member
+                <span className="text-slate-400 ml-1">(first owner / primary contact for this flat)</span>
+              </span>
+            </label>
+
+            {/* Contextual Warning - only show if they check the box */}
+            {isPrimary && (
+              <p className="text-xs text-amber-600 mt-1.5 ml-6 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.(3).5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.47 2.4-1.47 3.165 0l5.941 11.43c.755 1.455-.345 2.971-1.58 2.971H3.896c-1.235 0-2.335-1.516-1.58-2.971L8.257 3.099zM11 7a1 1 0 10-2 0v3a1 1 0 002 0V7zm-1 7a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                If this flat already has a Primary member, they will be automatically demoted to "Co-Owner".
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Confirmation */}
+        {isFormComplete && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg mb-4 text-sm">
+            Assign <strong>{foundUser?.fullName}</strong> ({searchedMobile}) as{' '}
+            <strong>{memberType}</strong> of{' '}
+            <strong>{String(selectedFlat?.flatNumber)}</strong>{' '}
+            in <strong>{selectedSociety?.name}</strong>
+            {isPrimary ? ' (Primary)' : ''}?
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={!isFormComplete || submitting}
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white py-3 rounded-md transition font-semibold text-base"
+        >
+          {submitting ? <Loader2 size={20} className="animate-spin" /> : <UserPlus size={20} />}
+          {submitting ? 'Assigning...' : 'Assign Member'}
+        </button>
+      </div>
+
+      {/* ═══ RECENT ASSIGNMENTS ═══ */}
+      {recentAssignments.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-4 border-b bg-slate-50 font-semibold">
+            Recent Assignments (This Session)
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Mobile</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Society</th>
+                  <th className="px-4 py-3 font-medium">Flat</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Primary</th>
+                  <th className="px-4 py-3 font-medium">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {recentAssignments.map((rec, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-sm text-slate-600">{rec.mobileNumber}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{rec.fullName}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{rec.societyName}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{rec.flatNumber}</td>
+                    <td className="px-4 py-3">
+                      <span className={'text-xs font-medium px-2 py-0.5 rounded-full ' + MEMBER_TYPE_COLORS[rec.memberType]}>
+                        {rec.memberType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {rec.isPrimary ? '⭐' : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-500">
+                      {rec.assignedAt.toLocaleTimeString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AssignMember;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Billing.tsx
+SIZE  : 3.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import { useState, useEffect } from 'react';
+import { getSocietyInvoices, type InvoiceDto } from '../api/billing';
+import { useAuth } from '../context/AuthContext';
+import { Loader2, DollarSign } from 'lucide-react';
+
+const Billing = () => {
+  const { currentUser } = useAuth();
+  const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      if (!currentUser?.societyId) return;
+      setLoading(true);
+      try {
+        const data = await getSocietyInvoices(currentUser.societyId);
+        setInvoices(data);
+      } catch (err) {
+        console.error('Failed to fetch invoices', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInvoices();
+  }, [currentUser?.societyId]);
+
+  const getStatusBadge = (status: number) => {
+    switch (status) {
+      case 0: return { label: 'Pending', class: 'bg-yellow-100 text-yellow-700' };
+      case 1: return { label: 'Paid', class: 'bg-green-100 text-green-700' };
+      case 2: return { label: 'Overdue', class: 'bg-red-100 text-red-700' };
+      case 3: return { label: 'Waived', class: 'bg-slate-100 text-slate-600' };
+      case 4: return { label: 'Partial', class: 'bg-blue-100 text-blue-700' };
+      default: return { label: 'Unknown', class: 'bg-slate-100 text-slate-500' };
+    }
+  };
+
+  // ADDED: The return statement that was missing
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+        <DollarSign className="text-green-600" size={24} /> Billing & Invoices
+      </h1>
+
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="animate-spin text-blue-500 w-8 h-8" />
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-slate-500 text-sm uppercase border-b">
+              <tr>
+                <th className="px-6 py-3 font-medium">Invoice ID</th>
+                <th className="px-6 py-3 font-medium">Flat ID</th>
+                <th className="px-6 py-3 font-medium">Amount</th>
+                <th className="px-6 py-3 font-medium">Due Date</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-500">
+                    No invoices found for this society.
+                  </td>
+                </tr>
+              ) : (
+                invoices.map(inv => {
+                  const badge = getStatusBadge(inv.status);
+                  return (
+                    <tr key={inv.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-mono text-xs text-slate-400">{inv.id.substring(0, 8)}...</td>
+                      <td className="px-6 py-4 font-medium">{inv.flatId.substring(0, 8)}...</td>
+                      <td className="px-6 py-4">₹{inv.amount.toFixed(2)}</td>
+                      <td className="px-6 py-4">{new Date(inv.dueDate).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${badge.class}`}>{badge.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Billing;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\DailyHelp.tsx
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import { useState, useEffect } from 'react';
+import { getHelpTypes, getStaff, type HelpTypeDto, type StaffDto } from '../api/dailyHelp';
+import { useAuth } from '../context/AuthContext';
+//import { Loader2, Plus, Users } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+
+const DailyHelp = () => {
+  const { currentUser } = useAuth();
+  const [helpTypes, setHelpTypes] = useState<HelpTypeDto[]>([]);
+  const [staff, setStaff] = useState<StaffDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      if (!currentUser?.societyId) return;
+      setLoading(true);
+      try {
+        const [types, staffList] = await Promise.all([
+          getHelpTypes(currentUser.societyId),
+          getStaff(currentUser.societyId)
+        ]);
+        setHelpTypes(types);
+        setStaff(staffList);
+      } catch (err) {
+        console.error('Failed to fetch daily help data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [currentUser?.societyId]);
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Daily Help Management</h1>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={24} /></div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Help Types */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Help Types ({helpTypes.length})</h2>
+            <div className="bg-white rounded-lg border p-4 space-y-2">
+              {helpTypes.map(ht => (
+                <div key={ht.id} className="flex justify-between items-center py-2 border-b last:border-0">
+                  <span className="font-medium">{ht.name}</span>
+                </div>
+              ))}
+              {helpTypes.length === 0 && <p className="text-slate-500">No help types configured.</p>}
+            </div>
+          </div>
+
+          {/* Staff */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Staff ({staff.length})</h2>
+            <div className="bg-white rounded-lg border p-4 space-y-3">
+              {staff.map(s => (
+                <div key={s.id} className="border-b pb-3 last:border-0">
+                  <div className="font-medium">{s.name}</div>
+                  <div className="text-sm text-slate-500">{s.mobileNumber} · {s.helpTypeName}</div>
+                  {s.agencyName && <div className="text-xs text-slate-400">Agency: {s.agencyName}</div>}
+                </div>
+              ))}
+              {staff.length === 0 && <p className="text-slate-500">No staff registered.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DailyHelp;
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : MyGateAdminPortal\src\pages\Dashboard.tsx
+SIZE  : 7.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // src/pages/Dashboard.tsx
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getSocietyVisitors } from "../api/visitor";
+import { getSocietyInvoices } from "../api/billing";
+import { getSocietyTickets } from "../api/helpdesk";
+import * as signalR from "@microsoft/signalr";
+import { Users, Receipt, Ticket, Loader2 } from "lucide-react";
+
+// CRITICAL FIX: Prevent StrictMode from creating duplicate connections
+let isSignalRInitializing = false;
+
+const Dashboard = () => {
+  const { currentUser } = useAuth();
+  const [emergencyAlert, setEmergencyAlert] = useState<string | null>(null);
+
+  // Live Data States
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [pendingDuesCount, setPendingDuesCount] = useState<number | null>(null);
+  const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  const connectionRef = useRef<signalR.HubConnection | null>(null);
+
+  // 1. Fetch Context-Aware Data
+  useEffect(() => {
+    if (!currentUser?.societyId) return;
+
+    const fetchSocietyData = async () => {
+      setIsLoadingStats(true);
+      try {
+        const [visitors, invoices, tickets] = await Promise.all([
+          getSocietyVisitors(currentUser.societyId).catch(() => []),
+          getSocietyInvoices(currentUser.societyId).catch(() => []),
+          getSocietyTickets(currentUser.societyId).catch(() => []),
+        ]);
+
+        setVisitorCount(visitors.length);
+        setPendingDuesCount(invoices.filter((i) => i.status === 0).length);
+        setOpenTicketsCount(tickets.filter((t) => t.status === 0).length);
+      } catch (error) {
+        console.error("Failed to load dashboard stats", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchSocietyData();
+  }, [currentUser?.societyId]);
+
+  // 2. SignalR Emergency Listener
+  useEffect(() => {
+    if (!currentUser?.societyId) return;
+
+    // CRITICAL: Fetch the token to authenticate the Gateway connection
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      console.error("❌ No auth token found for SignalR connection.");
+      isSignalRInitializing = false; // Reset on failure
+      return;
+    }
+
+    console.log(
+      `🔌 Connecting to SignalR for Society: ${currentUser.societyId}`,
+    );
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl("http://localhost:5116/api/hubs/emergency", {
+        skipNegotiation: true,
+        transport: signalR.HttpTransportType.WebSockets,
+        accessTokenFactory: () => token,
+      }) // RealtimeGateway Port
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
+
+    connectionRef.current = connection;
+    // Listen for the exact method name invoked by the gateway
+    connection.on("ReceiveEmergencyAlert", (message) => {
+      console.log("🚨 EMERGENCY ALERT RECEIVED IN REACT:", message);
+      const description =
+        message?.description || "🚨 EMERGENCY ALERT TRIGGERED IN YOUR SOCIETY!";
+      setEmergencyAlert(description);
+    });
+
+    connection
+      .start()
+      .then(() => {
+        console.log("✅ SignalR Connected to Realtime$ateway");
+        return connection.invoke("JoinSocietyGroup", currentUser.societyId);
+      })
+      .then(() => {
+        console.log(`✅ Joined Society Group: ${currentUser.societyId}`);
+      })
+      .catch((err) => {
+        console.error("❌ SignalR Connection Error:", err);
+        isSignalRInitializing = false; // Reset on failure so it can retry
+      });
+    // Cleanup on unmount
+    return () => {
+      if (connectionRef.current) {
+        connectionRef.current.stop();
+        connectionRef.current = null;
+      }
+      isSignalRInitializing = false; // Reset when component unmounts
+    };
+  }, [currentUser?.societyId]);
+
+  // 3. Role-Based UI Text Helpers
+  const getRoleLabel = () => {
+    if (currentUser?.isSuperAdmin) return "SuperAdmin";
+    if (currentUser?.role === "Admin") return "Society Admin";
+    return "Resident";
+  };
+
+  const getScopeLabel = () => {
+    if (currentUser?.isSuperAdmin) return "Viewing data for selected society";
+    if (currentUser?.role === "Admin")
+      return "Viewing all data for your society";
+    return "Viewing data for your flat only";
+  };
+
+  return (
+    <div className="p-8">
+      {/* Emergency Alert Overlay */}
+      {emergencyAlert && (
+        <div className="fixed inset-0 bg-red-900/90 flex items-center justify-center z-50 p-8">
+          <div className="bg-white p-8 rounded-lg shadow-2xl text-center max-w-md">
+            <div className="text-5xl mb-4">🚨</div>
+            <h2 className="text-2xl font-bold text-red-700 mb-4">
+              EMERGENCY ALERT
+            </h2>
+            <p className="text-lg text-slate-800 mb-6">{emergencyAlert}</p>
+            <button
+              onClick={() => setEmergencyAlert(null)}
+              className="bg-red-600 text-white px-6 py-3 rounded-md font-bold hover:bg-red-700"
+            >
+              ACKNOWLEDGE
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+        <p className="text-slate-500 mt-1">
+          Logged in as{" "}
+          <span className="font-semibold text-indigo-600">
+            {getRoleLabel()}
+          </span>{" "}
+          • {getScopeLabel()}
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      {isLoadingStats ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="animate-spin text-slate-400 w-8 h-8" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Active Visitors Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className="p-3 bg-blue-50 rounded-full">
+              <Users className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-500">
+                Society Visitors
+              </h3>
+              <p className="text-2xl font-bold text-slate-800">
+                {visitorCount ?? "--"}
+              </p>
+            </div>
+          </div>
+
+          {/* Pending Dues Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className="p-3 bg-red-50 rounded-full">
+              <Receipt className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-500">
+                Pending Dues
+              </h3>
+              <p className="text-2xl font-bold text-slate-800">
+                {pendingDuesCount ?? "--"}
+              </p>
+            </div>
+          </div>
+
+          {/* Open Tickets Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className="p-3 bg-yellow-50 rounded-full">
+              <Ticket className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-500">
+                Open Tickets
+              </h3>
+              <p className="text-2xl font-bold text-slate-800">
+                {openTicketsCount ?? "--"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;
+
+

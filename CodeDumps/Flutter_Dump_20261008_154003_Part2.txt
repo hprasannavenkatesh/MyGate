@@ -1,0 +1,2427 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — Flutter  (continued — Part 2)
+║  Generated : 2026-10-08 15:40:04
+║  Root      : C:\MyGateApp\mygate_app
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_screen.dart
+SIZE  : 6.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/guard_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/emergency_service.dart';
+import 'login_screen.dart';
+import 'guard_verify_otp_screen.dart';
+import 'guard_walk_in_screen.dart';
+import 'guard_mark_exit_screen.dart';
+import 'guard_active_visitors_screen.dart';
+
+class GuardScreen extends StatefulWidget {
+  final String token;
+  const GuardScreen({super.key, required this.token});
+
+  @override
+  State<GuardScreen> createState() => _GuardScreenState();
+}
+
+class _GuardScreenState extends State<GuardScreen> {
+  String _societyName = '';
+  String _userRole = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContext();
+  }
+
+  Future<void> _loadContext() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = await AuthService.getUserRole();
+    
+    setState(() {
+      _userRole = role;
+      _societyName = prefs.getString('society_name') ?? 'Unknown Society';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Guard Portal'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout), 
+            tooltip: 'Logout',
+            onPressed: () async {
+              await AuthService.logout(); 
+              if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+            }
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // CONTEXT BANNER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+            color: Colors.orange.shade100,
+            child: Row(
+              children: [
+                const Icon(Icons.security, color: Colors.deepOrange),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_societyName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                      Text('Role: $_userRole', style: const TextStyle(color: Colors.deepOrange, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // GRID MENU
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: GridView.count(
+                crossAxisCount: 3, 
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.2,
+                children: [
+                  _buildNavCard('Verify OTP', Icons.password,  GuardVerifyOtpScreen()),
+                  _buildNavCard('Walk In', Icons.login,  GuardWalkInScreen()),
+                  _buildNavCard('Mark Exit', Icons.logout,  GuardMarkExitScreen()),
+                  _buildNavCard('Inside Now', Icons.people_alt,  GuardActiveVisitorsScreen()),
+                  _buildSosCard(), // Special SOS card
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Standard Nav Card
+  Widget _buildNavCard(String text, IconData icon, Widget screen) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: Colors.deepOrange.shade400), 
+              const SizedBox(height: 6),
+              Text(
+                text, 
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w600, 
+                  color: Colors.deepOrange.shade800 
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // SPECIAL: SOS Panic Card
+  Widget _buildSosCard() {
+    return Card(
+      elevation: 3,
+      color: Colors.red.shade50, // Fixed color shade
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.red, width: 2)),
+      child: InkWell(
+        onTap: () => _triggerPanic(),
+        borderRadius: BorderRadius.circular(8),
+        child: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.sos, size: 32, color: Colors.red), 
+              SizedBox(height: 6),
+              Text(
+                'SOS', 
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14, 
+                  fontWeight: FontWeight.bold, 
+                  color: Colors.red 
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _triggerPanic() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('🚨 Trigger SOS?'),
+        content: const Text('This will broadcast an emergency alert to all residents and admins in the society.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('TRIGGER SOS')),
+        ],
+      )
+    );
+
+    if (confirm == true) {
+      try {
+        await EmergencyService.triggerPanic(); 
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ SOS Broadcasted!'), backgroundColor: Colors.green));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_verify_otp_screen.dart
+SIZE  : 6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import '../services/auth_service.dart';
+
+class GuardVerifyOtpScreen extends StatefulWidget {
+  const GuardVerifyOtpScreen({super.key});
+
+  @override
+  State<GuardVerifyOtpScreen> createState() => _GuardVerifyOtpScreenState();
+}
+
+class _GuardVerifyOtpScreenState extends State<GuardVerifyOtpScreen> {
+  final _searchController = TextEditingController();
+  final _otpController = TextEditingController();
+  
+  List<dynamic> _searchResults = [];
+  Map<String, dynamic>? _selectedVisitor;
+  bool _isSearching = false;
+  bool _isVerifying = false;
+
+  Future<void> _searchVisitors() async {
+    if (_searchController.text.isEmpty) return;
+    setState(() { _isSearching = true; _selectedVisitor = null; });
+    
+    try {
+      // Fetch all society visitors and filter locally by Mobile or Name
+      final societyId = await AuthService.getSocietyId();
+      final allVisitors = await VisitorService.getSocietyVisitors(societyId);
+      
+      final query = _searchController.text.toLowerCase();
+      final results = allVisitors.where((v) => 
+        (v['visitorMobile']?.toString().toLowerCase().contains(query) ?? false) ||
+        (v['visitorName']?.toString().toLowerCase().contains(query) ?? false)
+      ).toList();
+
+      setState(() { _searchResults = results; _isSearching = false; });
+    } catch (e) {
+      setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_selectedVisitor == null || _otpController.text.isEmpty) return;
+    setState(() => _isVerifying = true);
+    
+    try {
+      final success = await VisitorService.guardVerifyOtp(_selectedVisitor!['id'], _otpController.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(success ? '✅ Entry Approved!' : '❌ Invalid OTP'), 
+          backgroundColor: success ? Colors.green : Colors.red
+        ));
+        if (success) {
+          _otpController.clear();
+          setState(() => _selectedVisitor = null);
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isVerifying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verify Pre-Approval OTP')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // SEARCH BOX
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search by Mobile or Name',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _searchVisitors),
+              ),
+              onSubmitted: (_) => _searchVisitors(),
+            ),
+            const SizedBox(height: 16),
+
+            // SEARCH RESULTS LIST
+            if (_isSearching) const CircularProgressIndicator(),
+            if (!_isSearching && _selectedVisitor == null)
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final v = _searchResults[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(v['visitorName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Mobile: ${v['visitorMobile']} | Date: ${v['expectedDate']?.substring(0, 10)}'),
+                        trailing: const Icon(Icons.arrow_forward),
+                        onTap: () => setState(() => _selectedVisitor = v),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            // SELECTED VISITOR & OTP ENTRY
+            if (_selectedVisitor != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Visitor: ${_selectedVisitor!['visitorName']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('Mobile: ${_selectedVisitor!['visitorMobile']}'),
+                    Text('Meeting Flat: ${_selectedVisitor!['flatId']?.substring(0, 8)}...'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 24, letterSpacing: 8),
+                decoration: const InputDecoration(labelText: 'Enter 4-Digit OTP from Visitor', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isVerifying ? null : _verifyOtp,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  child: _isVerifying ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Allow Entry', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedVisitor = null), 
+                child: const Text('← Search Again')
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\guard_walk_in_screen.dart
+SIZE  : 2.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import '../services/auth_service.dart';
+
+class GuardWalkInScreen extends StatefulWidget {
+  const GuardWalkInScreen({super.key});
+  @override
+  State<GuardWalkInScreen> createState() => _GuardWalkInScreenState();
+}
+
+class _GuardWalkInScreenState extends State<GuardWalkInScreen> {
+  final _nameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _purposeController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _walkIn() async {
+    if (_nameController.text.isEmpty) return;
+    setState(() => _isLoading = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final userId = await AuthService.getUserId();
+      final flatId = await AuthService.getFlatId(); // Guard's flat context
+
+      // 1. Pre-approve
+      final result = await VisitorService.preApproveVisitor({
+        'societyId': societyId,
+        'flatId': flatId, 
+        'invitedByUserId': userId,
+        'visitorName': _nameController.text,
+        'visitorMobile': _mobileController.text,
+        'purpose': _purposeController.text,
+        'expectedDate': DateTime.now().toIso8601String().split('T').first,
+      });
+
+      // 2. Immediate Manual Entry (No OTP)
+      await VisitorService.guardManualEntry(result['id'], 'Walk-in at gate');
+
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Walk-in Allowed!'), backgroundColor: Colors.green));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Walk-In Entry (No OTP)')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Visitor Name *', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _purposeController, decoration: const InputDecoration(labelText: 'Purpose (e.g., Delivery)', border: OutlineInputBorder())),
+            const Spacer(),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _walkIn, style: ElevatedButton.styleFrom(backgroundColor: Colors.orange), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Allow Entry'))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\home_screen.dart
+SIZE  : 9.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/home_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import 'package:signalr_netcore/signalr_client.dart' hide ConnectionState;
+import '../services/auth_service.dart';
+import '../services/api_config.dart';
+import 'login_screen.dart';
+import 'society_selection_screen.dart';
+import 'my_visitors_screen.dart';
+import 'my_dues_screen.dart';
+import 'my_tickets_screen.dart';
+import 'notice_board_screen.dart';
+import 'amenity_hub_screen.dart'; // Merged Hub
+import 'my_daily_help_screen.dart';
+import 'my_vehicles_screen.dart';
+import 'society_directory_screen.dart';
+import 'emergency_screen.dart';
+import 'admin_management_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late HubConnection _hubConnection;
+  bool _isHubConnected = false;
+
+  // Context state
+  String _societyName = '';
+  String _flatInfo = '';
+  String _userRole = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContext();
+    _initSignalR(); 
+  }
+/*
+  Future<void> _loadContext() async {
+    final societyId = await AuthService.getSocietyId();
+    final flatId = await AuthService.getFlatId();
+    final role = await AuthService.getUserRole();
+    
+    // You can expand this to fetch the actual Society Name from an API if needed
+    // For now, showing the IDs so the user knows exactly which context they are in.
+    setState(() {
+      _userRole = role;
+      _societyName = 'Society: $societyId'; 
+      _flatInfo = 'Flat: $flatId';
+    });
+  }*/
+    Future<void> _loadContext() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = await AuthService.getUserRole();
+    
+    setState(() {
+      _userRole = role;
+      _societyName = prefs.getString('society_name') ?? 'Unknown Society'; 
+      _flatInfo = '${prefs.getString('block_name') ?? 'Block'} - ${prefs.getString('flat_number') ?? 'Flat'}';
+    });
+  }
+
+  Future<void> _initSignalR() async {
+    final societyId = await AuthService.getSocietyId();
+    if (societyId.isEmpty) return;
+
+
+    _hubConnection = HubConnectionBuilder()
+        .withUrl("${ApiConfig.emergencyGateway}/hubs/emergency",
+        options: HttpConnectionOptions(
+          transport: HttpTransportType.WebSockets,
+          logger: null,
+        ))           
+        .withAutomaticReconnect()
+        .build();
+
+    _hubConnection.on("ReceiveEmergencyAlert", (message) {
+      if (mounted) _showEmergencyPopup(message);
+    });
+
+    try {
+      await _hubConnection.start();
+      await _hubConnection.invoke("JoinSocietyGroup", args: [societyId]);
+      setState(() => _isHubConnected = true);
+    } catch (e) {
+      debugPrint("SignalR init failed: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Determine if user is an Admin type
+    bool isAdmin = _userRole == 'Admin' || _userRole == 'SuperAdmin';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('MyGate Dashboard'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz), 
+            tooltip: 'Switch Society/Flat',
+            onPressed: () async {
+              final token = await AuthService.getToken();
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context, 
+                  MaterialPageRoute(builder: (context) => SocietySelectionScreen(token: token))
+                );
+              }
+            }
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout), 
+            tooltip: 'Logout',
+            onPressed: () async {
+              await AuthService.logout(); 
+              if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+            }
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // CONTEXT BANNER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+            color: Colors.indigo.shade100,
+            child: Row(
+              children: [
+                const Icon(Icons.apartment, color: Colors.indigo),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_societyName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                      Text(_flatInfo, style: const TextStyle(color: Colors.indigo, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                if (_isHubConnected)
+                  const Row(
+                    children: [
+                      Icon(Icons.wifi, color: Colors.green, size: 14),
+                      SizedBox(width: 4),
+                      Text('SOS Active', style: TextStyle(color: Colors.green, fontSize: 12)),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+
+          // GRID MENU
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: GridView.count(
+                crossAxisCount: 3, // 3 columns to save vertical space
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.2, // Makes cards shorter
+                children: [
+                  _buildNavCard('Visitors', Icons.people, const MyVisitorsScreen()),
+                  _buildNavCard('Dues', Icons.receipt_long, const MyDuesScreen()),
+                  _buildNavCard('Tickets', Icons.support_agent, const MyTicketsScreen()),
+                  _buildNavCard('Notices', Icons.campaign, const NoticeBoardScreen()),
+                  _buildNavCard('Amenities', Icons.pool, const AmenityHubScreen()), // Merged Hub
+                  _buildNavCard('Daily Help', Icons.cleaning_services, const MyDailyHelpScreen()),
+                  _buildNavCard('Vehicles', Icons.directions_car, const MyVehiclesScreen()),
+                  _buildNavCard('Directory', Icons.contact_phone, const SocietyDirectoryScreen()),
+                  _buildNavCard('Emergency', Icons.sos, const EmergencyScreen()),
+                  
+                  // HIDE ADMIN FOR RESIDENTS
+                  if (isAdmin) 
+                    _buildNavCard('Admin', Icons.admin_panel_settings, const AdminManagementScreen()),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Compact Card Button
+  Widget _buildNavCard(String text, IconData icon, Widget screen) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: Colors.indigo.shade400), 
+              const SizedBox(height: 6),
+              Text(
+                text, 
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w600, 
+                  color: Colors.indigo.shade800 
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEmergencyPopup(dynamic messageData) {
+    String description = "Emergency Alert Triggered!";
+    if (messageData is Map) {
+      description = messageData['description'] ?? description;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.red.shade900,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.yellow, size: 40),
+              SizedBox(width: 10),
+              Text('EMERGENCY ALERT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(description, style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5), textAlign: TextAlign.center),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.red.shade900),
+                child: const Text('ACKNOWLEDGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    try {
+      if (_hubConnection.state != HubConnectionState.Disconnected) {
+        _hubConnection.stop();
+      }
+    } catch (e) {
+      debugPrint("SignalR dispose skipped: $e");
+    }
+    super.dispose();
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\login_screen.dart
+SIZE  : 9.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/login_screen.dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
+import '../services/api_config.dart';
+import 'society_selection_screen.dart'; 
+import 'guard_screen.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isGuardMode = false; 
+  final _mobileController = TextEditingController();
+  final _otpController = TextEditingController();
+  bool _isLoading = false;
+  bool _isOtpSent = false;
+  String? _jwtToken;
+
+ /* Future<void> _navigateToGuardWithContext(String basicToken) async {
+    try {
+      final userId = await AuthService.getUserId();
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.mySocietiesUrl}?userId=$userId'),
+        headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final societies = jsonDecode(response.body) as List;
+        if (societies.isEmpty) throw Exception('No society assigned to this guard.');
+
+        final society = societies[0];
+        final contextResponse = await http.post(
+          Uri.parse(ApiConfig.selectContextUrl),
+          headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'userId': userId,
+            'societyId': society['societyId'],
+            'flatId': society['flatId'],
+            'memberType': society['memberType'],
+          }),
+        );
+
+        if (contextResponse.statusCode == 200) {
+          final data = jsonDecode(contextResponse.body);
+          final fatToken = data['token'];
+
+          await AuthService.cacheTokenClaims(fatToken);   
+          final prefs = await SharedPreferences.getInstance(); // Keep for local fallbacks if needed
+          await prefs.setString('society_id', society['societyId']);
+          await prefs.setString('flat_id', society['flatId']);
+          await prefs.setString('flat_number', society['flatNumber']);
+
+          if (mounted) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (ctx) => GuardScreen(token: fatToken)));
+          }
+        } else {
+          throw Exception('Failed to generate guard context token.');
+        }
+      } else {
+        throw Exception('Failed to fetch guard societies.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Guard Login Error: $e')));
+      }
+    }
+  }*/
+
+    Future<void> _navigateToGuardWithContext(String basicToken) async {
+    try {
+      final userId = await AuthService.getUserId();
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.mySocietiesUrl}?userId=$userId'),
+        headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final societies = jsonDecode(response.body) as List;
+        
+        if (societies.isEmpty) {
+          throw Exception('No society assigned to this guard. Please contact Admin.');
+        }
+
+        // If Guard belongs to only 1 society, auto-select it (Fast Path)
+        if (societies.length == 1) {
+          final society = societies[0];
+          final contextResponse = await http.post(
+            Uri.parse(ApiConfig.selectContextUrl),
+            headers: {'Authorization': 'Bearer $basicToken', 'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'userId': userId,
+              'societyId': society['societyId'],
+              'flatId': society['flatId'],
+              'memberType': society['memberType'],
+            }),
+          );
+
+          if (contextResponse.statusCode == 200) {
+            final data = jsonDecode(contextResponse.body);
+            final fatToken = data['token'];
+
+            await AuthService.cacheTokenClaims(fatToken);   
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('society_id', society['societyId']);
+            await prefs.setString('flat_id', society['flatId']);
+            await prefs.setString('flat_number', society['flatNumber']);
+
+            if (mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (ctx) => GuardScreen(token: fatToken)));
+            }
+          } else {
+            throw Exception('Failed to generate guard context token.');
+          }
+        } else {
+          // If Guard belongs to >1 society, force them to pick (Standard Path)
+          if (mounted) {
+            Navigator.pushReplacement(
+              context, 
+              MaterialPageRoute(builder: (ctx) => SocietySelectionScreen(token: basicToken))
+            );
+          }
+        }
+      } else {
+        throw Exception('Failed to fetch guard societies.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Guard Login Error: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  Future<void> _requestOtp() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.requestOtpUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobileNumber': _mobileController.text}),
+      );
+      if (response.statusCode == 200) setState(() => _isOtpSent = true);
+      else _showError('Failed to send OTP');
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.loginUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobileNumber': _mobileController.text, 'otp': _otpController.text}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => _jwtToken = data['token']);
+        
+        await AuthService.cacheTokenClaims(_jwtToken!);
+
+        if (_isGuardMode) {
+          _navigateToGuardWithContext(_jwtToken!);
+        } else {
+          if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => SocietySelectionScreen(token: _jwtToken!)));
+        }
+      } else {
+        _showError('Invalid OTP');
+      }
+    } catch (e) {
+      _showError('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(_isGuardMode ? Icons.security : Icons.lock_person, size: 80, color: _isGuardMode ? Colors.orange : Colors.blue),
+            const SizedBox(height: 20),
+            Text(_isGuardMode ? 'Guard Portal' : 'Welcome to MyGate', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            
+            TextButton.icon(
+              onPressed: () => setState(() => _isGuardMode = !_isGuardMode),
+              icon: Icon(_isGuardMode ? Icons.check_box : Icons.check_box_outline_blank, color: Colors.orange),
+              label: const Text('Login as Security Guard', style: TextStyle(color: Colors.orange)),
+            ),
+            const SizedBox(height: 40),
+            
+            if (!_isOtpSent) ...[
+              TextField(controller: _mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone))),
+              const SizedBox(height: 20),
+              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _requestOtp, child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Send OTP', style: TextStyle(fontSize: 18)))),
+                     ] else ...[
+            TextField(controller: _otpController, keyboardType: TextInputType.number, maxLength: 4, decoration: const InputDecoration(labelText: '4-Digit OTP', border: OutlineInputBorder(), prefixIcon: Icon(Icons.password))),
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : _verifyOtp, style: ElevatedButton.styleFrom(backgroundColor: _isGuardMode ? Colors.orange : Colors.green), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Login', style: TextStyle(fontSize: 18)))),
+            
+            // --- ADD THIS HERE ---
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isOtpSent = false;
+                  _otpController.clear();
+                });
+              },
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text('Change Mobile Number'),
+            ),
+          ]
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_bookings_screen.dart
+SIZE  : 5.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_bookings_screen.dart
+import 'package:flutter/material.dart';
+import '../services/amenity_service.dart';
+
+class MyBookingsScreen extends StatefulWidget {
+  const MyBookingsScreen({super.key});
+
+  @override
+  State<MyBookingsScreen> createState() => _MyBookingsScreenState();
+}
+
+class _MyBookingsScreenState extends State<MyBookingsScreen> {
+  List<dynamic> _bookings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookings();
+  }
+
+  Future<void> _fetchBookings() async {
+    try {
+      final bookings = await AmenityService.getMyBookings();
+      if (mounted) {
+        setState(() {
+          _bookings = bookings;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _cancelBooking(String bookingId, String societyId) async {
+    try {
+      final isSuccess = await AmenityService.cancelBooking(bookingId, societyId);
+      if (isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking Cancelled!'), backgroundColor: Colors.orange));
+        _fetchBookings(); 
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to cancel'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Pending';
+      case 1: return 'Approved';
+      case 2: return 'Rejected';
+      case 3: return 'Cancelled';
+      case 4: return 'Completed';
+      default: return 'Unknown';
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 0: return Colors.orange;
+      case 1: return Colors.green;
+      case 2: return Colors.red;
+      case 3: return Colors.grey;
+      case 4: return Colors.blue;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Amenity Bookings'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _bookings.isEmpty
+              ? const Center(child: Text('No bookings made yet.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _bookings.length,
+                  itemBuilder: (context, index) {
+                    final b = _bookings[index];
+                    final status = b['status'] is int ? b['status'] as int : 0;
+                    bool canCancel = (status == 0 || status == 1);
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(b['amenityName'] ?? 'Amenity', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 4),
+                                      Text('${b['bookingDate']} • ${b['startTime']} - ${b['endTime']}', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                                      if (b['rejectionReason'] != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Text('Reason: ${b['rejectionReason']}', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(status).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _getStatusText(status),
+                                    style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (canCancel)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () => _cancelBooking(b['id'], b['societyId']),
+                                  child: const Text('Cancel Booking', style: TextStyle(color: Colors.red)),
+                                ),
+                              )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_daily_help_screen.dart
+SIZE  : 1.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_daily_help_screen.dart
+import 'package:flutter/material.dart';
+import '../services/daily_help_service.dart';
+
+class MyDailyHelpScreen extends StatefulWidget {
+  const MyDailyHelpScreen({super.key});
+
+  @override
+  State<MyDailyHelpScreen> createState() => _MyDailyHelpScreenState();
+}
+
+class _MyDailyHelpScreenState extends State<MyDailyHelpScreen> {
+  List<dynamic> _helpers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHelpers();
+  }
+
+  Future<void> _fetchHelpers() async {
+    try {
+      final helpers = await DailyHelpService.getMyDailyHelp();
+      if (mounted) setState(() { _helpers = helpers; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Daily Help'), backgroundColor: Colors.lightGreen),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _helpers.isEmpty 
+              ? const Center(child: Text('No daily help assigned.'))
+              : ListView.builder(
+                  itemCount: _helpers.length,
+                  itemBuilder: (context, index) {
+                    final h = _helpers[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person, size: 40),
+                        title: Text(h['name'] ?? 'Helper', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(h['helpType'] ?? 'N/A'),
+                        trailing: Text(h['mobileNumber'] ?? '', style: const TextStyle(color: Colors.grey)),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_dues_screen.dart
+SIZE  : 2.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_dues_screen.dart
+import 'package:flutter/material.dart';
+import '../services/billing_service.dart'; // FIX: Added missing import
+
+class MyDuesScreen extends StatefulWidget {
+  const MyDuesScreen({super.key});
+
+  @override
+  State<MyDuesScreen> createState() => _MyDuesScreenState();
+}
+
+class _MyDuesScreenState extends State<MyDuesScreen> {
+  List<dynamic> _dues = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDues();
+  }
+
+  Future<void> _fetchDues() async {
+    try {
+      final dues = await BillingService.getMyDues();
+      if (mounted) {
+        setState(() {
+          _dues = dues;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Maintenance Dues'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _dues.isEmpty
+              ? const Center(child: Text('No dues found.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _dues.length,
+                  itemBuilder: (context, index) {
+                    final d = _dues[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: const Icon(Icons.receipt, color: Colors.purple, size: 40),
+                        title: Text(d['description'] ?? 'Maintenance Due', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Due Date: ${d['dueDate'].toString().substring(0, 10)}'),
+                        trailing: Text('₹${d['amount']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_tickets_screen.dart
+SIZE  : 2.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_tickets_screen.dart
+import 'package:flutter/material.dart';
+import '../services/helpdesk_service.dart';
+import 'raise_ticket_screen.dart';
+import 'ticket_detail_screen.dart';
+
+class MyTicketsScreen extends StatefulWidget {
+  const MyTicketsScreen({super.key});
+
+  @override
+  State<MyTicketsScreen> createState() => _MyTicketsScreenState();
+}
+
+class _MyTicketsScreenState extends State<MyTicketsScreen> {
+  List<dynamic> _tickets = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTickets();
+  }
+
+  Future<void> _fetchTickets() async {
+    try {
+      final tickets = await HelpdeskService.getMyTickets();
+      if (mounted) setState(() { _tickets = tickets; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Open';
+      case 1: return 'In Progress';
+      case 2: return 'Resolved';
+      case 3: return 'Closed';
+      default: return 'Unknown';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Support Tickets')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (context) => const RaiseTicketScreen()));
+          _fetchTickets(); // Refresh after adding
+        },
+        child: const Icon(Icons.add),
+      ),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _tickets.isEmpty 
+              ? const Center(child: Text('No tickets raised yet.'))
+              : ListView.builder(
+                  itemCount: _tickets.length,
+                  itemBuilder: (context, index) {
+                    final t = _tickets[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(t['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(t['category'] ?? 'General'),
+                        trailing: Chip(label: Text(_getStatusText(t['status'] ?? 0))),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => TicketDetailScreen(ticketId: t['id']))),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_vehicles_screen.dart
+SIZE  : 2.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_vehicles_screen.dart
+import 'package:flutter/material.dart';
+import '../services/vehicle_service.dart';
+import 'register_vehicle_screen.dart';
+
+class MyVehiclesScreen extends StatefulWidget {
+  const MyVehiclesScreen({super.key});
+
+  @override
+  State<MyVehiclesScreen> createState() => _MyVehiclesScreenState();
+}
+
+class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
+  List<dynamic> _vehicles = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVehicles();
+  }
+
+  Future<void> _fetchVehicles() async {
+    try {
+      final vehicles = await VehicleService.getMyVehicles();
+      if (mounted) {
+        setState(() {
+          _vehicles = vehicles;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Vehicles'),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterVehicleScreen()));
+          if (result == true) _fetchVehicles(); 
+        },
+        icon: const Icon(Icons.add), // CORRECT SYNTAX
+        label: const Text('Add Vehicle'), // CORRECT SYNTAX
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _vehicles.isEmpty
+              ? const Center(child: Text('No vehicles registered.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _vehicles.length,
+                  itemBuilder: (context, index) {
+                    final v = _vehicles[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: Icon(v['vehicleType'] == 0 ? Icons.two_wheeler : Icons.directions_car, size: 40, color: Colors.blue.shade700),
+                        title: Text(v['vehicleNumber'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                        subtitle: Text(v['makeModel'] ?? 'N/A'),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\my_visitors_screen.dart
+SIZE  : 3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/my_visitors_screen.dart
+import 'package:flutter/material.dart';
+import '../services/visitor_service.dart';
+import 'add_visitor_screen.dart';
+
+class MyVisitorsScreen extends StatefulWidget {
+  const MyVisitorsScreen({super.key});
+
+  @override
+  State<MyVisitorsScreen> createState() => _MyVisitorsScreenState();
+}
+
+class _MyVisitorsScreenState extends State<MyVisitorsScreen> {
+  List<dynamic> _visitors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVisitors();
+  }
+
+  Future<void> _fetchVisitors() async {
+    try {
+      final visitors = await VisitorService.getMyVisitors();
+      if (mounted) {
+        setState(() { 
+          _visitors = visitors; 
+          _isLoading = false; 
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Visitors'),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddVisitorScreen()));
+        },
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Visitor'),
+      ),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _visitors.isEmpty 
+              ? const Center(
+                  child: Text(
+                    'No visitors pre-approved yet.\nTap + to add one.', 
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, color: Colors.grey)
+                  )
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _visitors.length,
+                  itemBuilder: (context, index) {
+                    final v = _visitors[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person_outline, size: 40),
+                        title: Text(v['visitorName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Mobile: ${v['visitorMobile']}'),
+                            Text('Date: ${v['expectedDate'].toString().substring(0, 10)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                        trailing: Chip(
+                          label: Text(v['status'] == 0 ? 'Pending' : 'Expired'),
+                          backgroundColor: v['status'] == 0 ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\notice_board_screen.dart
+SIZE  : 2.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/notice_board_screen.dart
+import 'package:flutter/material.dart';
+import '../services/notice_service.dart';
+
+class NoticeBoardScreen extends StatefulWidget {
+  const NoticeBoardScreen({super.key});
+
+  @override
+  State<NoticeBoardScreen> createState() => _NoticeBoardScreenState();
+}
+
+class _NoticeBoardScreenState extends State<NoticeBoardScreen> {
+  List<dynamic> _notices = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotices();
+  }
+
+  Future<void> _fetchNotices() async {
+    try {
+      final notices = await NoticeService.getNotices();
+      if (mounted) setState(() { _notices = notices; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notice Board'), backgroundColor: Colors.teal),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _notices.isEmpty 
+              ? const Center(child: Text('No notices available.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: _notices.length,
+                  itemBuilder: (context, index) {
+                    final n = _notices[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(n['title'] ?? 'Notice', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text(n['content'] ?? '', style: const TextStyle(fontSize: 14)),
+                            const SizedBox(height: 8),
+                            Text(n['createdAt'].toString().substring(0, 10), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\raise_ticket_screen.dart
+SIZE  : 4.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/raise_ticket_screen.dart
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/helpdesk_service.dart';
+
+class RaiseTicketScreen extends StatefulWidget {
+  const RaiseTicketScreen({super.key});
+
+  @override
+  State<RaiseTicketScreen> createState() => _RaiseTicketScreenState();
+}
+
+class _RaiseTicketScreenState extends State<RaiseTicketScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  final _categoryController = TextEditingController();
+  
+  int _selectedPriority = 1; 
+  bool _isLoading = false;
+
+  Future<void> _submitTicket() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final flatId = await AuthService.getFlatId();
+
+      final isSuccess = await HelpdeskService.raiseTicket({
+        'societyId': societyId,
+        'flatId': flatId,
+        'title': _titleController.text,
+        'description': _descController.text,
+        'category': _categoryController.text,
+        'priority': _selectedPriority
+      });
+
+      if (isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎉 Ticket submitted successfully!'), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      } else {
+        _showError('Failed to submit ticket');
+      }
+    } catch (e) { 
+      _showError('Error: $e'); 
+    } finally { 
+      setState(() => _isLoading = false); 
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Raise Support Ticket'), centerTitle: true),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Subject / Title *', border: OutlineInputBorder(), prefixIcon: Icon(Icons.title)),
+                validator: (val) => val!.isEmpty ? 'Title is required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Describe your issue in detail *',
+                  border: OutlineInputBorder(), 
+                  prefixIcon: Icon(Icons.description),
+                  hintText: "E.g., The water pressure in Block A is very low today...",
+                ),
+                validator: (val) => val!.isEmpty ? 'Description is required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _categoryController,
+                decoration: const InputDecoration(labelText: 'Category (e.g., Plumbing, Electrical)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.category)),
+              ),
+              const SizedBox(height: 24),
+              DropdownButtonFormField(
+                value: _selectedPriority,
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Low Priority')),
+                  DropdownMenuItem(value: 1, child: Text('Medium Priority (Default)')),
+                  DropdownMenuItem(value: 2, child: Text('High Priority')),
+                  DropdownMenuItem(value: 3, child: Text('Critical Priority')),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Priority *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.priority_high),
+                  suffixIcon: Icon(Icons.arrow_drop_down),
+                ),
+                onChanged: (val) => setState(() => _selectedPriority = val!),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submitTicket,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Submit Ticket', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\register_vehicle_screen.dart
+SIZE  : 4.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/register_vehicle_screen.dart
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/vehicle_service.dart';
+
+class RegisterVehicleScreen extends StatefulWidget {
+  const RegisterVehicleScreen({super.key});
+
+  @override
+  State<RegisterVehicleScreen> createState() => _RegisterVehicleScreenState();
+}
+
+class _RegisterVehicleScreenState extends State<RegisterVehicleScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _vehicleNumberController = TextEditingController();
+  final _makeModelController = TextEditingController();
+  int _selectedType = 0; 
+  bool _isLoading = false;
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final societyId = await AuthService.getSocietyId();
+      final flatId = await AuthService.getFlatId();
+
+      final isSuccess = await VehicleService.registerVehicle({
+        'societyId': societyId,
+        'flatId': flatId,
+        'vehicleNumber': _vehicleNumberController.text.trim().toUpperCase(),
+        'vehicleType': _selectedType,
+        'makeModel': _makeModelController.text.trim(),
+      });
+
+      if (isSuccess) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('🎉 Vehicle Registered!'), backgroundColor: Colors.green),
+          );
+          Navigator.pop(context, true); 
+        }
+      } else {
+        _showError('Failed to register vehicle.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+  }
+
+  @override
+  void dispose() {
+    _vehicleNumberController.dispose();
+    _makeModelController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Register Vehicle'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _selectedType,
+                    isExpanded: true,
+                    items: const [
+                      DropdownMenuItem(value: 0, child: Text('2-Wheeler (Bike/Scooter)')),
+                      DropdownMenuItem(value: 1, child: Text('4-Wheeler (Car)')),
+                    ],
+                    onChanged: (val) => setState(() => _selectedType = val!),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _vehicleNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'Vehicle Number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.directions_car),
+                  hintText: 'e.g., KA-01-M-1234',
+                ),
+                validator: (val) => val!.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _makeModelController,
+                decoration: const InputDecoration(
+                  labelText: 'Make & Model (Optional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.info_outline),
+                  hintText: 'e.g., Honda City',
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _register,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Register Vehicle', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\society_directory_screen.dart
+SIZE  : 7.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/society_directory_screen.dart
+import 'package:flutter/material.dart';
+import '../services/directory_service.dart';
+
+class SocietyDirectoryScreen extends StatefulWidget {
+  const SocietyDirectoryScreen({super.key});
+
+  @override
+  State<SocietyDirectoryScreen> createState() => _SocietyDirectoryScreenState();
+}
+
+class _SocietyDirectoryScreenState extends State<SocietyDirectoryScreen> {
+  List<dynamic> _entries = [];
+  List<dynamic> _filteredEntries = [];
+  bool _isLoading = true;
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final entries = await DirectoryService.getSocietyDirectory();
+      if (mounted) {
+        setState(() {
+          _entries = entries;
+          _filteredEntries = _entries;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _filterSearch(String query) {
+    if (query.isEmpty) {
+      setState(() => _filteredEntries = _entries);
+    } else {
+      setState(() {
+        _filteredEntries = _entries.where((e) {
+          final name = (e['name'] ?? '').toLowerCase();
+          final number = (e['contactNumber'] ?? '').toLowerCase();
+          final category = (e['category'] ?? '').toLowerCase();
+          return name.contains(query.toLowerCase()) || 
+                 number.contains(query.toLowerCase()) ||
+                 category.contains(query.toLowerCase());
+        }).toList();
+      });
+    }
+  }
+
+  Map<String, List<dynamic>> _groupedByCategory() {
+    final map = <String, List<dynamic>>{};
+    for (var entry in _filteredEntries) {
+      final cat = entry['category'] ?? 'Other';
+      if (!map.containsKey(cat)) map[cat] = [];
+      map[cat]!.add(entry);
+    }
+    return map;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = _groupedByCategory();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Society Directory'),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _filterSearch,
+              decoration: InputDecoration(
+                hintText: 'Search by name, number, or category...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+            ),
+          ),
+          
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredEntries.isEmpty
+                    ? const Center(child: Text('No contacts found.', style: TextStyle(fontSize: 18, color: Colors.grey)))
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 20.0),
+                        itemCount: grouped.keys.length,
+                        itemBuilder: (context, index) {
+                          final category = grouped.keys.elementAt(index);
+                          final contacts = grouped[category]!;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                child: Text(
+                                  category.toUpperCase(),
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.brown, letterSpacing: 1.2),
+                                ),
+                              ),
+                              // Contacts in this category
+                              for (var contact in contacts)
+                                Card(
+                                  margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: Colors.brown.shade100,
+                                      child: Text(
+                                        contact['name'][0],
+                                        style: TextStyle(color: Colors.brown.shade800, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    title: Text(contact['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Text(contact['contactNumber'], style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                          ],
+                                        ),
+                                        if (contact['address'] != null && contact['address'].isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 2.0),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    contact['address'], 
+                                                    style: const TextStyle(color: Colors.grey, fontSize: 12), 
+                                                    overflow: TextOverflow.ellipsis
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.call, color: Colors.green),
+                                      onPressed: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Call ${contact['contactNumber']}'))
+                                        );
+                                      },
+                                    ),
+                                  ), // End of ListTile
+                                ), // End of Card
+                            ], // End of Column children
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\society_selection_screen.dart
+SIZE  : 4.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/society_selection_screen.dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
+import '../services/api_config.dart';
+import 'home_screen.dart';
+import 'login_screen.dart';
+
+class SocietySelectionScreen extends StatefulWidget {
+  final String token;
+  const SocietySelectionScreen({super.key, required this.token});
+
+  @override
+  State<SocietySelectionScreen> createState() => _SocietySelectionScreenState();
+}
+
+class _SocietySelectionScreenState extends State<SocietySelectionScreen> {
+  List<dynamic> _societies = [];
+  bool _isLoading = true;
+
+  Future<void> _fetchSocieties() async {
+    try {
+      final userId = await AuthService.getUserId();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.mySocietiesUrl}?userId=$userId'),
+        headers: {'Authorization': 'Bearer ${widget.token}', 'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        setState(() { _societies = jsonDecode(response.body); _isLoading = false; });
+      } else { _showError('Failed to load societies'); }
+    } catch (e) {  
+      _showError('Error: $e'); setState(() => _isLoading = false); }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void initState() { super.initState(); _fetchSocieties(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select Your Flat'), actions: [
+        IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+           await AuthService.logout();
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>  LoginScreen()));
+        })
+      ]),
+      body: _isLoading ? const Center(child: CircularProgressIndicator()) : ListView.builder(
+        itemCount: _societies.length,
+        itemBuilder: (context, index) {
+          final society = _societies[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListTile(
+              leading: const Icon(Icons.apartment, color: Colors.blue, size: 40),
+              title: Text(society['societyName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Block: ${society['blockName']} - Flat: ${society['flatNumber']}'),
+              trailing: Chip(label: Text(society['memberType']), backgroundColor: Colors.blue.withOpacity(0.1)),
+            // Inside society_selection_screen.dart -> onTap
+onTap: () async {
+  final currentToken = await AuthService.getToken();
+  final userId = await AuthService.getUserId();
+  //await prefs.setString('flat_number', society['flatNumber'] ?? ''); 
+
+  try {
+    final response = await http.post(
+      Uri.parse(ApiConfig.selectContextUrl),
+      headers: {'Authorization': 'Bearer $currentToken', 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'societyId': society['societyId'],
+        'flatId': society['flatId'],
+        'memberType': society['memberType']
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final newContextToken = data['token'];
+
+      await AuthService.cacheTokenClaims(newContextToken);     
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Save IDs
+      await prefs.setString('society_id', society['societyId']);
+      await prefs.setString('flat_id', society['flatId']);
+      
+      // SAVE HUMAN-READABLE NAMES
+      await prefs.setString('society_name', society['societyName'] ?? '');
+      await prefs.setString('block_name', society['blockName'] ?? '');
+      await prefs.setString('flat_number', society['flatNumber'] ?? ''); 
+      
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      }
+    } else {
+      _showError('Failed to generate context token');
+    }
+  } catch (e) {
+    _showError('Error: $e');
+  }
+}
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\ticket_detail_screen.dart
+SIZE  : 5.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/ticket_detail_screen.dart
+import 'package:flutter/material.dart';
+import '../services/helpdesk_service.dart';
+
+class TicketDetailScreen extends StatefulWidget {
+  final String ticketId;
+  const TicketDetailScreen({super.key, required this.ticketId});
+
+  @override
+  State<TicketDetailScreen> createState() => _TicketDetailScreenState();
+}
+
+class _TicketDetailScreenState extends State<TicketDetailScreen> {
+  Map<String, dynamic>? _ticket;
+  List<dynamic> _comments = [];
+  bool _isLoading = true;
+  final _commentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetails();
+  }
+
+  Future<void> _fetchDetails() async {
+    try {
+      final data = await HelpdeskService.getTicketDetails(widget.ticketId);
+      if (mounted) {
+        setState(() {
+          _ticket = data;
+          _comments = data['comments'] ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _postComment() async {
+    if (_commentController.text.trim().isEmpty) return;
+
+    try {
+      final isSuccess = await HelpdeskService.addComment(
+        widget.ticketId, 
+        _commentController.text, 
+        false // isAdminComment = false
+      );
+
+      if (isSuccess) {
+        _commentController.clear();
+        _fetchDetails(); 
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to post comment')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Open';
+      case 1: return 'In Progress';
+      case 2: return 'Resolved';
+      case 3: return 'Closed';
+      default: return 'Unknown';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_ticket?['title'] ?? 'Ticket Details'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.grey.shade200,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Status: ${_getStatusText(_ticket?['status'] ?? 0)}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      const SizedBox(height: 8),
+                      Text(_ticket?['description'] ?? '', style: const TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                ),
+                
+                Expanded(
+                  child: _comments.isEmpty
+                      ? const Center(child: Text('No comments yet. Wait for admin to respond.'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _comments.length,
+                          itemBuilder: (context, index) {
+                            final c = _comments[index];
+                            bool isAdmin = c['isAdminComment'] == true;
+                            
+                            return Align(
+                              alignment: isAdmin ? Alignment.centerLeft : Alignment.centerRight,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isAdmin ? Colors.blue.shade100 : Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(isAdmin ? '👨‍💼 Admin' : '👤 You', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isAdmin ? Colors.blue : Colors.orange)),
+                                    Text(c['commentText'], style: const TextStyle(fontSize: 14)),
+                                    Text(c['createdAt'].toString().substring(0, 16), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _commentController,
+                          decoration: const InputDecoration(
+                            labelText: 'Add a comment...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Colors.blue),
+                        onPressed: _postComment,
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\services\amenity_service.dart
+SIZE  : 2.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/services/amenity_service.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'auth_service.dart';
+import 'api_config.dart';
+
+class AmenityService {
+  static Future<Map<String, String>> _getHeaders() async {
+    final token = await AuthService.getToken();
+    return {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'};
+  }
+
+  // FIX: Aligned with [HttpGet("society/{societyId}")] in AmenitiesController
+  static Future<List<dynamic>> getAmenities() async {
+    final societyId = await AuthService.getSocietyId();
+    final headers = await _getHeaders();
+    
+    final response = await http.get(
+      Uri.parse('${ApiConfig.amenityBaseUrl}/society/$societyId'), 
+      headers: headers,
+    );
+    
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load amenities: ${response.body}');
+  }
+
+  // FIX: Aligned with [HttpGet("my-bookings")] + [FromQuery] Guid societyId in BookingsController
+  static Future<List<dynamic>> getMyBookings() async {
+    final societyId = await AuthService.getSocietyId();
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('${ApiConfig.bookingsBaseUrl}/my-bookings?societyId=$societyId'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load bookings');
+  }
+
+  // FIX: Aligned with [HttpPut("{id}/cancel")] + [FromQuery] Guid societyId
+  static Future<bool> cancelBooking(String bookingId, String societyId) async {
+    final headers = await _getHeaders();
+    final response = await http.put(
+      Uri.parse('${ApiConfig.bookingsBaseUrl}/$bookingId/cancel?societyId=$societyId'),
+      headers: headers,
+    );
+    return response.statusCode == 204 || response.statusCode == 200;
+  }
+
+  // NEW: Aligned with [HttpGet("slots/available")]
+  static Future<List<dynamic>> getAvailableSlots(String amenityId, String societyId, String date) async {
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('${ApiConfig.bookingsBaseUrl}/slots/available?amenityId=$amenityId&societyId=$societyId&date=$date'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load available slots');
+  }
+
+  // NEW: Aligned with [HttpPost] in BookingsController
+  static Future<bool> createBooking(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse(ApiConfig.bookingsBaseUrl),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 201 || response.statusCode == 200;
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\services\api_config.dart
+SIZE  : 2.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/services/api_config.dart
+class ApiConfig {
+  // ─── SERVICE PORTS ───
+  static const String identityService = 'http://localhost:5103';
+  static const String tenantService   = 'http://localhost:5104';
+  static const String visitorService  = 'http://localhost:5105';
+  static const String billingService  = 'http://localhost:5107';
+  static const String helpdeskService = 'http://localhost:5108';
+  static const String noticeService   = 'http://localhost:5109';
+  static const String amenityService  = 'http://localhost:5110';
+  static const String dailyHelpService= 'http://localhost:5111';
+  static const String vehicleService  = 'http://localhost:5112';
+  static const String directoryService= 'http://localhost:5113';
+  //static const String emergencyGateway= 'http://localhost:5114';
+
+    static const String emergencyService = 'http://localhost:5114'; 
+  static const String emergencyGateway = 'http://localhost:5116'; // MOVED TO 5116
+
+  // ─── IDENTITY & CONTEXT SWITCH ───
+  static String get selectContextUrl => '$identityService/api/auth/select-context';
+    static String get loginUrl => '$identityService/api/auth/verify-otp';
+  static String get requestOtpUrl => '$identityService/api/auth/request-otp';
+  static String get registerUrl => '$identityService/api/auth/register';
+  
+ // ─── TENANT ───
+  static String get mySocietiesUrl => '$tenantService/api/societies/my-societies';
+  static String get societiesBaseUrl => '$tenantService/api/Societies';
+
+  // ─── VISITORS ───
+  static String get visitorsBaseUrl => '$visitorService/api/visitors';
+  
+  // ─── BILLING ───
+  static String get billingBaseUrl => '$billingService/api/Invoices'; // CHANGED from api/Billing
+
+  // ─── HELPDESK ───
+  static String get helpdeskBaseUrl => '$helpdeskService/api/tickets';
+
+  // ─── AMENITY ───
+  static String get amenityBaseUrl => '$amenityService/api/Amenities';
+  static String get bookingsBaseUrl => '$amenityService/api/Bookings';
+
+  // ─── DAILY HELP ───
+  static String get dailyHelpBaseUrl => '$dailyHelpService';
+
+  // ─── VEHICLES ───
+  static String get vehiclesBaseUrl => '$vehicleService/api/Vehicles';
+
+  // ─── DIRECTORY ───
+  static String get directoryBaseUrl => '$directoryService/api/Directory';
+}
+

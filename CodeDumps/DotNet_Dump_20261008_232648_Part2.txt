@@ -1,0 +1,2298 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — .NET  (continued — Part 2)
+║  Generated : 2026-10-08 23:27:10
+║  Root      : C:\MyGateApp\src\Services
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Repositories\AmenityBookingRepository.cs
+SIZE  : 5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using AmenityService.Domain.Enums;
+using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace AmenityService.Infrastructure.Repositories;
+
+public class AmenityBookingRepository : IAmenityBookingRepository
+{
+    private readonly AmenityDbContext _context;
+
+    public AmenityBookingRepository(AmenityDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<AmenityBooking?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByAmenityAndDateAsync(
+        Guid amenityId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.AmenityId == amenityId && b.BookingDate == date)
+            .OrderBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByAmenityAndDateRangeAsync(
+        Guid amenityId, 
+        DateOnly startDate, 
+        DateOnly endDate, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.AmenityId == amenityId && 
+                        b.BookingDate >= startDate && 
+                        b.BookingDate <= endDate)
+            .OrderBy(b => b.BookingDate)
+            .ThenBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByUserAndSocietyAsync(
+        Guid userId, 
+        Guid societyId, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.UserId == userId && b.SocietyId == societyId)
+            .OrderByDescending(b => b.BookingDate)
+            .ThenByDescending(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetByUserAndDateAsync(
+        Guid userId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Where(b => b.UserId == userId && b.BookingDate == date)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetBySocietyAndDateAsync(
+        Guid societyId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.SocietyId == societyId && b.BookingDate == date)
+            .OrderBy(b => b.Amenity!.Name)
+            .ThenBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AmenityBooking>> GetPendingBySocietyAsync(
+        Guid societyId, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .Include(b => b.Amenity)
+            .Where(b => b.SocietyId == societyId && b.Status == BookingStatus.Pending)
+            .OrderBy(b => b.BookingDate)
+            .ThenBy(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> CountUserBookingsForDateAsync(
+        Guid userId, 
+        Guid amenityId, 
+        DateOnly date, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .CountAsync(b => b.UserId == userId && 
+                            b.AmenityId == amenityId && 
+                            b.BookingDate == date &&
+                            b.Status != BookingStatus.Cancelled &&
+                            b.Status != BookingStatus.Rejected,
+                            cancellationToken);
+    }
+
+    public async Task<bool> HasOverlappingBookingAsync(
+        Guid amenityId, 
+        DateOnly date, 
+        TimeOnly startTime, 
+        TimeOnly endTime, 
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.AmenityBookings
+            .AnyAsync(b => b.AmenityId == amenityId &&
+                          b.BookingDate == date &&
+                          b.Status != BookingStatus.Cancelled &&
+                          b.Status != BookingStatus.Rejected &&
+                          b.StartTime < endTime &&
+                          b.EndTime > startTime,
+                          cancellationToken);
+    }
+
+    public void Add(AmenityBooking booking)
+    {
+        _context.AmenityBookings.Add(booking);
+    }
+
+    public void Update(AmenityBooking booking)
+    {
+        _context.AmenityBookings.Update(booking);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Repositories\AmenityRepository.cs
+SIZE  : 2.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Entities;
+using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace AmenityService.Infrastructure.Repositories;
+
+public class AmenityRepository : IAmenityRepository
+{
+    private readonly AmenityDbContext _context;
+
+    public AmenityRepository(AmenityDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<Amenity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Amenity>> GetBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .Where(a => a.SocietyId == societyId)
+            .OrderBy(a => a.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Amenity>> GetActiveBySocietyIdAsync(Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .Where(a => a.SocietyId == societyId && a.IsActive)
+            .OrderBy(a => a.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .AnyAsync(a => a.Id == id, cancellationToken);
+    }
+
+    public async Task<bool> IsOwnedBySocietyAsync(Guid amenityId, Guid societyId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Amenities
+            .AnyAsync(a => a.Id == amenityId && a.SocietyId == societyId, cancellationToken);
+    }
+
+    public void Add(Amenity amenity)
+    {
+        _context.Amenities.Add(amenity);
+    }
+
+    public void Update(Amenity amenity)
+    {
+        _context.Amenities.Update(amenity);
+    }
+
+    public void Remove(Amenity amenity)
+    {
+        _context.Amenities.Remove(amenity);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : AmenityService\AmenityService.Infrastructure\Repositories\UnitOfWork.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using AmenityService.Domain.Interfaces;
+using AmenityService.Infrastructure.Data;
+
+namespace AmenityService.Infrastructure.Repositories;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly AmenityDbContext _context;
+
+    public IAmenityRepository Amenities { get; }
+    public IAmenityBookingRepository AmenityBookings { get; }
+
+    public UnitOfWork(
+        AmenityDbContext context,
+        IAmenityRepository amenityRepository,
+        IAmenityBookingRepository amenityBookingRepository)
+    {
+        _context = context;
+        Amenities = amenityRepository;
+        AmenityBookings = amenityBookingRepository;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        _context.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\appsettings.json
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "BillingDb": "Server=localhost;Database=MyGateBillingDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\BillingService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EmitOpenApiDocuments>false</EmitOpenApiDocuments>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillingService.Application\BillingService.Application.csproj" />
+    <ProjectReference Include="..\BillingService.Infrastructure\BillingService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\Controllers\InvoicesController.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using BillingService.Application.Features.Invoices.Commands;
+using BillingService.Application.Features.Invoices.Queries;
+
+namespace BillingService.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class InvoicesController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    public InvoicesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpPost("generate")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> Generate([FromBody] GenerateInvoiceCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(Generate), new { id }, new { Id = id });
+    }
+
+    [HttpGet("my-dues")]
+    public async Task<IActionResult> GetMyDues([FromQuery] Guid flatId)
+    {
+        var result = await _mediator.Send(new GetMyDuesQuery { FlatId = flatId });
+        return Ok(result);
+    }
+
+    // ADD this endpoint:
+    [HttpGet("society/{societyId}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> GetSocietyInvoices(Guid societyId)
+    {
+        var result = await _mediator.Send(new GetSocietyInvoicesQuery { SocietyId = societyId });
+        return Ok(result);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\Program.cs
+SIZE  : 2.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.OpenApi;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using BillingService.Infrastructure.Persistence;
+using BillingService.Domain.Interfaces;
+using BillingService.Infrastructure.Repositories;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+         policy.SetIsOriginAllowed(origin => true) // FIXED
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+
+builder.Services.AddDbContext<BillingDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("BillingDb")));
+
+    builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(BillingService.Application.Features.Invoices.Commands.GenerateInvoiceCommand).Assembly));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+     var keyString = builder.Configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+        var key = Encoding.UTF8.GetBytes(keyString);
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+        //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Name = "Authorization", Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT", In = ParameterLocation.Header });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() });
+});
+
+var app = builder.Build();
+app.UseSwagger(); app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication(); app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5107",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\BillingService.Application.csproj
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillingService.Domain\BillingService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Commands\GenerateInvoiceCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace BillingService.Application.Features.Invoices.Commands;
+
+public class GenerateInvoiceCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; set; }
+    public Guid FlatId { get; set; }
+    public decimal Amount { get; set; }
+    public DateTime DueDate { get; set; }
+    public string? Description { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Commands\GenerateInvoiceCommandHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Entities;
+using BillingService.Domain.Interfaces;
+
+namespace BillingService.Application.Features.Invoices.Commands;
+
+public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceCommand, Guid>
+{
+    private readonly IInvoiceRepository _repository;
+    public GenerateInvoiceCommandHandler(IInvoiceRepository repository) => _repository = repository;
+
+    public async Task<Guid> Handle(GenerateInvoiceCommand request, CancellationToken cancellationToken)
+    {
+        var invoice = new Invoice(
+            request.SocietyId, 
+            request.FlatId, 
+            request.Amount, 
+            request.DueDate, 
+            request.Description
+        );
+
+        return (await _repository.AddAsync(invoice)).Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Queries\GetMyDuesQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Entities;
+
+namespace BillingService.Application.Features.Invoices.Queries;
+
+public class GetMyDuesQuery : IRequest<List<Invoice>>
+{
+    public Guid FlatId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Queries\GetMyDuesQueryHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Interfaces;
+using BillingService.Domain.Entities;
+
+namespace BillingService.Application.Features.Invoices.Queries;
+
+public class GetMyDuesQueryHandler : IRequestHandler<GetMyDuesQuery, List<Invoice>>
+{
+    private readonly IInvoiceRepository _repository;
+    public GetMyDuesQueryHandler(IInvoiceRepository repository) => _repository = repository;
+
+    public async Task<List<Invoice>> Handle(GetMyDuesQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetByFlatIdAsync(request.FlatId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Queries\GetSocietyInvoicesQuery.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Entities;
+
+namespace BillingService.Application.Features.Invoices.Queries;
+
+public class GetSocietyInvoicesQuery : IRequest<List<Invoice>>
+{
+    public Guid SocietyId { get; set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Application\Features\Invoices\Queries\GetSocietyInvoicesQueryHandler.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+using BillingService.Domain.Interfaces;
+using BillingService.Domain.Entities;
+
+namespace BillingService.Application.Features.Invoices.Queries;
+
+public class GetSocietyInvoicesQueryHandler : IRequestHandler<GetSocietyInvoicesQuery, List<Invoice>>
+{
+    private readonly IInvoiceRepository _repository;
+    public GetSocietyInvoicesQueryHandler(IInvoiceRepository repository) => _repository = repository;
+
+    public async Task<List<Invoice>> Handle(GetSocietyInvoicesQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetBySocietyIdAsync(request.SocietyId);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\BillingService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Entities\Invoice.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System;
+
+namespace BillingService.Domain.Entities;
+
+public class Invoice
+{
+    public Guid Id { get; private set; } = Guid.Empty;
+    public Guid SocietyId { get; private set; }
+    public Guid FlatId { get; private set; }
+    
+    public decimal Amount { get; private set; }
+    public decimal PenaltyAmount { get; private set; }
+    public decimal TotalAmount => Amount + PenaltyAmount;
+    
+    public DateTime DueDate { get; private set; }
+    public string? InvoiceNumber { get; private set; }
+    public string? Description { get; private set; }
+    
+    public InvoiceStatus Status { get; private set; } = InvoiceStatus.Pending;
+    public DateTime GeneratedAt { get; private set; }
+
+    private Invoice() { }
+
+    public Invoice(Guid societyId, Guid flatId, decimal amount, DateTime dueDate, string? description = null)
+    {
+        if (amount < 0) throw new ArgumentException("Amount cannot be negative.");
+        
+        Id = Guid.NewGuid();
+        SocietyId = societyId;
+        FlatId = flatId;
+        Amount = amount;
+        DueDate = dueDate;
+        Description = description;
+        GeneratedAt = DateTime.UtcNow;
+    }
+
+    public void MarkAsPaid(decimal penaltyPaid = 0)
+    {
+        Status = InvoiceStatus.Paid;
+        PenaltyAmount = penaltyPaid; // In a real app, this would calculate based on days late
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Entities\InvoiceStatus.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace BillingService.Domain.Entities;
+
+public enum InvoiceStatus
+{
+    Pending,    // Just generated
+    Paid,       // Resident paid
+    Overdue,    // Past due date
+    Waived,      // Admin removed the charge
+    PartiallyPaid // Advanced paid, but not full amount
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Domain\Interfaces\IInvoiceRepository.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using BillingService.Domain.Entities;
+
+namespace BillingService.Domain.Interfaces;
+
+public interface IInvoiceRepository
+{
+    Task<Invoice> AddAsync(Invoice invoice);
+    Task<List<Invoice>> GetByFlatIdAsync(Guid flatId);
+    // ADD this method:
+    Task<List<Invoice>> GetBySocietyIdAsync(Guid societyId);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\BillingService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillingService.Domain\BillingService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\Persistence\BillingDbContext.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using BillingService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace BillingService.Infrastructure.Persistence;
+
+public class BillingDbContext : DbContext
+{
+    public BillingDbContext(DbContextOptions<BillingDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+      // Tell EF Core to use 4 decimal places for money!
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.Property(e => e.Amount).HasPrecision(18, 4);
+            entity.Property(e => e.PenaltyAmount).HasPrecision(18, 4);
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : BillingService\BillingService.Infrastructure\Repositories\InvoiceRepository.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using BillingService.Domain.Entities;
+using BillingService.Domain.Interfaces;
+using BillingService.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace BillingService.Infrastructure.Repositories;
+
+public class InvoiceRepository : IInvoiceRepository
+{
+    private readonly BillingDbContext _context;
+    public InvoiceRepository(BillingDbContext context) => _context = context;
+
+    public async Task<Invoice> AddAsync(Invoice invoice)
+    {
+        await _context.Invoices.AddAsync(invoice);
+        await _context.SaveChangesAsync();
+        return invoice;
+    }
+
+    public async Task<List<Invoice>> GetByFlatIdAsync(Guid flatId)
+    {
+        return await _context.Invoices
+            .Where(i => i.FlatId == flatId)
+            .OrderByDescending(i => i.DueDate)
+            .ToListAsync();
+    }
+
+    // ADD this method:
+    public async Task<List<Invoice>> GetBySocietyIdAsync(Guid societyId)
+    {
+        return await _context.Invoices
+            .Where(i => i.SocietyId == societyId)
+            .OrderByDescending(i => i.DueDate)
+            .ToListAsync();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\appsettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateDailyHelpServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\AssignmentsController.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Application.Features.Assignments.Commands.AssignStaff;
+using DailyHelpService.Application.Features.Assignments.Queries.GetMyAssignments;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+public class AssignmentsController : BaseController
+{
+    private readonly IMediator _mediator;
+    public AssignmentsController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("my-help")]
+    public async Task<ActionResult<IReadOnlyList<DailyHelpAssignmentDto>>> GetMyHelp([FromQuery] Guid flatId)
+    {
+        var result = await _mediator.Send(new GetMyAssignmentsQuery { FlatId = flatId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<Guid>> Assign([FromBody] AssignStaffCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetMyHelp), new { flatId = command.FlatId }, id);
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult> RemoveAssignment(Guid id)
+    {
+        // TODO: Implement removal via MediatR
+        return NoContent();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\BaseController.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+    protected bool IsAdmin => Role == "Admin";
+      protected bool IsSuperAdmin => Role == "SuperAdmin"; // <--- ADD THIS
+    
+    // ADD THIS:
+    protected Guid SocietyId => Guid.TryParse(
+        User.FindFirstValue("SocietyId"), out var societyId) 
+        ? societyId 
+        : Guid.Empty; 
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\HelpTypesController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType;
+using DailyHelpService.Application.Features.HelpTypes.Queries.GetHelpTypesBySociety;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+public class HelpTypesController : BaseController
+{
+    private readonly IMediator _mediator;
+    public HelpTypesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("society/{societyId}")]
+    public async Task<ActionResult<IReadOnlyList<HelpTypeDto>>> GetBySociety(Guid societyId)
+    {
+        var result = await _mediator.Send(new GetHelpTypesBySocietyQuery { SocietyId = societyId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateHelpTypeCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetBySociety), new { societyId = command.SocietyId }, id);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Controllers\StaffController.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Application.Features.Staff.Commands.CreateStaff;
+using DailyHelpService.Application.Features.Staff.Queries.GetStaffBySociety;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DailyHelpService.API.Controllers;
+
+public class StaffController : BaseController
+{
+    private readonly IMediator _mediator;
+    public StaffController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("society/{societyId}")]
+    public async Task<ActionResult<IReadOnlyList<DailyHelpStaffDto>>> GetBySociety(Guid societyId, [FromQuery] Guid? helpTypeId = null)
+    {
+        var result = await _mediator.Send(new GetStaffBySocietyQuery { SocietyId = societyId, HelpTypeId = helpTypeId });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateStaffCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetBySociety), new { societyId = command.SocietyId }, id);
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\DailyHelpService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DailyHelpService.Application\DailyHelpService.Application.csproj" />
+    <ProjectReference Include="..\DailyHelpService.Infrastructure\DailyHelpService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Program.cs
+SIZE  : 3.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using DailyHelpService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using DailyHelpService.Domain.Interfaces;
+using DailyHelpService.Infrastructure.Repositories;
+using FluentValidation;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin()   
+         policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<DailyHelpDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IHelpTypeRepository, HelpTypeRepository>();
+builder.Services.AddScoped<IDailyHelpStaffRepository, DailyHelpStaffRepository>();
+builder.Services.AddScoped<IDailyHelpAssignmentRepository, DailyHelpAssignmentRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// --- MediatR & Validation ---
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType.CreateHelpTypeCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType.CreateHelpTypeCommand).Assembly);
+// Note: If you want FluentValidation to auto-run, you need to add the behavior:
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Daily Help Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.API\Properties\launchSettings.json
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5111",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DailyHelpService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DailyHelpService.Domain\DailyHelpService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DTOs\DailyHelpAssignmentDto.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application.DTOs;
+
+public record DailyHelpAssignmentDto(
+    Guid Id,
+    Guid StaffId,
+    string StaffName,
+    string StaffMobile,
+    string HelpTypeName,
+    Guid FlatId,
+    string WorkingDays,
+    string? InTime,
+    string? OutTime,
+    bool IsActive);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DTOs\DailyHelpStaffDto.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application.DTOs;
+
+public record DailyHelpStaffDto(
+    Guid Id, 
+    string Name, 
+    string MobileNumber, 
+    Guid HelpTypeId, 
+    string HelpTypeName, 
+    string? AgencyName, 
+    bool IsActive);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\DTOs\HelpTypeDto.cs
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Application.DTOs;
+
+public record HelpTypeDto(Guid Id, string Name);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Commands\AssignStaff\AssignStaffCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Commands.AssignStaff;
+
+public record AssignStaffCommand : IRequest<Guid>
+{
+    public Guid StaffId { get; init; }
+    public Guid FlatId { get; init; }
+    public Guid SocietyId { get; init; }
+    public string WorkingDays { get; init; } = "Mon,Tue,Wed,Thu,Fri,Sat";
+    public string? InTime { get; init; }
+    public string? OutTime { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Commands\AssignStaff\AssignStaffCommandHandler.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Commands.AssignStaff;
+
+public class AssignStaffCommandHandler : IRequestHandler<AssignStaffCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public AssignStaffCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(AssignStaffCommand request, CancellationToken cancellationToken)
+    {
+        var staff = await _unitOfWork.Staff.GetByIdAsync(request.StaffId, cancellationToken)
+            ?? throw new KeyNotFoundException("Staff not found.");
+
+        if (staff.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("Staff does not belong to this society.");
+
+        TimeOnly? inTime = string.IsNullOrWhiteSpace(request.InTime) ? null : TimeOnly.Parse(request.InTime);
+        TimeOnly? outTime = string.IsNullOrWhiteSpace(request.OutTime) ? null : TimeOnly.Parse(request.OutTime);
+
+        var assignment = Domain.Entities.DailyHelpAssignment.Create(
+            request.StaffId, request.FlatId, request.SocietyId, request.WorkingDays, inTime, outTime);
+
+        _unitOfWork.Assignments.Add(assignment);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return assignment.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Queries\GetMyAssignments\GetMyAssignmentsQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Queries.GetMyAssignments;
+
+public record GetMyAssignmentsQuery : IRequest<IReadOnlyList<DailyHelpAssignmentDto>>
+{
+    public Guid FlatId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Assignments\Queries\GetMyAssignmentsQueryHandler.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Assignments.Queries.GetMyAssignments;
+
+public class GetMyAssignmentsQueryHandler : IRequestHandler<GetMyAssignmentsQuery, IReadOnlyList<DailyHelpAssignmentDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetMyAssignmentsQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<DailyHelpAssignmentDto>> Handle(GetMyAssignmentsQuery request, CancellationToken cancellationToken)
+    {
+        var assignments = await _unitOfWork.Assignments.GetByFlatIdAsync(request.FlatId, cancellationToken);
+        return assignments.Select(a => new DailyHelpAssignmentDto(
+            a.Id,
+            a.StaffId,
+            a.Staff.Name,
+            a.Staff.MobileNumber,
+            a.Staff.HelpType.Name, // Traversing Staff -> HelpType
+            a.FlatId,
+            a.WorkingDays,
+            a.InTime?.ToString("HH:mm"),
+            a.OutTime?.ToString("HH:mm"),
+            a.IsActive
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\HelpTypes\Commands\CreateHelpType\CreateHelpTypeCommand.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType;
+
+public record CreateHelpTypeCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\HelpTypes\Commands\CreateHelpType\CreateHelpTypeCommandHandler.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.HelpTypes.Commands.CreateHelpType;
+
+public class CreateHelpTypeCommandHandler : IRequestHandler<CreateHelpTypeCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateHelpTypeCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(CreateHelpTypeCommand request, CancellationToken cancellationToken)
+    {
+        var helpType = Domain.Entities.HelpType.Create(request.SocietyId, request.Name);
+        _unitOfWork.HelpTypes.Add(helpType);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return helpType.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\HelpTypes\Queries\GetHelpTypesBySociety\GetHelpTypesBySocietyQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.HelpTypes.Queries.GetHelpTypesBySociety;
+
+public record GetHelpTypesBySocietyQuery : IRequest<IReadOnlyList<HelpTypeDto>>
+{
+    public Guid SocietyId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\HelpTypes\Queries\GetHelpTypesBySocietyQueryHandler.cs
+SIZE  : 0.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.HelpTypes.Queries.GetHelpTypesBySociety;
+
+public class GetHelpTypesBySocietyQueryHandler : IRequestHandler<GetHelpTypesBySocietyQuery, IReadOnlyList<HelpTypeDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetHelpTypesBySocietyQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<HelpTypeDto>> Handle(GetHelpTypesBySocietyQuery request, CancellationToken cancellationToken)
+    {
+        var types = await _unitOfWork.HelpTypes.GetBySocietyAsync(request.SocietyId, cancellationToken);
+        return types.Select(t => new HelpTypeDto(t.Id, t.Name)).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Staff\Commands\CreateStaff\CreateStaffCommand.cs
+SIZE  : 0.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DailyHelpService.Application.Features.Staff.Commands.CreateStaff;
+
+public record CreateStaffCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string MobileNumber { get; init; } = string.Empty;
+    public Guid HelpTypeId { get; init; }
+    public string? AgencyName { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Staff\Commands\CreateStaff\CreateStaffCommandHandler.cs
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Staff.Commands.CreateStaff;
+
+public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Guid>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public CreateStaffCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<Guid> Handle(CreateStaffCommand request, CancellationToken cancellationToken)
+    {
+        var helpType = await _unitOfWork.HelpTypes.GetByIdAsync(request.HelpTypeId, cancellationToken)
+            ?? throw new KeyNotFoundException("Help Type not found.");
+
+        if (helpType.SocietyId != request.SocietyId)
+            throw new UnauthorizedAccessException("Help Type does not belong to this society.");
+
+        var staff = Domain.Entities.DailyHelpStaff.Create(
+            request.SocietyId, request.Name, request.MobileNumber, request.HelpTypeId, request.AgencyName);
+
+        _unitOfWork.Staff.Add(staff);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return staff.Id;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Staff\Queries\GetStaffBySociety\GetStaffBySocietyQuery.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Staff.Queries.GetStaffBySociety;
+
+public record GetStaffBySocietyQuery : IRequest<IReadOnlyList<DailyHelpStaffDto>>
+{
+    public Guid SocietyId { get; init; }
+    public Guid? HelpTypeId { get; init; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Application\Features\Staff\Queries\GetStaffBySociety\GetStaffBySocietyQueryHandler.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Application.DTOs;
+using DailyHelpService.Domain.Interfaces;
+using MediatR;
+
+namespace DailyHelpService.Application.Features.Staff.Queries.GetStaffBySociety;
+
+public class GetStaffBySocietyQueryHandler : IRequestHandler<GetStaffBySocietyQuery, IReadOnlyList<DailyHelpStaffDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    public GetStaffBySocietyQueryHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+
+    public async Task<IReadOnlyList<DailyHelpStaffDto>> Handle(GetStaffBySocietyQuery request, CancellationToken cancellationToken)
+    {
+        var staff = await _unitOfWork.Staff.GetBySocietyAsync(request.SocietyId, request.HelpTypeId, cancellationToken);
+        return staff.Select(s => new DailyHelpStaffDto(
+            s.Id, s.Name, s.MobileNumber, s.HelpTypeId, s.HelpType.Name, s.AgencyName, s.IsActive
+        )).ToList();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\DailyHelpService.Domain.csproj
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Entities\BaseEntity.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public Guid Id { get; protected set; } = Guid.NewGuid();
+    public DateTimeOffset CreatedAt { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; protected set; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Entities\DailyHelpAssignment.cs
+SIZE  : 1.4 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Domain.Entities;
+
+public class DailyHelpAssignment : BaseEntity
+{
+    public Guid StaffId { get; private set; }
+    public Guid FlatId { get; private set; }
+    public Guid SocietyId { get; private set; }
+    public string WorkingDays { get; private set; } = "Mon,Tue,Wed,Thu,Fri,Sat";
+    public TimeOnly? InTime { get; private set; }
+    public TimeOnly? OutTime { get; private set; }
+    public bool IsActive { get; private set; } = true;
+    
+    public virtual DailyHelpStaff Staff { get; private set; } = null!;
+
+    private DailyHelpAssignment() { }
+
+    public static DailyHelpAssignment Create(Guid staffId, Guid flatId, Guid societyId, string workingDays, TimeOnly? inTime, TimeOnly? outTime)
+    {
+        if (string.IsNullOrWhiteSpace(workingDays)) throw new ArgumentException("Working days are required.");
+
+        return new DailyHelpAssignment
+        {
+            StaffId = staffId,
+            FlatId = flatId,
+            SocietyId = societyId,
+            WorkingDays = workingDays.Trim(),
+            InTime = inTime,
+            OutTime = outTime
+        };
+    }
+
+    public void UpdateSchedule(string workingDays, TimeOnly? inTime, TimeOnly? outTime)
+    {
+        WorkingDays = workingDays.Trim();
+        InTime = inTime;
+        OutTime = outTime;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Deactivate() { IsActive = false; UpdatedAt = DateTimeOffset.UtcNow; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Entities\DailyHelpStaff.cs
+SIZE  : 1.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Domain.Entities;
+
+public class DailyHelpStaff : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    public string MobileNumber { get; private set; } = string.Empty;
+    public Guid HelpTypeId { get; private set; }
+    public string? AgencyName { get; private set; }
+    public bool IsActive { get; private set; } = true;
+    
+    public virtual HelpType HelpType { get; private set; } = null!;
+    public virtual ICollection<DailyHelpAssignment> Assignments { get; private set; } = new List<DailyHelpAssignment>();
+
+    private DailyHelpStaff() { }
+
+    public static DailyHelpStaff Create(Guid societyId, string name, string mobileNumber, Guid helpTypeId, string? agencyName)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name is required.");
+        if (string.IsNullOrWhiteSpace(mobileNumber) || mobileNumber.Length < 10) throw new ArgumentException("Valid mobile number is required.");
+
+        return new DailyHelpStaff
+        {
+            SocietyId = societyId,
+            Name = name.Trim(),
+            MobileNumber = mobileNumber.Trim(),
+            HelpTypeId = helpTypeId,
+            AgencyName = agencyName?.Trim()
+        };
+    }
+
+    public void Update(string name, string mobileNumber, Guid helpTypeId, string? agencyName)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name is required.");
+        Name = name.Trim();
+        MobileNumber = mobileNumber.Trim();
+        HelpTypeId = helpTypeId;
+        AgencyName = agencyName?.Trim();
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Deactivate() { IsActive = false; UpdatedAt = DateTimeOffset.UtcNow; }
+    public void Activate() { IsActive = true; UpdatedAt = DateTimeOffset.UtcNow; }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Entities\HelpType.cs
+SIZE  : 0.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Domain.Entities;
+
+public class HelpType : BaseEntity
+{
+    public Guid SocietyId { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    
+    public virtual ICollection<DailyHelpStaff> Staff { get; private set; } = new List<DailyHelpStaff>();
+
+    private HelpType() { }
+
+    public static HelpType Create(Guid societyId, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Help type name is required.");
+        return new HelpType { SocietyId = societyId, Name = name.Trim() };
+    }
+
+    public void Update(string name)
+    {
+        Name = name.Trim();
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Interfaces\IDailyHelpAssignmentRepository.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+
+namespace DailyHelpService.Domain.Interfaces;
+
+public interface IDailyHelpAssignmentRepository
+{
+    Task<IReadOnlyList<DailyHelpAssignment>> GetByFlatIdAsync(Guid flatId, CancellationToken cancellationToken = default);
+    Task<DailyHelpAssignment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    void Add(DailyHelpAssignment assignment);
+    void Update(DailyHelpAssignment assignment);
+    void Remove(DailyHelpAssignment assignment);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Interfaces\IDailyHelpStaffRepository.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+
+namespace DailyHelpService.Domain.Interfaces;
+
+public interface IDailyHelpStaffRepository
+{
+    Task<DailyHelpStaff?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DailyHelpStaff>> GetBySocietyAsync(Guid societyId, Guid? helpTypeId = null, CancellationToken cancellationToken = default);
+    void Add(DailyHelpStaff staff);
+    void Update(DailyHelpStaff staff);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Interfaces\IHelpTypeRepository.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+
+namespace DailyHelpService.Domain.Interfaces;
+
+public interface IHelpTypeRepository
+{
+    Task<HelpType?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<HelpType>> GetBySocietyAsync(Guid societyId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
+    void Add(HelpType helpType);
+    void Update(HelpType helpType);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Domain\Interfaces\IUnitOfWork.cs
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DailyHelpService.Domain.Interfaces;
+
+public interface IUnitOfWork : IDisposable
+{
+    IHelpTypeRepository HelpTypes { get; }
+    IDailyHelpStaffRepository Staff { get; }
+    IDailyHelpAssignmentRepository Assignments { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Infrastructure\DailyHelpService.Infrastructure.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DailyHelpService.Domain\DailyHelpService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Infrastructure\Data\DailyHelpDbContext.cs
+SIZE  : 2.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace DailyHelpService.Infrastructure.Data;
+
+public class DailyHelpDbContext : DbContext
+{
+    public DailyHelpDbContext(DbContextOptions<DailyHelpDbContext> options) : base(options) { }
+
+    public DbSet<HelpType> HelpTypes => Set<HelpType>();
+    public DbSet<DailyHelpStaff> Staff => Set<DailyHelpStaff>();
+    public DbSet<DailyHelpAssignment> Assignments => Set<DailyHelpAssignment>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<HelpType>(entity =>
+        {
+            entity.ToTable("HelpTypes");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => new { e.SocietyId, e.Name }).IsUnique(); // No duplicate types per society
+        });
+
+        modelBuilder.Entity<DailyHelpStaff>(entity =>
+        {
+            entity.ToTable("Staff");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.MobileNumber).IsRequired().HasMaxLength(15);
+            
+            entity.HasOne(e => e.HelpType)
+                  .WithMany(t => t.Staff)
+                  .HasForeignKey(e => e.HelpTypeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.SocietyId);
+            entity.HasIndex(e => new { e.SocietyId, e.HelpTypeId });
+        });
+
+        modelBuilder.Entity<DailyHelpAssignment>(entity =>
+        {
+            entity.ToTable("Assignments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkingDays).IsRequired().HasMaxLength(100);
+            
+            entity.HasOne(e => e.Staff)
+                  .WithMany(s => s.Assignments)
+                  .HasForeignKey(e => e.StaffId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.FlatId);
+            entity.HasIndex(e => e.StaffId);
+            entity.HasIndex(e => new { e.FlatId, e.IsActive });
+        });
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Infrastructure\Repositories\DailyHelpAssignmentRepository.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+using DailyHelpService.Domain.Interfaces;
+using DailyHelpService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace DailyHelpService.Infrastructure.Repositories;
+
+public class DailyHelpAssignmentRepository : IDailyHelpAssignmentRepository
+{
+    private readonly DailyHelpDbContext _context;
+    public DailyHelpAssignmentRepository(DailyHelpDbContext context) => _context = context;
+
+    public async Task<IReadOnlyList<DailyHelpAssignment>> GetByFlatIdAsync(Guid flatId, CancellationToken cancellationToken = default)
+        => await _context.Assignments
+            .Include(a => a.Staff)
+            .ThenInclude(s => s.HelpType) // Crucial for the DTO mapping!
+            .Where(a => a.FlatId == flatId)
+            .ToListAsync(cancellationToken);
+
+    public async Task<DailyHelpAssignment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.Assignments.Include(a => a.Staff).FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+    public void Add(DailyHelpAssignment assignment) => _context.Assignments.Add(assignment);
+    public void Update(DailyHelpAssignment assignment) => _context.Assignments.Update(assignment);
+    public void Remove(DailyHelpAssignment assignment) => _context.Assignments.Remove(assignment);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Infrastructure\Repositories\DailyHelpStaffRepository.cs
+SIZE  : 1.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+using DailyHelpService.Domain.Interfaces;
+using DailyHelpService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace DailyHelpService.Infrastructure.Repositories;
+
+public class DailyHelpStaffRepository : IDailyHelpStaffRepository
+{
+    private readonly DailyHelpDbContext _context;
+    public DailyHelpStaffRepository(DailyHelpDbContext context) => _context = context;
+
+    public async Task<DailyHelpStaff?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.Staff.Include(s => s.HelpType).Include(s => s.Assignments).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<DailyHelpStaff>> GetBySocietyAsync(Guid societyId, Guid? helpTypeId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Staff.Include(s => s.HelpType).Where(s => s.SocietyId == societyId);
+        if (helpTypeId.HasValue) query = query.Where(s => s.HelpTypeId == helpTypeId.Value);
+        return await query.OrderBy(s => s.Name).ToListAsync(cancellationToken);
+    }
+
+    public void Add(DailyHelpStaff staff) => _context.Staff.Add(staff);
+    public void Update(DailyHelpStaff staff) => _context.Staff.Update(staff);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Infrastructure\Repositories\HelpTypeRepository.cs
+SIZE  : 1.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Entities;
+using DailyHelpService.Domain.Interfaces;
+using DailyHelpService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace DailyHelpService.Infrastructure.Repositories;
+
+public class HelpTypeRepository : IHelpTypeRepository
+{
+    private readonly DailyHelpDbContext _context;
+    public HelpTypeRepository(DailyHelpDbContext context) => _context = context;
+
+    public async Task<HelpType?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.HelpTypes.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<HelpType>> GetBySocietyAsync(Guid societyId, CancellationToken cancellationToken = default)
+        => await _context.HelpTypes.Where(t => t.SocietyId == societyId).OrderBy(t => t.Name).ToListAsync(cancellationToken);
+
+    public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
+        => await _context.HelpTypes.AnyAsync(t => t.Id == id, cancellationToken);
+
+    public void Add(HelpType helpType) => _context.HelpTypes.Add(helpType);
+    public void Update(HelpType helpType) => _context.HelpTypes.Update(helpType);
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DailyHelpService\DailyHelpService.Infrastructure\Repositories\UnitOfWork.cs
+SIZE  : 0.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DailyHelpService.Domain.Interfaces;
+using DailyHelpService.Infrastructure.Data;
+
+namespace DailyHelpService.Infrastructure.Repositories;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly DailyHelpDbContext _context;
+    public IHelpTypeRepository HelpTypes { get; }
+    public IDailyHelpStaffRepository Staff { get; }
+    public IDailyHelpAssignmentRepository Assignments { get; }
+
+    public UnitOfWork(DailyHelpDbContext context, IHelpTypeRepository helpTypeRepo, IDailyHelpStaffRepository staffRepo, IDailyHelpAssignmentRepository assignmentRepo)
+    {
+        _context = context;
+        HelpTypes = helpTypeRepo;
+        Staff = staffRepo;
+        Assignments = assignmentRepo;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => await _context.SaveChangesAsync(cancellationToken);
+    public void Dispose() { _context.Dispose(); GC.SuppressFinalize(this); }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\appsettings.Development.json
+SIZE  : 0.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\appsettings.json
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",   
+      "Microsoft.IdentityModel.Logging": "Debug"        
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyGateDirectoryServiceDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "ThisIsASuperSecretKeyForMyGateAppThatIsAtLeast32CharsLong!",
+    "Issuer": "MyGateIdentityApi",
+    "Audience": "MyGateFlutterApp",
+    "ExpiryInMinutes": 60
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\Controllers\BaseController.cs
+SIZE  : 0.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DirectoryService.API.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/[controller]")]
+public abstract class BaseController : ControllerBase
+{
+    protected Guid UserId => Guid.TryParse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) 
+        ? userId 
+        : throw new UnauthorizedAccessException("Invalid user identifier in token.");
+
+    protected string? Role => User.FindFirstValue(ClaimTypes.Role);
+    protected bool IsAdmin => Role == "Admin";
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\Controllers\DirectoryController.cs
+SIZE  : 1.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using DirectoryService.Application.DTOs;
+using DirectoryService.Application.Features.Directory.Commands.AddEntry;
+using DirectoryService.Application.Features.Directory.Commands.DeleteEntry;
+using DirectoryService.Application.Features.Directory.Queries.GetDirectory;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DirectoryService.API.Controllers;
+
+public class DirectoryController : BaseController
+{
+    private readonly IMediator _mediator;
+    public DirectoryController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<DirectoryEntryDto>>> Get([FromQuery] Guid societyId, [FromQuery] string? category = null, [FromQuery] string? search = null)
+    {
+        var result = await _mediator.Send(new GetDirectoryQuery { SocietyId = societyId, Category = category, Search = search });
+        return Ok(result);
+    }
+
+    [HttpPost]
+   //[Authorize(Roles = "Admin")]
+   [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<Guid>> Add([FromBody] AddEntryCommand command)
+    {
+        var id = await _mediator.Send(command);
+        return CreatedAtAction(nameof(Get), new { societyId = command.SocietyId }, id);
+    }
+
+    [HttpDelete("{id}")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult> Delete(Guid id, [FromQuery] Guid societyId)
+    {
+        var entry = await _mediator.Send(new DeleteEntryCommand { Id = id, SocietyId = societyId });
+        return NoContent();
+    }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\DirectoryService.API.csproj
+SIZE  : 1.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DirectoryService.Application\DirectoryService.Application.csproj" />
+    <ProjectReference Include="..\DirectoryService.Infrastructure\DirectoryService.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\Program.cs
+SIZE  : 3.8 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using DirectoryService.Infrastructure.Data;
+using Microsoft.OpenApi;
+using DirectoryService.Domain.Interfaces;
+using DirectoryService.Infrastructure.Repositories;
+using FluentValidation;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+
+builder.Services.AddControllers();
+
+// --- CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutter", policy =>
+    {
+        //policy.AllowAnyOrigin()   
+         policy.SetIsOriginAllowed(origin => true) // The magic line! 
+              .AllowAnyMethod()    
+              .AllowAnyHeader();   
+    });
+});
+
+// --- Database ---
+builder.Services.AddDbContext<DirectoryDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories & UnitOfWork ---
+builder.Services.AddScoped<IDirectoryRepository, DirectoryRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// --- MediatR & Validation ---
+// --- MediatR & Validation ---
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(DirectoryService.Application.Features.Directory.Commands.AddEntry.AddEntryCommand).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(DirectoryService.Application.Features.Directory.Commands.AddEntry.AddEntryCommand).Assembly);
+
+// Note: If you want FluentValidation to auto-run, you need to add the behavior:
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// --- Authentication ---
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var keyString = builder.Configuration["Jwt:Key"] 
+        ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    var key = Encoding.UTF8.GetBytes(keyString);
+    
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,  
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Directory Service API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme 
+    { 
+        Name = "Authorization", 
+        Type = SecuritySchemeType.Http, 
+        Scheme = "bearer", 
+        BearerFormat = "JWT", 
+        In = ParameterLocation.Header 
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement 
+    { 
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>() 
+    });
+});
+
+
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseCors("AllowFlutter");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ADD THIS BLOCK RIGHT HERE:
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (InvalidOperationException ex)
+    {
+        context.Response.StatusCode = 400;
+        await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message.ToString());
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+    }
+});
+
+
+app.MapControllers();
+
+app.Run();
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.API\Properties\launchSettings.json
+SIZE  : 0.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5113",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\DirectoryService.Application.csproj
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DirectoryService.Domain\DirectoryService.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\DTOs\DirectoryEntryDto.cs
+SIZE  : 0.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ namespace DirectoryService.Application.DTOs;
+
+public record DirectoryEntryDto(
+    Guid Id,
+    string Category,
+    string Name,
+    string ContactNumber,
+    string? Email,
+    string? Address,
+    string? Notes);
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : DirectoryService\DirectoryService.Application\Features\Directory\Commands\AddEntry\AddEntryCommand.cs
+SIZE  : 0.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ using MediatR;
+
+namespace DirectoryService.Application.Features.Directory.Commands.AddEntry;
+
+public record AddEntryCommand : IRequest<Guid>
+{
+    public Guid SocietyId { get; init; }
+    public string Category { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string ContactNumber { get; init; } = string.Empty;
+    public string? Email { get; init; }
+    public string? Address { get; init; }
+    public string? Notes { get; init; }
+}
+

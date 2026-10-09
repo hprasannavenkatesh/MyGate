@@ -11,6 +11,7 @@ class AmenityService {
   }
 
   // FIX: Aligned with [HttpGet("society/{societyId}")] in AmenitiesController
+  // RESIDENT/ADMIN: Get amenities for a society
   static Future<List<dynamic>> getAmenities() async {
     final societyId = await AuthService.getSocietyId();
     final headers = await _getHeaders();
@@ -25,6 +26,7 @@ class AmenityService {
   }
 
   // FIX: Aligned with [HttpGet("my-bookings")] + [FromQuery] Guid societyId in BookingsController
+   // RESIDENT: Get my bookings
   static Future<List<dynamic>> getMyBookings() async {
     final societyId = await AuthService.getSocietyId();
     final headers = await _getHeaders();
@@ -37,6 +39,7 @@ class AmenityService {
   }
 
   // FIX: Aligned with [HttpPut("{id}/cancel")] + [FromQuery] Guid societyId
+  // RESIDENT: Cancel a booking
   static Future<bool> cancelBooking(String bookingId, String societyId) async {
     final headers = await _getHeaders();
     final response = await http.put(
@@ -47,6 +50,7 @@ class AmenityService {
   }
 
   // NEW: Aligned with [HttpGet("slots/available")]
+   // RESIDENT: Get available slots
   static Future<List<dynamic>> getAvailableSlots(String amenityId, String societyId, String date) async {
     final headers = await _getHeaders();
     final response = await http.get(
@@ -58,6 +62,7 @@ class AmenityService {
   }
 
   // NEW: Aligned with [HttpPost] in BookingsController
+  // RESIDENT: Create a booking
   static Future<bool> createBooking(Map<String, dynamic> payload) async {
     final headers = await _getHeaders();
     final response = await http.post(
@@ -66,5 +71,41 @@ class AmenityService {
       body: jsonEncode(payload),
     );
     return response.statusCode == 201 || response.statusCode == 200;
+  }
+
+  // ADMIN: Create a new Amenity (matches React parity)
+  // Matches .NET CreateAmenityCommand
+  static Future<bool> createAmenity(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse(ApiConfig.amenityBaseUrl),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  // ADMIN: Get pending bookings for approval
+  static Future<List<dynamic>> getPendingBookings() async {
+    final societyId = await AuthService.getSocietyId();
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('${ApiConfig.bookingsBaseUrl}/pending?societyId=$societyId'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load pending bookings');
+  }
+
+    static Future<bool> approveBooking(String bookingId, String societyId) async {
+    final headers = await _getHeaders();
+    final response = await http.put(Uri.parse('${ApiConfig.bookingsBaseUrl}/$bookingId/approve?societyId=$societyId'), headers: headers);
+    return response.statusCode == 204 || response.statusCode == 200;
+  }
+
+  static Future<bool> rejectBooking(String bookingId, String societyId, String reason) async {
+    final headers = await _getHeaders();
+    final response = await http.put(Uri.parse('${ApiConfig.bookingsBaseUrl}/$bookingId/reject?societyId=$societyId'), headers: headers, body: jsonEncode({'reason': reason}));
+    return response.statusCode == 204 || response.statusCode == 200;
   }
 }

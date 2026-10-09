@@ -1,0 +1,2245 @@
+﻿╔══════════════════════════════════════════════════════════════╗
+║  CODE DUMP — Flutter  (continued — Part 2)
+║  Generated : 2026-10-09 11:54:22
+║  Root      : C:\MyGateApp\mygate_app
+║  Max part  : 100 KB
+╚══════════════════════════════════════════════════════════════╝
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_daily_help_screen.dart
+SIZE  : 15.9 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/admin_daily_help_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/daily_help_service.dart';
+import '../../services/auth_service.dart';
+
+class AdminDailyHelpScreen extends StatefulWidget {
+  const AdminDailyHelpScreen({super.key});
+
+  @override
+  State<AdminDailyHelpScreen> createState() => _AdminDailyHelpScreenState();
+}
+
+class _AdminDailyHelpScreenState extends State<AdminDailyHelpScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  // --- State for Help Types ---
+  List<dynamic> _helpTypes = [];
+  bool _isLoadingTypes = true;
+
+  // --- State for Staff ---
+  List<dynamic> _staff = [];
+  bool _isLoadingStaff = true;
+
+  // --- State for Assignments ---
+  final _staffIdController = TextEditingController();
+  final _flatIdController = TextEditingController();
+  final _workingDaysController = TextEditingController(text: 'Mon,Tue,Wed,Thu,Fri');
+  final _inTimeController = TextEditingController(text: '08:00');
+  final _outTimeController = TextEditingController(text: '18:00');
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _fetchHelpTypes();
+    _fetchStaff();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // ==========================================
+  // HELP TYPES LOGIC
+  // ==========================================
+  Future<void> _fetchHelpTypes() async {
+    setState(() => _isLoadingTypes = true);
+    try {
+      final data = await DailyHelpService.getHelpTypes();
+      if (mounted) setState(() => _helpTypes = data);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoadingTypes = false);
+    }
+  }
+
+  Future<void> _showCreateHelpTypeDialog() async {
+    final nameController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Help Type'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: 'Name (e.g., Maid, Driver)', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty) return;
+              final success = await DailyHelpService.createHelpType(nameController.text.trim());
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) {
+                _fetchHelpTypes();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Help Type Added!'), backgroundColor: Colors.green));
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // STAFF LOGIC
+  // ==========================================
+  Future<void> _fetchStaff() async {
+    setState(() => _isLoadingStaff = true);
+    try {
+      final data = await DailyHelpService.getStaff();
+      if (mounted) setState(() => _staff = data);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoadingStaff = false);
+    }
+  }
+
+  Future<void> _showCreateStaffDialog() async {
+    final nameController = TextEditingController();
+    final mobileController = TextEditingController();
+    final agencyController = TextEditingController();
+    String? selectedHelpTypeId;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Staff Member'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full Name *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: mobileController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedHelpTypeId,
+                      hint: const Text('Select Help Type *'),
+                      items: _helpTypes.map((ht) => DropdownMenuItem(value: ht['id'].toString(), child: Text(ht['name']))).toList(),
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      onChanged: (val) => setDialogState(() => selectedHelpTypeId = val),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: agencyController, decoration: const InputDecoration(labelText: 'Agency Name (Optional)', border: OutlineInputBorder())),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameController.text.isEmpty || mobileController.text.isEmpty || selectedHelpTypeId == null) return;
+                    
+                    final societyId = await AuthService.getSocietyId();
+                    final success = await DailyHelpService.createStaff({
+                      'societyId': societyId,
+                      'name': nameController.text.trim(),
+                      'mobileNumber': mobileController.text.trim(),
+                      'helpTypeId': selectedHelpTypeId!,
+                      'agencyName': agencyController.text.trim().isEmpty ? null : agencyController.text.trim(),
+                    });
+
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (success) {
+                      _fetchStaff();
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff Added!'), backgroundColor: Colors.green));
+                    }
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==========================================
+  // ASSIGNMENTS LOGIC
+  // ==========================================
+  Future<void> _showAssignStaffDialog() async {
+    _staffIdController.clear();
+    _flatIdController.clear();
+    _workingDaysController.text = 'Mon,Tue,Wed,Thu,Fri';
+    _inTimeController.text = '08:00';
+    _outTimeController.text = '18:00';
+    String? selectedStaffId;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Assign Staff to Flat'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedStaffId,
+                      hint: const Text('Select Staff Member *'),
+                      items: _staff.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text('${s['name']} (${s['helpTypeName']})'))).toList(),
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      onChanged: (val) => setDialogState(() => selectedStaffId = val),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: _flatIdController, decoration: const InputDecoration(labelText: 'Flat ID (GUID) *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: _workingDaysController, decoration: const InputDecoration(labelText: 'Working Days (comma sep)', border: OutlineInputBorder())),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: _inTimeController, decoration: const InputDecoration(labelText: 'In Time', border: OutlineInputBorder()))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: _outTimeController, decoration: const InputDecoration(labelText: 'Out Time', border: OutlineInputBorder()))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (selectedStaffId == null || _flatIdController.text.isEmpty) return;
+                    
+                    final societyId = await AuthService.getSocietyId();
+                    final success = await DailyHelpService.assignStaff({
+                      'staffId': selectedStaffId!,
+                      'flatId': _flatIdController.text.trim(),
+                      'societyId': societyId,
+                      'workingDays': _workingDaysController.text.trim(),
+                      'inTime': _inTimeController.text.trim(),
+                      'outTime': _outTimeController.text.trim(),
+                    });
+
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Staff Assigned!'), backgroundColor: Colors.green));
+                    }
+                  },
+                  child: const Text('Assign'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==========================================
+  // BUILD
+  // ==========================================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Daily Help Management'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.category), text: 'Help Types'),
+            Tab(icon: Icon(Icons.people), text: 'Staff'),
+            Tab(icon: Icon(Icons.assignment_ind), text: 'Assign'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: HELP TYPES
+          _isLoadingTypes
+              ? const Center(child: CircularProgressIndicator())
+              : _helpTypes.isEmpty
+                  ? const Center(child: Text('No help types found.'))
+                  : ListView.builder(
+                      itemCount: _helpTypes.length,
+                      itemBuilder: (context, index) {
+                        final ht = _helpTypes[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          child: ListTile(
+                            leading: const Icon(Icons.label, color: Colors.indigo),
+                            title: Text(ht['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        );
+                      },
+                    ),
+
+          // TAB 2: STAFF
+          _isLoadingStaff
+              ? const Center(child: CircularProgressIndicator())
+              : _staff.isEmpty
+                  ? const Center(child: Text('No staff members found.'))
+                  : ListView.builder(
+                      itemCount: _staff.length,
+                      itemBuilder: (context, index) {
+                        final s = _staff[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(s['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(s['mobileNumber'] ?? 'N/A'),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Chip(
+                                      label: Text(s['helpTypeName'] ?? 'N/A', style: const TextStyle(fontSize: 11)),
+                                      backgroundColor: Colors.blue.shade50,
+                                    ),
+                                    if (s['agencyName'] != null) ...[
+                                      const SizedBox(width: 8),
+                                      Chip(
+                                        label: Text(s['agencyName'], style: const TextStyle(fontSize: 11)),
+                                        backgroundColor: Colors.orange.shade50,
+                                      ),
+                                    ]
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+          // TAB 3: ASSIGNMENTS
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Assign Staff to Flats', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                const SizedBox(height: 20),
+                const Text('To assign a daily help staff member to a specific flat, click the button below and provide the Staff Member and target Flat ID.', style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 30),
+                ElevatedButton.icon(
+                  onPressed: _showAssignStaffDialog,
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Assign Staff to Flat'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: _tabController.index == 0 
+          ? FloatingActionButton(
+              onPressed: _showCreateHelpTypeDialog,
+              tooltip: 'Add Help Type',
+              child: const Icon(Icons.add),
+            )
+          : _tabController.index == 1 
+              ? FloatingActionButton(
+                  onPressed: _showCreateStaffDialog,
+                  tooltip: 'Add Staff',
+                  child: const Icon(Icons.person_add),
+                )
+              : null,
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_directory_screen.dart
+SIZE  : 13.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import '../../services/directory_service.dart';
+import '../../services/auth_service.dart'; // This is missing in Directory
+
+class AdminDirectoryScreen extends StatefulWidget {
+  const AdminDirectoryScreen({super.key});
+
+  @override
+  State<AdminDirectoryScreen> createState() => _AdminDirectoryScreenState();
+}
+
+class _AdminDirectoryScreenState extends State<AdminDirectoryScreen> {
+  List<dynamic> _entries = [];
+  List<String> _categories = [];
+  String _selectedCategory = '';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDirectory();
+  }
+
+  Future<void> _fetchDirectory() async {
+    setState(() => _isLoading = true);
+    try {
+      final results = await Future.wait([
+        DirectoryService.getSocietyDirectory(),
+        DirectoryService.getCategories(),
+      ]);
+      
+      if (mounted) {
+        setState(() {
+          _entries = results[0];
+          _categories = List<String>.from(results[1]);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<dynamic> get _filteredEntries {
+    if (_selectedCategory.isEmpty) return _entries;
+    return _entries.where((e) => e['category'] == _selectedCategory).toList();
+  }
+
+   // ==========================================
+  // NEW: ADD / EDIT / DELETE LOGIC
+  // ==========================================
+  Future<void> _showAddEditDialog({Map<String, dynamic>? existingEntry}) async {
+    final isEdit = existingEntry != null;
+    
+    final nameController = TextEditingController(text: isEdit ? existingEntry!['name'] : '');
+    final contactController = TextEditingController(text: isEdit ? existingEntry!['contactNumber'] : '');
+    final emailController = TextEditingController(text: isEdit ? existingEntry!['email'] ?? '' : '');
+    final addressController = TextEditingController(text: isEdit ? existingEntry!['address'] ?? '' : '');
+    final notesController = TextEditingController(text: isEdit ? existingEntry!['notes'] ?? '' : '');
+    String selectedCategory = isEdit ? existingEntry!['category'] ?? 'Emergency' : 'Emergency';
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(isEdit ? 'Edit Entry' : 'Add New Entry'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedCategory,
+                      items: ['Emergency', 'Committee', 'Plumber', 'Electrician', 'Other']
+                          .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                          .toList(),
+                      decoration: const InputDecoration(labelText: 'Category *', border: OutlineInputBorder()),
+                      onChanged: (val) => setDialogState(() => selectedCategory = val!),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: contactController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Contact Number *', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email (Optional)', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address (Optional)', border: OutlineInputBorder())),
+                    const SizedBox(height: 12),
+                    TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notes (Optional)', border: OutlineInputBorder())),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameController.text.trim().isEmpty || contactController.text.trim().isEmpty) return;
+
+                    final societyId = await AuthService.getSocietyId();
+                    final payload = {
+                      'societyId': societyId,
+                      'category': selectedCategory,
+                      'name': nameController.text.trim(),
+                      'contactNumber': contactController.text.trim(),
+                      'email': emailController.text.trim().isEmpty ? null : emailController.text.trim(),
+                      'address': addressController.text.trim().isEmpty ? null : addressController.text.trim(),
+                      'notes': notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                    };
+
+                    bool success;
+                    if (isEdit) {
+                      payload['id'] = existingEntry!['id']; // Add ID for update payload
+                      success = await DirectoryService.updateEntry(payload);
+                    } else {
+                      success = await DirectoryService.addEntry(payload);
+                    }
+
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (success) {
+                      _fetchDirectory();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(isEdit ? 'Entry Updated!' : 'Entry Added!'), backgroundColor: Colors.green),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteEntry(String entryId) async {
+    final confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Entry?'),
+        content: const Text('Are you sure you want to remove this directory entry?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final societyId = await AuthService.getSocietyId();
+      final success = await DirectoryService.deleteEntry(entryId, societyId);
+      if (success && mounted) {
+        _fetchDirectory();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Entry Deleted'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Society Directory')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddEditDialog(),
+        tooltip: 'Add Entry',
+        child: const Icon(Icons.add),
+      ),
+      body: Column(
+        children: [
+          // Category Filter Chips
+          if (_categories.isNotEmpty)
+            Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ChoiceChip(
+                      label: const Text('All'),
+                      selected: _selectedCategory.isEmpty,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _selectedCategory = '');
+                      },
+                    ),
+                  ),
+                  ..._categories.map((category) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: ChoiceChip(
+                        label: Text(category),
+                        selected: _selectedCategory == category,
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedCategory = category);
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          
+          // Directory List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredEntries.isEmpty
+                    ? const Center(child: Text('No entries found.'))
+                    : ListView.builder(
+                        itemCount: _filteredEntries.length,
+                        itemBuilder: (context, index) {
+                          final e = _filteredEntries[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          e['name'] ?? '',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        ),
+                                      ),
+                                      Chip(
+                                        label: Text(e['category'] ?? '', style: const TextStyle(fontSize: 11)),
+                                        backgroundColor: Colors.blue.shade50,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                      const SizedBox(width: 4),
+                                      Text(e['contactNumber'] ?? 'N/A'),
+                                    ],
+                                  ),
+                                  if (e['email'] != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.email, size: 14, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Expanded(child: Text(e['email'], style: const TextStyle(fontSize: 12))),
+                                        ],
+                                      ),
+                                    ),
+                                  if (e['address'] != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text('Address: ${e['address']}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                    ),
+                                     // NEW: Admin Action Buttons
+                                  const Divider(height: 20),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () => _showAddEditDialog(existingEntry: e),
+                                        icon: const Icon(Icons.edit, size: 16),
+                                        label: const Text('Edit'),
+                                        style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: () => _deleteEntry(e['id']),
+                                        icon: const Icon(Icons.delete_outline, size: 16),
+                                        label: const Text('Delete'),
+                                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                      ),
+                                    ],
+                                  )
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_guard_management_screen.dart
+SIZE  : 6.1 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/admin_guard_management_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/guard_management_service.dart';
+import '../../services/auth_service.dart';
+
+class AdminGuardManagementScreen extends StatefulWidget {
+  const AdminGuardManagementScreen({super.key});
+
+  @override
+  State<AdminGuardManagementScreen> createState() => _AdminGuardManagementScreenState();
+}
+
+class _AdminGuardManagementScreenState extends State<AdminGuardManagementScreen> {
+  final _nameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _passwordController = TextEditingController(text: 'Guard@123'); // Default temp password
+  bool _isRegistering = false;
+
+  Future<void> _registerGuard() async {
+    if (_nameController.text.trim().isEmpty || _mobileController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and Mobile are required.'), backgroundColor: Colors.orange));
+      return;
+    }
+
+    setState(() => _isRegistering = true);
+
+    try {
+      final societyId = await AuthService.getSocietyId();
+      if (societyId.isEmpty) throw Exception('Society ID not found. Please log in again.');
+
+      // Step 1: Create the User in Identity Service
+      final result = await GuardManagementService.registerGuard(
+        _mobileController.text.trim(),
+        _nameController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (result != null && result.containsKey('id')) {
+        final userId = result['id'].toString();
+
+        // Step 2: Assign the User to the Society as a 'Guard' member
+        final assigned = await GuardManagementService.assignGuardToSociety(userId, societyId);
+
+        if (assigned && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Guard Registered & Assigned Successfully!'), backgroundColor: Colors.green),
+          );
+          _nameController.clear();
+          _mobileController.clear();
+          _passwordController.text = 'Guard@123';
+        } else {
+          throw Exception('Guard created, but failed to assign to society.');
+        }
+      } else {
+        throw Exception('Invalid response from server during registration.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRegistering = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Guard Management'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.security, color: Colors.deepOrange, size: 32),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Register Security Guard', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange)),
+                        SizedBox(height: 4),
+                        Text('This will create their login and assign them to your society.', style: TextStyle(fontSize: 12, color: Colors.deepOrange)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Form Fields
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Guard Full Name *',
+                prefixIcon: Icon(Icons.person),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _mobileController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Mobile Number *',
+                prefixIcon: Icon(Icons.phone_android),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Temporary Password',
+                prefixIcon: Icon(Icons.lock_outline),
+                border: OutlineInputBorder(),
+                helperText: 'Guard will use this for their first login',
+              ),
+            ),
+            const Spacer(),
+
+            // Submit Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _isRegistering ? null : _registerGuard,
+                icon: _isRegistering 
+                    ? const CircularProgressIndicator(color: Colors.white) 
+                    : const Icon(Icons.shield),
+                label: const Text('Register Guard', style: TextStyle(fontSize: 18)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_helpdesk_screen.dart
+SIZE  : 8.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/admin_helpdesk_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/helpdesk_service.dart';
+import 'ticket_detail_screen.dart';
+
+class AdminHelpdeskScreen extends StatefulWidget {
+  const AdminHelpdeskScreen({super.key});
+
+  @override
+  State<AdminHelpdeskScreen> createState() => _AdminHelpdeskScreenState();
+}
+
+class _AdminHelpdeskScreenState extends State<AdminHelpdeskScreen> {
+  List<dynamic> _tickets = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTickets();
+  }
+
+  Future<void> _fetchTickets() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await HelpdeskService.getSocietyTickets();
+      if (mounted) setState(() => _tickets = data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateStatus(String ticketId, int newStatus) async {
+    try {
+      final success = await HelpdeskService.updateTicketStatus(ticketId, newStatus);
+      if (success) {
+        _fetchTickets(); 
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Status Updated!'), backgroundColor: Colors.green)
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+        );
+      }
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0: return 'Open';
+      case 1: return 'In Progress';
+      case 2: return 'Resolved';
+      case 3: return 'Closed';
+      default: return 'Unknown';
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 0: return Colors.orange.shade100;
+      case 1: return Colors.blue.shade100;
+      case 2: return Colors.green.shade100;
+      case 3: return Colors.grey.shade200;
+      default: return Colors.grey.shade300;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Helpdesk Tickets')),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _tickets.isEmpty 
+              ? const Center(child: Text('No tickets found.'))
+              : ListView.builder(
+                  itemCount: _tickets.length,
+                  itemBuilder: (context, index) {
+                    final t = _tickets[index];
+                    final status = t['status'] ?? 0;
+                    
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ADDED: Make the ticket details tappable to view/add comments
+                            InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => TicketDetailScreen(ticketId: t['id']))
+                                ).then((_) => _fetchTickets()); // Refresh status when returning
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          t['title'] ?? '', 
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                                        )
+                                      ),
+                                      Chip(
+                                        label: Text(_getStatusText(status), style: const TextStyle(fontSize: 12)),
+                                        backgroundColor: _getStatusColor(status),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    t['description'] ?? '', 
+                                    maxLines: 2, 
+                                    overflow: TextOverflow.ellipsis, 
+                                    style: TextStyle(color: Colors.grey.shade700)
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text('Tap for details', style: TextStyle(fontSize: 11, color: Colors.indigo.shade300, fontStyle: FontStyle.italic)),
+                                  )
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            
+                            // EXISTING BUTTONS + NEW CLOSE BUTTON
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (status == 0) 
+                                  ElevatedButton.icon(
+                                    onPressed: () => _updateStatus(t['id'], 1),
+                                    icon: const Icon(Icons.play_arrow, size: 16),
+                                    label: const Text('Start'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue, 
+                                      foregroundColor: Colors.white, 
+                                      padding: const EdgeInsets.symmetric(horizontal: 12)
+                                    ),
+                                  ),
+                                if (status == 1) 
+                                  ElevatedButton.icon(
+                                    onPressed: () => _updateStatus(t['id'], 2),
+                                    icon: const Icon(Icons.check_circle, size: 16),
+                                    label: const Text('Resolve'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green, 
+                                      foregroundColor: Colors.white, 
+                                      padding: const EdgeInsets.symmetric(horizontal: 12)
+                                    ),
+                                  ),
+                                // ADDED: Close button for Resolved tickets
+                                if (status == 2) 
+                                  ElevatedButton.icon(
+                                    onPressed: () => _updateStatus(t['id'], 3),
+                                    icon: const Icon(Icons.lock_outline, size: 16),
+                                    label: const Text('Close'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey, 
+                                      foregroundColor: Colors.white, 
+                                      padding: const EdgeInsets.symmetric(horizontal: 12)
+                                    ),
+                                  ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_management_screen.dart
+SIZE  : 15.3 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mygate_app/services/auth_service.dart';
+import 'package:mygate_app/services/tenant_admin_service.dart';
+import 'admin_visitors_screen.dart';
+import 'admin_notices_screen.dart';
+import 'admin_helpdesk_screen.dart';
+import 'admin_billing_screen.dart';
+import 'admin_daily_help_screen.dart'; 
+import 'admin_master_data_screen.dart'; 
+import 'admin_vehicle_screen.dart'; 
+import 'admin_guard_management_screen.dart'; 
+import 'admin_directory_screen.dart';
+import 'admin_amenity_screen.dart';
+import 'admin_blocks_flats_screen.dart'; // Extracted Tab 1
+import 'admin_register_user_screen.dart'; // Extracted Tab 2
+
+
+class AdminManagementScreen extends StatefulWidget {
+  const AdminManagementScreen({super.key});
+
+  @override
+  State<AdminManagementScreen> createState() => _AdminManagementScreenState();
+}
+
+class _AdminManagementScreenState extends State<AdminManagementScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  String _societyId = '';
+  List<dynamic> _blocks = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this); // Added 3rd tab
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final societyId = await AuthService.getSocietyId();
+    if (societyId.isEmpty) return;
+    
+    setState(() => _societyId = societyId);
+    
+    try {
+      final blocks = await TenantAdminService.getBlocks(_societyId);
+      setState(() { _blocks = blocks; _isLoading = false; });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showAddBlockDialog() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Block'),
+        content: TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Block Name (e.g., B)')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, nameController.text), child: const Text('Create')),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final success = await TenantAdminService.createBlock(_societyId, result);
+      if (success) _loadData(); 
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? 'Block Added!' : 'Failed')));
+    }
+  }
+
+/*
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        backgroundColor: Colors.indigo.shade800,
+        foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.apartment), text: 'Blocks & Flats'),
+            Tab(icon: Icon(Icons.person_add), text: 'Register User'),
+            Tab(icon: Icon(Icons.manage_accounts), text: 'Society Mgmt'), // New Tab
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: Blocks & Flats (Enhanced)
+          _buildBlocksAndFlatsTab(),
+          // TAB 2: Register User
+          _RegisterUserTab(),
+          // TAB 3: Society Management (Parity)
+          _buildSocietyManagementTab(),
+        ],
+      ),
+      floatingActionButton: _tabController.index == 0 ? FloatingActionButton(
+        onPressed: _showAddBlockDialog,
+        tooltip: 'Add Block',
+        child: const Icon(Icons.add),
+      ) : null,
+    );
+  }
+  */
+ @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        backgroundColor: Colors.indigo.shade800,
+        foregroundColor: Colors.white,
+      ),
+      body: GridView.count(
+        padding: const EdgeInsets.all(16),
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.5,
+        children: [
+          // Core Admin Group
+          _buildMgmtCard(context, title: 'Master Data', icon: Icons.apartment, color: Colors.brown, screen: const AdminMasterDataScreen()),
+          _buildMgmtCard(context, title: 'Visitors', icon: Icons.people, color: Colors.blue, screen: const AdminVisitorsScreen()),
+          _buildMgmtCard(context, title: 'Notices', icon: Icons.campaign, color: Colors.orange, screen: const AdminNoticeScreen()),
+          _buildMgmtCard(context, title: 'Helpdesk', icon: Icons.support_agent, color: Colors.purple, screen: const AdminHelpdeskScreen()),
+          
+          // Operations Group
+          _buildMgmtCard(context, title: 'Billing', icon: Icons.receipt_long, color: Colors.green, screen: const AdminBillingScreen()),
+          _buildMgmtCard(context, title: 'Daily Help', icon: Icons.cleaning_services, color: Colors.teal, screen: const AdminDailyHelpScreen()),
+          _buildMgmtCard(context, title: 'Vehicles', icon: Icons.directions_car, color: Colors.blueGrey, screen: const AdminVehicleScreen()),
+          _buildMgmtCard(context, title: 'Directory', icon: Icons.contact_phone, color: Colors.pink, screen: const AdminDirectoryScreen()),
+          
+          // Society Setup Group
+          _buildMgmtCard(context, title: 'Amenities', icon: Icons.pool, color: Colors.cyan, screen: const AdminAmenityScreen()),
+          _buildMgmtCard(context, title: 'Guard Mgmt', icon: Icons.security, color: Colors.deepOrange, screen: const AdminGuardManagementScreen()),
+          _buildMgmtCard(context, title: 'Blocks & Flats', icon: Icons.domain, color: Colors.indigo, screen: const AdminBlocksFlatsScreen()),
+          _buildMgmtCard(context, title: 'Register User', icon: Icons.person_add, color: Colors.amber.shade800, screen: const AdminRegisterUserScreen()),
+        ],
+      ),
+    );
+  }
+
+  // --- TAB 1 WIDGET: BLOCKS & FLATS ---
+  Widget _buildBlocksAndFlatsTab() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    
+    return ListView.builder(
+      itemCount: _blocks.length,
+      itemBuilder: (context, index) {
+        final block = _blocks[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: ExpansionTile(
+            leading: const Icon(Icons.domain, color: Colors.indigo),
+            title: Text(block['name'] ?? 'Unknown Block', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('Block ID: ${block['id']?.toString().substring(0, 8)}...'),
+            children: [
+              FutureBuilder<List<dynamic>>(
+                future: TenantAdminService.getFlats(block['id']),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(padding: EdgeInsets.all(16.0), child: Center(child: CircularProgressIndicator()));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Padding(padding: EdgeInsets.all(16.0), child: Text('No flats in this block.'));
+                  }
+                  
+                  final flats = snapshot.data!;
+                  return Column(
+                    children: [
+                      ...flats.map((flat) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.meeting_room, size: 20),
+                        title: Text('Flat: ${flat['flatNumber']}'),
+                        subtitle: Text('Type: ${flat['type'] ?? 'N/A'}'),
+                      )).toList(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Add Flat'),
+                            onPressed: () => _showAddFlatDialog(block['id']),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAddFlatDialog(String blockId) async {
+    final flatNumberController = TextEditingController();
+    final flatTypeController = TextEditingController(text: '2BHK'); // Default type
+    
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Flat'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: flatNumberController, decoration: const InputDecoration(labelText: 'Flat Number (e.g., 101)')),
+            const SizedBox(height: 8),
+            TextField(controller: flatTypeController, decoration: const InputDecoration(labelText: 'Type (e.g., 2BHK, 3BHK)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, {
+              'flatNumber': flatNumberController.text,
+              'flatType': flatTypeController.text,
+            }), 
+            child: const Text('Create')
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result['flatNumber']!.isNotEmpty) {
+      final success = await TenantAdminService.createFlat(
+        blockId, 
+        _societyId, 
+        result['flatNumber']!, 
+        result['flatType']!
+      );
+      
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flat Added!')));
+        setState(() {}); // Force refresh to reload ExpansionTile futures
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to add flat')));
+      }
+    }
+  }
+
+  // --- TAB 3 WIDGET: SOCIETY MANAGEMENT ---
+  Widget _buildSocietyManagementTab() {
+    return GridView.count(
+      padding: const EdgeInsets.all(16),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.5,
+      children: [
+         _buildMgmtCard(context, title: 'Master Data', icon: Icons.apartment, color: Colors.brown, screen: const AdminMasterDataScreen()), // ADDED
+        _buildMgmtCard(context, title: 'Visitors', icon: Icons.people, color: Colors.blue, screen: const AdminVisitorsScreen()),
+        _buildMgmtCard(context, title: 'Notices', icon: Icons.campaign, color: Colors.orange, screen:  const AdminNoticeScreen()),
+        _buildMgmtCard(context, title: 'Helpdesk', icon: Icons.support_agent, color: Colors.purple, screen: const AdminHelpdeskScreen()),
+        _buildMgmtCard(context, title: 'Billing', icon: Icons.receipt_long, color: Colors.green, screen: const AdminBillingScreen()),
+        _buildMgmtCard(context, title: 'Daily Help', icon: Icons.help, color: Colors.teal, screen: const AdminDailyHelpScreen()),
+         _buildMgmtCard(context, title: 'Vehicles', icon: Icons.directions_car, color: Colors.blueGrey, screen: const AdminVehicleScreen()), // ADDED
+        _buildMgmtCard(context, title: 'Guard Mgmt', icon: Icons.security, color: Colors.deepOrange, screen: const AdminGuardManagementScreen()), // ADDED
+      ],
+    );
+  }
+
+/*
+  Widget _buildMgmtCard(BuildContext context, {required String title, required IconData icon, required Color color, required Widget screen}) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(height: 6),
+            Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
+      ),
+    );
+  }*/
+/*
+    Widget _buildMgmtCard(BuildContext context, {required String title, required IconData icon, required Color color, required Widget screen}) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => screen)
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(height: 6),
+            Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+}*/
+    Widget _buildMgmtCard(BuildContext context, {required String title, required IconData icon, required Color color, required Widget screen}) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(height: 6),
+            Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+/*
+// Extracted Register User Tab Widget
+class _RegisterUserTab extends StatefulWidget {
+  @override
+  State<_RegisterUserTab> createState() => _RegisterUserTabState();
+}
+
+class _RegisterUserTabState extends State<_RegisterUserTab> {
+  final _mobileController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController(text: 'TempPass@123'); // Default temp password
+  bool _isLoading = false;
+
+  Future<void> _submit() async {
+    setState(() => _isLoading = true);
+    try {
+      await TenantAdminService.registerUser(
+        _mobileController.text, 
+        _nameController.text, 
+        _passwordController.text,
+        _emailController.text.isEmpty ? null : _emailController.text
+      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ User Registered Successfully!')));
+      _mobileController.clear();
+      _nameController.clear();
+      _emailController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+*/
+  
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_master_data_screen.dart
+SIZE  : 12.5 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/admin_master_data_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/master_data_service.dart';
+import '../../services/tenant_admin_service.dart';
+import '../../services/auth_service.dart';
+
+class AdminMasterDataScreen extends StatefulWidget {
+  const AdminMasterDataScreen({super.key});
+
+  @override
+  State<AdminMasterDataScreen> createState() => _AdminMasterDataScreenState();
+}
+
+class _AdminMasterDataScreenState extends State<AdminMasterDataScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  // --- Societies State ---
+  List<dynamic> _societies = [];
+  bool _isLoadingSocieties = true;
+
+  // --- Blocks/Flats State ---
+  List<dynamic> _blocks = [];
+  bool _isLoadingBlocks = true;
+  String _selectedSocietyId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _fetchSocieties();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // ==========================================
+  // TAB 1: SOCIETY CRUD (SUPERADMIN)
+  // ==========================================
+  Future<void> _fetchSocieties() async {
+    setState(() => _isLoadingSocieties = true);
+    try {
+      final data = await MasterDataService.getAllSocieties();
+      if (mounted) setState(() => _societies = data);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoadingSocieties = false);
+    }
+  }
+
+  Future<void> _showCreateSocietyDialog() async {
+    final nameController = TextEditingController();
+    final codeController = TextEditingController();
+    final addressController = TextEditingController();
+    final cityController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create New Society'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Society Name *', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Society Code *', border: OutlineInputBorder(), hintText: 'e.g., SUN-APT')),
+              const SizedBox(height: 12),
+              TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address *', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: cityController, decoration: const InputDecoration(labelText: 'City *', border: OutlineInputBorder())),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty || codeController.text.isEmpty) return;
+              
+              final success = await MasterDataService.createSociety({
+                'name': nameController.text.trim(),
+                'code': codeController.text.trim(),
+                'address': addressController.text.trim(),
+                'city': cityController.text.trim(),
+              });
+
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) {
+                _fetchSocieties();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Society Created!'), backgroundColor: Colors.green));
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSociety(String societyId) async {
+    final confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Society?'),
+        content: const Text('This will permanently delete this society and all its blocks, flats, and members. Are you sure?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await MasterDataService.deleteSociety(societyId);
+      if (success && mounted) {
+        _fetchSocieties();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Society Deleted'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  // ==========================================
+  // TAB 2: BLOCKS & FLATS (ADMIN)
+  // ==========================================
+  Future<void> _loadBlocksForSociety(String societyId) async {
+    setState(() { _selectedSocietyId = societyId; _isLoadingBlocks = true; });
+    try {
+      final blocks = await TenantAdminService.getBlocks(societyId);
+      if (mounted) setState(() => _blocks = blocks);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoadingBlocks = false);
+    }
+  }
+
+  Future<void> _showAddBlockDialog() async {
+    if (_selectedSocietyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a society first.'), backgroundColor: Colors.orange));
+      return;
+    }
+
+    final nameController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Block'),
+        content: TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Block Name (e.g., A)', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) return;
+              final success = await TenantAdminService.createBlock(_selectedSocietyId, nameController.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) _loadBlocksForSociety(_selectedSocietyId);
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddFlatDialog(String blockId) async {
+    final flatNumController = TextEditingController();
+    final flatTypeController = TextEditingController(text: '2BHK');
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Flat'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: flatNumController, decoration: const InputDecoration(labelText: 'Flat Number (e.g., 101)', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: flatTypeController, decoration: const InputDecoration(labelText: 'Type (e.g., 2BHK)', border: OutlineInputBorder())),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (flatNumController.text.isEmpty) return;
+              final success = await TenantAdminService.createFlat(blockId, _selectedSocietyId, flatNumController.text, flatTypeController.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) _loadBlocksForSociety(_selectedSocietyId); // Refresh
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // BUILD
+  // ==========================================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Master Data Management'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.apartment), text: 'Societies'),
+            Tab(icon: Icon(Icons.domain), text: 'Blocks & Flats'),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _tabController.index == 0 ? _showCreateSocietyDialog : _showAddBlockDialog,
+        child: const Icon(Icons.add),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: SOCIETIES LIST
+          _isLoadingSocieties
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                  itemCount: _societies.length,
+                  itemBuilder: (context, index) {
+                    final s = _societies[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: ListTile(
+                        title: Text(s['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${s['code'] ?? ''} | ${s['city'] ?? ''}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => _deleteSociety(s['id']),
+                        ),
+                        onTap: () => _loadBlocksForSociety(s['id']), // Load blocks for this society
+                      ),
+                    );
+                  },
+                ),
+
+          // TAB 2: BLOCKS & FLATS
+          _selectedSocietyId.isEmpty
+              ? const Center(child: Text('Select a Society from the first tab to manage its Blocks and Flats.'))
+              : _isLoadingBlocks
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      itemCount: _blocks.length,
+                      itemBuilder: (context, index) {
+                        final b = _blocks[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          child: ExpansionTile(
+                            title: Text(b['name'] ?? 'Unknown Block', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            children: [
+                              FutureBuilder<List<dynamic>>(
+                                future: TenantAdminService.getFlats(b['id']),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) return const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator());
+                                  if (!snapshot.hasData || snapshot.data!.isEmpty) return const Padding(padding: EdgeInsets.all(16), child: Text('No flats.'));
+                                  
+                                  return Column(
+                                    children: [
+                                      ...snapshot.data!.map((f) => ListTile(
+                                        dense: true,
+                                        leading: const Icon(Icons.meeting_room, size: 20),
+                                        title: Text('Flat: ${f['flatNumber']}'),
+                                        subtitle: Text('Type: ${f['type'] ?? 'N/A'}'),
+                                      )).toList(),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton.icon(
+                                          onPressed: () => _showAddFlatDialog(b['id']),
+                                          icon: const Icon(Icons.add, size: 16),
+                                          label: const Text('Add Flat'),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+        ],
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_notices_screen.dart
+SIZE  : 6.2 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/admin_notice_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/notice_service.dart';
+import '../../services/auth_service.dart';
+
+class AdminNoticeScreen extends StatefulWidget {
+  const AdminNoticeScreen({super.key});
+
+  @override
+  State<AdminNoticeScreen> createState() => _AdminNoticeScreenState();
+}
+
+class _AdminNoticeScreenState extends State<AdminNoticeScreen> {
+  List<dynamic> _notices = [];
+  bool _isLoading = true;
+
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotices();
+  }
+
+  Future<void> _fetchNotices() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await NoticeService.getNotices();
+      if (mounted) setState(() => _notices = data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showPostNoticeDialog() async {
+    _titleController.clear();
+    _descController.clear();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Post New Notice'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _descController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Description *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_titleController.text.trim().isEmpty || _descController.text.trim().isEmpty) return;
+
+                final societyId = await AuthService.getSocietyId();
+                final userId = await AuthService.getUserId();
+
+                final payload = {
+                  'societyId': societyId,
+                  'title': _titleController.text.trim(),
+                  'description': _descController.text.trim(),
+                  'category': 0,
+                  'isPinned': false,
+                  'createdByUserId': userId,
+                };
+
+                final success = await NoticeService.createNotice(payload);
+
+                if (ctx.mounted) Navigator.pop(ctx);
+                
+                if (success) {
+                  _fetchNotices();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Notice Posted!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to post notice.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Post'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notice Board')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showPostNoticeDialog,
+        tooltip: 'Post Notice',
+        child: const Icon(Icons.add),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _notices.isEmpty
+              ? const Center(child: Text('No notices found.'))
+              : ListView.builder(
+                  itemCount: _notices.length,
+                  itemBuilder: (context, index) {
+                    final n = _notices[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    n['title'] ?? '',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                if (n['isPinned'] == true)
+                                  const Icon(Icons.push_pin, color: Colors.orange, size: 20),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(n['description'] ?? ''),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Posted: ${n['createdAt']?.substring(0, 10) ?? 'N/A'}',
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_register_user_screen.dart
+SIZE  : 2.7 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ import 'package:flutter/material.dart';
+import 'package:mygate_app/services/tenant_admin_service.dart';
+
+class AdminRegisterUserScreen extends StatefulWidget {
+  const AdminRegisterUserScreen({super.key});
+  @override
+  State<AdminRegisterUserScreen> createState() => _AdminRegisterUserScreenState();
+}
+
+class _AdminRegisterUserScreenState extends State<AdminRegisterUserScreen> {
+  final _mobileController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController(text: 'TempPass@123');
+  bool _isLoading = false;
+
+  Future<void> _submit() async {
+    setState(() => _isLoading = true);
+    try {
+      await TenantAdminService.registerUser(
+        _mobileController.text, 
+        _nameController.text, 
+        _passwordController.text,
+        _emailController.text.isEmpty ? null : _emailController.text
+      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ User Registered Successfully!')));
+      _mobileController.clear();
+      _nameController.clear();
+      _emailController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Register User')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(controller: _mobileController, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email (Optional)', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _submit,
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Register User'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE  : lib\screens\admin_vehicle_screen.dart
+SIZE  : 10.6 KB
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ // lib/screens/admin_vehicle_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/vehicle_service.dart';
+import '../../services/auth_service.dart';
+
+class AdminVehicleScreen extends StatefulWidget {
+  const AdminVehicleScreen({super.key});
+
+  @override
+  State<AdminVehicleScreen> createState() => _AdminVehicleScreenState();
+}
+
+class _AdminVehicleScreenState extends State<AdminVehicleScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  // --- Vehicles State ---
+  List<dynamic> _vehicles = [];
+  bool _isLoadingVehicles = true;
+
+  // --- Parking Slots State ---
+  List<dynamic> _parkingSlots = [];
+  bool _isLoadingSlots = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _fetchVehicles();
+    _fetchParkingSlots();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // ==========================================
+  // VEHICLES LOGIC
+  // ==========================================
+  Future<void> _fetchVehicles() async {
+    setState(() => _isLoadingVehicles = true);
+    try {
+      final data = await VehicleService.getSocietyVehicles();
+      if (mounted) setState(() => _vehicles = data);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoadingVehicles = false);
+    }
+  }
+
+  // ==========================================
+  // PARKING SLOTS LOGIC
+  // ==========================================
+  Future<void> _fetchParkingSlots() async {
+    setState(() => _isLoadingSlots = true);
+    try {
+      final data = await VehicleService.getSocietyParkingSlots();
+      if (mounted) setState(() => _parkingSlots = data);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoadingSlots = false);
+    }
+  }
+
+  Future<void> _showAssignSlotDialog(String slotId) async {
+    final vehicleIdController = TextEditingController();
+    
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Assign Vehicle to Slot'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Paste the Vehicle ID you want to park here.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: vehicleIdController, 
+              decoration: const InputDecoration(labelText: 'Vehicle ID (GUID) *', border: OutlineInputBorder())
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (vehicleIdController.text.isEmpty) return;
+              
+              final societyId = await AuthService.getSocietyId();
+              final success = await VehicleService.assignParkingSlot(
+                slotId: slotId, 
+                vehicleId: vehicleIdController.text.trim(), 
+                societyId: societyId
+              );
+
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) {
+                _fetchParkingSlots();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Vehicle Parked!'), backgroundColor: Colors.green));
+              }
+            },
+            child: const Text('Assign'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _unassignSlot(String slotId) async {
+    final confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Vehicle?'),
+        content: const Text('Are you sure you want to unassign the vehicle from this slot?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Remove')),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final societyId = await AuthService.getSocietyId();
+      final success = await VehicleService.unassignParkingSlot(slotId: slotId, societyId: societyId);
+      if (success && mounted) {
+        _fetchParkingSlots();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Slot Unassigned'), backgroundColor: Colors.orange));
+      }
+    }
+  }
+
+  // ==========================================
+  // BUILD
+  // ==========================================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Vehicle & Parking Management'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.directions_car), text: 'Vehicles'),
+            Tab(icon: Icon(Icons.local_parking), text: 'Parking Slots'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: VEHICLES LIST
+          _isLoadingVehicles
+              ? const Center(child: CircularProgressIndicator())
+              : _vehicles.isEmpty
+                  ? const Center(child: Text('No vehicles registered in this society.'))
+                  : ListView.builder(
+                      itemCount: _vehicles.length,
+                      itemBuilder: (context, index) {
+                        final v = _vehicles[index];
+                        final hasSlot = v['parkingSlotId'] != null;
+                        
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          child: ListTile(
+                            leading: Icon(
+                              v['vehicleType'] == 0 ? Icons.two_wheeler : Icons.directions_car, 
+                              size: 36, 
+                              color: hasSlot ? Colors.green : Colors.grey
+                            ),
+                            title: Text(v['vehicleNumber'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('${v['makeModel'] ?? 'N/A'}\nSlot: ${hasSlot ? v['parkingSlotId'].toString().substring(0, 8) + '...' : 'Unassigned'}'),
+                            isThreeLine: true,
+                            trailing: Chip(
+                              label: Text(hasSlot ? 'Parked' : 'Active', style: const TextStyle(fontSize: 11)),
+                              backgroundColor: hasSlot ? Colors.green.shade100 : Colors.blue.shade100,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+          // TAB 2: 2D PARKING SLOT VISUALIZER
+          _isLoadingSlots
+              ? const Center(child: CircularProgressIndicator())
+              : _parkingSlots.isEmpty
+                  ? const Center(child: Text('No parking slots configured.'))
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 0.8,
+                      ),
+                      itemCount: _parkingSlots.length,
+                      itemBuilder: (context, index) {
+                        final s = _parkingSlots[index];
+                        final isOccupied = s['isOccupied'] == true;
+
+                        return Card(
+                          color: isOccupied ? Colors.red.shade50 : Colors.green.shade50,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: isOccupied ? Colors.red : Colors.green, width: 2),
+                            borderRadius: BorderRadius.circular(8)
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              if (isOccupied) {
+                                _unassignSlot(s['id']);
+                              } else {
+                                _showAssignSlotDialog(s['id']);
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isOccupied ? Icons.block : Icons.local_parking,
+                                    color: isOccupied ? Colors.red : Colors.green,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    s['slotNumber'] ?? 'N/A',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    isOccupied ? 'Occupied' : 'Available',
+                                    style: TextStyle(fontSize: 10, color: isOccupied ? Colors.red : Colors.green),
+                                  ),
+                                  if (isOccupied && s['parkedVehicle'] != null)
+                                    Text(
+                                      (s['parkedVehicle']['vehicleNumber'] ?? '').substring(0, 4),
+                                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                    )
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+        ],
+      ),
+    );
+  }
+}
+

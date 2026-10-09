@@ -1,162 +1,125 @@
+// lib/screens/admin_management_screen.dart
 import 'package:flutter/material.dart';
-import 'package:mygate_app/services/auth_service.dart';
-import 'package:mygate_app/services/tenant_admin_service.dart';
-import '../services/auth_service.dart';
+import 'admin_blocks_flats_screen.dart'; 
+import 'admin_register_user_screen.dart'; 
+import 'admin_society_management_screen.dart'; // NEW IMPORT
 
-class AdminManagementScreen extends StatefulWidget {
+class AdminManagementScreen extends StatelessWidget {
   const AdminManagementScreen({super.key});
-
-  @override
-  State<AdminManagementScreen> createState() => _AdminManagementScreenState();
-}
-
-class _AdminManagementScreenState extends State<AdminManagementScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String _societyId = '';
-  List<dynamic> _blocks = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final societyId = await AuthService.getSocietyId();
-    if (societyId.isEmpty) return;
-    
-    setState(() => _societyId = societyId);
-    
-    try {
-      final blocks = await TenantAdminService.getBlocks(_societyId);
-      setState(() { _blocks = blocks; _isLoading = false; });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _showAddBlockDialog() async {
-    final nameController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add New Block'),
-        content: TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Block Name (e.g., B)')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, nameController.text), child: const Text('Create')),
-        ],
-      ),
-    );
-
-    if (result != null && result.isNotEmpty) {
-      final success = await TenantAdminService.createBlock(_societyId, result);
-      if (success) _loadData(); 
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? 'Block Added!' : 'Failed')));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.apartment), text: 'Blocks & Flats'),
-            Tab(icon: Icon(Icons.person_add), text: 'Register User'),
+        backgroundColor: Colors.indigo.shade800,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            // Header context
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.indigo.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.indigo.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.admin_panel_settings, color: Colors.indigo, size: 32),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Society Administration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo)),
+                        SizedBox(height: 4),
+                        Text('Manage structure, users, and society operations.', style: TextStyle(fontSize: 12, color: Colors.indigo)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // The 3 Requested Tiles
+            _buildAdminTile(
+              context,
+              title: 'Blocks & Flats',
+              subtitle: 'Create blocks and associate flats',
+              icon: Icons.apartment,
+              color: Colors.brown,
+              screen: const AdminBlocksFlatsScreen(),
+            ),
+            const SizedBox(height: 16),
+            _buildAdminTile(
+              context,
+              title: 'Register User',
+              subtitle: 'Register new users to the society',
+              icon: Icons.person_add,
+              color: Colors.blue,
+              screen: const AdminRegisterUserScreen(),
+            ),
+            const SizedBox(height: 16),
+            _buildAdminTile(
+              context,
+              title: 'Society Management',
+              subtitle: 'Visitors, Notices, Billing, Helpdesk, etc.',
+              icon: Icons.manage_accounts,
+              color: Colors.deepOrange,
+              screen: const AdminSocietyManagementScreen(), // ROUTES TO NEW SCREEN
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // TAB 1: Blocks & Flats
-          _isLoading ? const Center(child: CircularProgressIndicator()) : ListView.builder(
-            itemCount: _blocks.length,
-            itemBuilder: (context, index) {
-              final block = _blocks[index];
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.domain),
-                  title: Text(block['name'] ?? 'Unknown Block'),
-                  subtitle: Text('ID: ${block['id']}'),
-                ),
-              );
-            },
-          ),
-          // TAB 2: Register User
-          _RegisterUserTab(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBlockDialog,
-        tooltip: 'Add Block',
-        child: const Icon(Icons.add),
-      ),
     );
   }
-}
 
-// Extracted Register User Tab Widget
-class _RegisterUserTab extends StatefulWidget {
-  @override
-  State<_RegisterUserTab> createState() => _RegisterUserTabState();
-}
-
-class _RegisterUserTabState extends State<_RegisterUserTab> {
-  final _mobileController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController(text: 'TempPass@123'); // Default temp password
-  bool _isLoading = false;
-
-  Future<void> _submit() async {
-    setState(() => _isLoading = true);
-    try {
-      await TenantAdminService.registerUser(
-        _mobileController.text, 
-        _nameController.text, 
-        _passwordController.text,
-        _emailController.text.isEmpty ? null : _emailController.text
-      );
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ User Registered Successfully!')));
-      _mobileController.clear();
-      _nameController.clear();
-      _emailController.clear();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          TextField(controller: _mobileController, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder())),
-          const SizedBox(height: 16),
-          TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder())),
-          const SizedBox(height: 16),
-          TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email (Optional)', border: OutlineInputBorder())),
-          const SizedBox(height: 16),
-          TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Register User'),
-            ),
+  Widget _buildAdminTile(BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required Widget screen,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => screen)),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 28, color: color),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

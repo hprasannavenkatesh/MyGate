@@ -23,4 +23,37 @@ class BillingService {
     if (response.statusCode == 200) return jsonDecode(response.body);
     throw Exception('Failed to load dues: ${response.body}');
   }
+
+    // Add to BillingService
+  static Future<List<dynamic>> getSocietyInvoices() async {
+    final societyId = await AuthService.getSocietyId();
+    final headers = await _getHeaders(); // Note: _getHeaders is async in existing code
+    final response = await http.get(
+      Uri.parse('${ApiConfig.billingBaseUrl}/society/$societyId'),
+      headers: await headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load society invoices');
+  }
+
+   // FIX: Added missing Generate Invoice API call (matches React parity)
+  static Future<bool> generateInvoice(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.billingBaseUrl}/generate'),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  static Future<bool> bulkGenerateInvoices(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.billingBaseUrl}/bulk-generate'),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
 }

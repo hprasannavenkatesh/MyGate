@@ -37,4 +37,12 @@ public class InvoicesController : ControllerBase
         var result = await _mediator.Send(new GetSocietyInvoicesQuery { SocietyId = societyId });
         return Ok(result);
     }
+
+    [HttpPost("bulk-generate")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> BulkGenerate([FromBody] BulkGenerateInvoicesCommand command)
+    {
+        var count = await _mediator.Send(command);
+        return Ok(new { Message = $"{count} invoices generated successfully." });
+    }
 }

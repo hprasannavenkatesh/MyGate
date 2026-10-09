@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _societyName = '';
   String _flatInfo = '';
   String _userRole = '';
+   bool _isHybridAdmin = false; // True if Admin + Resident (Committee Member)
 
   @override
   void initState() {
@@ -39,26 +40,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadContext();
     _initSignalR(); 
   }
-/*
+
   Future<void> _loadContext() async {
-    final societyId = await AuthService.getSocietyId();
-    final flatId = await AuthService.getFlatId();
-    final role = await AuthService.getUserRole();
-    
-    // You can expand this to fetch the actual Society Name from an API if needed
-    // For now, showing the IDs so the user knows exactly which context they are in.
-    setState(() {
-      _userRole = role;
-      _societyName = 'Society: $societyId'; 
-      _flatInfo = 'Flat: $flatId';
-    });
-  }*/
-    Future<void> _loadContext() async {
     final prefs = await SharedPreferences.getInstance();
     final role = await AuthService.getUserRole();
+     final flatId = await AuthService.getFlatId(); // Fetch flatId
+
+      // HYBRID LOGIC: If they are an Admin BUT they also have a FlatId assigned,
+    // it means they are a Committee Member/Owner acting as Admin.
+    // Pure Admins or SuperAdmins won't have a FlatId in their context.
+    final isHybrid = (role == 'Admin' || role == 'SuperAdmin') && flatId.isNotEmpty;
     
     setState(() {
       _userRole = role;
+      _isHybridAdmin = isHybrid;
       _societyName = prefs.getString('society_name') ?? 'Unknown Society'; 
       _flatInfo = '${prefs.getString('block_name') ?? 'Block'} - ${prefs.getString('flat_number') ?? 'Flat'}';
     });
@@ -68,9 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final societyId = await AuthService.getSocietyId();
     if (societyId.isEmpty) return;
 
-
     _hubConnection = HubConnectionBuilder()
-        .withUrl("${ApiConfig.emergencyGateway}/hubs/emergency",
+        .withUrl("${ApiConfig.emergencyGateway}/api/hubs/emergency",
         options: HttpConnectionOptions(
           transport: HttpTransportType.WebSockets,
           logger: null,
@@ -95,6 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     // Determine if user is an Admin type
     bool isAdmin = _userRole == 'Admin' || _userRole == 'SuperAdmin';
+
+       // Show Resident features IF:
+    // 1. They are a standard Resident (!isAdmin)
+    // 2. OR They are a Hybrid Admin (Admin + has FlatId)
+    bool showResidentFeatures = !isAdmin || _isHybridAdmin;
 
     return Scaffold(
       appBar: AppBar(
@@ -130,17 +129,17 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-            color: Colors.indigo.shade100,
+            color: isAdmin ? Colors.deepOrange.shade100 : Colors.indigo.shade100, // Visual cue for Admin
             child: Row(
               children: [
-                const Icon(Icons.apartment, color: Colors.indigo),
+                Icon(isAdmin ? Icons.admin_panel_settings : Icons.apartment, color: isAdmin ? Colors.deepOrange : Colors.indigo),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_societyName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                      Text(_flatInfo, style: const TextStyle(color: Colors.indigo, fontSize: 12)),
+                      Text(_societyName, style: TextStyle(fontWeight: FontWeight.bold, color: isAdmin ? Colors.deepOrange : Colors.indigo)),
+                      Text('Role: $_userRole | $_flatInfo', style: TextStyle(color: isAdmin ? Colors.deepOrange : Colors.indigo, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -156,29 +155,41 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // GRID MENU
+          // GRID MENU - ROLE BASED
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0), // FIXED SYNTAX
               child: GridView.count(
-                crossAxisCount: 3, // 3 columns to save vertical space
+                crossAxisCount: 3, 
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-                childAspectRatio: 1.2, // Makes cards shorter
+                childAspectRatio: 1.2, 
                 children: [
-                  _buildNavCard('Visitors', Icons.people, const MyVisitorsScreen()),
-                  _buildNavCard('Dues', Icons.receipt_long, const MyDuesScreen()),
-                  _buildNavCard('Tickets', Icons.support_agent, const MyTicketsScreen()),
-                  _buildNavCard('Notices', Icons.campaign, const NoticeBoardScreen()),
-                  _buildNavCard('Amenities', Icons.pool, const AmenityHubScreen()), // Merged Hub
-                  _buildNavCard('Daily Help', Icons.cleaning_services, const MyDailyHelpScreen()),
-                  _buildNavCard('Vehicles', Icons.directions_car, const MyVehiclesScreen()),
-                  _buildNavCard('Directory', Icons.contact_phone, const SocietyDirectoryScreen()),
-                  _buildNavCard('Emergency', Icons.sos, const EmergencyScreen()),
-                  
-                  // HIDE ADMIN FOR RESIDENTS
+                  // ==========================================
+                  // ADMIN ROUTING
+                  // ==========================================
                   if (isAdmin) 
-                    _buildNavCard('Admin', Icons.admin_panel_settings, const AdminManagementScreen()),
+                    _buildNavCard('Admin Panel', Icons.admin_panel_settings, const AdminManagementScreen(), color: Colors.deepOrange),
+                  
+                  // ==========================================
+                  // RESIDENT-ONLY ACTIONS (Show for Residents, OR Hybrid Admins)
+                  // ==========================================
+                  //if (!isAdmin) ...[
+                    if (showResidentFeatures) ...[
+                    _buildNavCard('Visitors', Icons.people, const MyVisitorsScreen()),
+                    _buildNavCard('Dues', Icons.receipt_long, const MyDuesScreen()),
+                    _buildNavCard('Tickets', Icons.support_agent, const MyTicketsScreen()),
+                    _buildNavCard('Amenities', Icons.pool, const AmenityHubScreen()), 
+                    _buildNavCard('Daily Help', Icons.cleaning_services, const MyDailyHelpScreen()),
+                    _buildNavCard('Vehicles', Icons.directions_car, const MyVehiclesScreen()),
+                  ],
+                  
+                  // ==========================================
+                  // COMMON ACTIONS (Visible to both Residents and Admins)
+                  // ==========================================
+                  _buildNavCard('Notices', Icons.campaign, const NoticeBoardScreen()),
+                  _buildNavCard('Directory', Icons.contact_phone, const SocietyDirectoryScreen()),
+                  _buildNavCard('SOS', Icons.sos, const EmergencyScreen(), color: Colors.red),
                 ],
               ),
             ),
@@ -188,8 +199,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Compact Card Button
-  Widget _buildNavCard(String text, IconData icon, Widget screen) {
+  // Compact Card Button (Uses MaterialColor to access .shadeXXX safely)
+  Widget _buildNavCard(String text, IconData icon, Widget screen, {MaterialColor? color}) {
+    // Fallback to Colors.indigo if no color is provided
+    final tileColor = color ?? Colors.indigo; 
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -201,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 28, color: Colors.indigo.shade400), 
+              Icon(icon, size: 28, color: tileColor.shade400), 
               const SizedBox(height: 6),
               Text(
                 text, 
@@ -209,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 12, 
                   fontWeight: FontWeight.w600, 
-                  color: Colors.indigo.shade800 
+                  color: tileColor.shade800 
                 ),
               ),
             ],

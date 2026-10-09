@@ -20,4 +20,16 @@ class NoticeService {
     if (response.statusCode == 200) return jsonDecode(response.body);
     throw Exception('Failed to load notices');
   }
+
+   // FIX: Added missing createNotice method for Admin parity
+  // Matches .NET CreateNoticeCommand
+  static Future<bool> createNotice(Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.noticeService}/api/notices'),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
 }

@@ -14,7 +14,7 @@ export interface UserLookupDto {
 export const lookupUser = async (mobileNumber: string): Promise<UserLookupDto | null> => {
   try {
     const response = await apiClient.get<UserLookupDto>(
-      `${API_URLS.IDENTITY}/api/Auth/lookup/${mobileNumber}`
+      `${API_URLS.IDENTITY}/Auth/lookup/${mobileNumber}`
     );
     return response.data;
   } catch (err: any) {
@@ -56,7 +56,7 @@ export const createGuard = async (payload: CreateGuardPayload): Promise<{ id: st
 
 export const addMember = async (payload: AddMemberPayload): Promise<any> => {
   const response = await apiClient.post(
-    `${API_URLS.TENANT}/api/Societies/add-member`,
+    `${API_URLS.TENANT}/Societies/add-member`,
     payload
   );
   return response.data;
@@ -72,7 +72,7 @@ export interface RegisterUserPayload {
 
 export const registerUser = async (payload: RegisterUserPayload): Promise<{ id: string }> => {
   const response = await apiClient.post(
-    `${API_URLS.IDENTITY}/api/auth/register`,
+    `${API_URLS.IDENTITY}/auth/register`,
     payload
   );
   return response.data;

@@ -15,11 +15,12 @@ class HelpdeskService {
   }
 
   static Future<List<dynamic>> getMyTickets() async {
-    final societyId = await AuthService.getSocietyId();
+    //final societyId = await AuthService.getSocietyId();
+     final flatId = await AuthService.getFlatId();
     final headers = await _getHeaders();
     
     final response = await http.get(
-      Uri.parse('${ApiConfig.helpdeskBaseUrl}/my-tickets?societyId=$societyId'),
+      Uri.parse('${ApiConfig.helpdeskBaseUrl}/my-tickets?flatId=$flatId'),
       headers: headers,
     );
     
@@ -55,5 +56,28 @@ class HelpdeskService {
       body: jsonEncode({'commentText': commentText, 'isAdminComment': isAdmin}),
     );
     return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+    // Add to HelpdeskService
+  static Future<List<dynamic>> getSocietyTickets() async {
+    final societyId = await AuthService.getSocietyId();
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('${ApiConfig.helpdeskBaseUrl}/society/$societyId'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Failed to load society tickets');
+  }
+
+   // FIX: Added missing updateTicketStatus to allow Admins to Start/Resolve tickets
+  static Future<bool> updateTicketStatus(String ticketId, int newStatus) async {
+    final headers = await _getHeaders();
+    final response = await http.put(
+      Uri.parse('${ApiConfig.helpdeskBaseUrl}/$ticketId/status'),
+      headers: headers,
+      body: jsonEncode({'newStatus': newStatus}),
+    );
+    return response.statusCode == 200 || response.statusCode == 204;
   }
 }

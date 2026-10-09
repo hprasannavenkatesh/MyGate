@@ -33,4 +33,9 @@ public class InvoiceRepository : IInvoiceRepository
             .OrderByDescending(i => i.DueDate)
             .ToListAsync();
     }
+      // NEW: Implementations for Bulk Generation
+    public void Add(Invoice invoice) => _context.Invoices.Add(invoice);
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
+        => await _context.SaveChangesAsync(cancellationToken);
 }
