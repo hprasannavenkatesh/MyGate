@@ -50,7 +50,8 @@ class _NoticeBoardScreenState extends State<NoticeBoardScreen> {
                           children: [
                             Text(n['title'] ?? 'Notice', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            Text(n['content'] ?? '', style: const TextStyle(fontSize: 14)),
+                            //Text(n['content'] ?? '', style: const TextStyle(fontSize: 14)),
+                            Text(n['description'] ?? '', style: const TextStyle(fontSize: 14)),
                             const SizedBox(height: 8),
                             Text(n['createdAt'].toString().substring(0, 10), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                           ],

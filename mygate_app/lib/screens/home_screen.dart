@@ -2,6 +2,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:signalr_netcore/signalr_client.dart' hide ConnectionState;
+import 'package:signalr_netcore/ihub_protocol.dart';
 import '../services/auth_service.dart';
 import '../services/api_config.dart';
 import 'login_screen.dart';
@@ -63,11 +64,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final societyId = await AuthService.getSocietyId();
     if (societyId.isEmpty) return;
 
+     // 1. Fetch the saved JWT token
+    final token = await AuthService.getToken(); 
+ // 2. Create the proper MessageHeaders object
+    final headers = MessageHeaders();
+    if (token != null && token.isNotEmpty) {
+      headers.setHeaderValue('Authorization', 'Bearer $token');
+    }
+
     _hubConnection = HubConnectionBuilder()
         .withUrl("${ApiConfig.emergencyGateway}/api/hubs/emergency",
         options: HttpConnectionOptions(
           transport: HttpTransportType.WebSockets,
           logger: null,
+          // 2. Pass the token in the headers
+          headers: headers,
         ))           
         .withAutomaticReconnect()
         .build();

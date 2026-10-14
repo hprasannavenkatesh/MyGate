@@ -47,4 +47,7 @@ class ApiConfig {
 
   // ─── DIRECTORY ───
   static String get directoryBaseUrl => '$directoryService/api/Directory';
+
+    // ─── IDENTITY BULK ───
+  static String get usersBulkUrl => '$identityService/api/auth/users/bulk-details';
 }

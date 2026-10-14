@@ -21,6 +21,10 @@ class _AdminBlocksFlatsScreenState extends State<AdminBlocksFlatsScreen> {
 
   Future<void> _loadData() async {
     final societyId = await AuthService.getSocietyId();
+    // FIX: If societyId is empty, throw an error so the catch block handles it gracefully
+      if (societyId.isEmpty) {
+        throw Exception('Society ID not found. Please log out and log back in.');
+      }
     if (societyId.isEmpty) return;
     setState(() => _societyId = societyId);
     try {
@@ -28,6 +32,10 @@ class _AdminBlocksFlatsScreenState extends State<AdminBlocksFlatsScreen> {
       setState(() { _blocks = blocks; _isLoading = false; });
     } catch (e) {
       setState(() => _isLoading = false);
+        // Show the user what went wrong instead of failing silently
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
     }
   }
 
@@ -92,6 +100,100 @@ class _AdminBlocksFlatsScreenState extends State<AdminBlocksFlatsScreen> {
     }
   }
 
+    // ==========================================
+  // BLOCK EDIT & DELETE
+  // ==========================================
+  Future<void> _showEditBlockDialog(Map<String, dynamic> block) async {
+    final nameController = TextEditingController(text: block['name'] ?? '');
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Block'),
+        content: TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Block Name *', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty) return;
+              //final success = await TenantAdminService.updateBlock(block['id'], {'societyId': _societyId, 'name': nameController.text.trim()});
+              final success = await TenantAdminService.updateBlock(block['id'], {
+                'blockId': block['id'],         // Required by UpdateBlockCommand
+                'societyId': _societyId,        // Required for security check
+                'name': nameController.text.trim(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) { _loadData(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Block Updated!'), backgroundColor: Colors.green)); }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteBlock(String blockId) async {
+    final confirm = await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Delete Block?'), content: const Text('This will also delete all flats inside it.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete'))]));
+    if (confirm == true) {
+      final success = await TenantAdminService.deleteBlock(blockId, _societyId);
+      if (success && mounted) { _loadData(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Block Deleted'), backgroundColor: Colors.red)); }
+    }
+  }
+
+  // ==========================================
+  // FLAT EDIT & DELETE
+  // ==========================================
+  Future<void> _showEditFlatDialog(Map<String, dynamic> flat, String blockId) async {
+    final flatNumberController = TextEditingController(text: flat['flatNumber'] ?? '');
+    final flatTypeController = TextEditingController(text: flat['type'] ?? '2BHK');
+    
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Flat'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: flatNumberController, decoration: const InputDecoration(labelText: 'Flat Number *', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: flatTypeController, decoration: const InputDecoration(labelText: 'Flat Type', border: OutlineInputBorder())),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (flatNumberController.text.trim().isEmpty) return;
+              /*final success = await TenantAdminService.updateFlat(flat['id'], {
+                'societyId': _societyId,
+                'blockId': blockId,
+                'flatNumber': flatNumberController.text.trim(),
+                'type': flatTypeController.text.trim(),
+              });*/
+              final success = await TenantAdminService.updateFlat(flat['id'], {
+                'flatId': flat['id'],           // Required by UpdateFlatCommand
+                'societyId': _societyId,        // Required for security check
+                'blockId': blockId,             // Required to find the flat
+                'flatNumber': flatNumberController.text.trim(),
+                'type': flatTypeController.text.trim(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (success) { setState(() {}); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flat Updated!'), backgroundColor: Colors.green)); }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteFlat(String flatId) async {
+    final confirm = await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Delete Flat?'), content: const Text('Are you sure?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete'))]));
+    if (confirm == true) {
+      final success = await TenantAdminService.deleteFlat(flatId, _societyId);
+      if (success && mounted) { setState(() {}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flat Deleted'), backgroundColor: Colors.red)); }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,6 +215,13 @@ class _AdminBlocksFlatsScreenState extends State<AdminBlocksFlatsScreen> {
                     leading: const Icon(Icons.domain, color: Colors.indigo),
                     title: Text(block['name'] ?? 'Unknown Block', style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('Block ID: ${block['id']?.toString().substring(0, 8)}...'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showEditBlockDialog(block)),
+                        IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _deleteBlock(block['id'])),
+                      ],
+                    ),
                     children: [
                       FutureBuilder<List<dynamic>>(
                         future: TenantAdminService.getFlats(block['id']),
@@ -132,6 +241,13 @@ class _AdminBlocksFlatsScreenState extends State<AdminBlocksFlatsScreen> {
                                 leading: const Icon(Icons.meeting_room, size: 20),
                                 title: Text('Flat: ${flat['flatNumber']}'),
                                 subtitle: Text('Type: ${flat['type'] ?? 'N/A'}'),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.blue), onPressed: () => _showEditFlatDialog(flat, block['id'])),
+                                    IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red), onPressed: () => _deleteFlat(flat['id'])),
+                                  ],
+                                ),
                               )).toList(),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

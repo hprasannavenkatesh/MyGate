@@ -17,6 +17,8 @@ class DirectoryService {
   static Future<List<dynamic>> getSocietyDirectory() async {
     final societyId = await AuthService.getSocietyId();
     final headers = await _getHeaders();
+
+     if (societyId.isEmpty || !societyId.contains('-')) return []; 
     
     final response = await http.get(
       Uri.parse('${ApiConfig.directoryBaseUrl}?societyId=$societyId'),
@@ -31,6 +33,9 @@ class DirectoryService {
   static Future<List<dynamic>> getCategories() async {
     final societyId = await AuthService.getSocietyId();
     final headers = await _getHeaders();
+
+if (societyId.isEmpty || !societyId.contains('-')) return [];
+
     final response = await http.get(
       Uri.parse('${ApiConfig.directoryBaseUrl}/categories/$societyId'),
       headers: headers,

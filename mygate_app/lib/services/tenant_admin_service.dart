@@ -88,7 +88,47 @@ class TenantAdminService {
     return response.statusCode == 201 || response.statusCode == 200;
   }
 
+  // DELETE: Block
+  static Future<bool> deleteBlock(String id, String societyId) async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('${ApiConfig.tenantService}/api/Societies/delete-block/$id?societyId=$societyId'),
+      headers: headers,
+    );
+    return response.statusCode == 204 || response.statusCode == 200;
+  }
 
+  // UPDATE: Block
+  static Future<bool> updateBlock(String blockId, Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.put(
+        Uri.parse('${ApiConfig.tenantService}/api/Societies/update-block/$blockId'),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 204 || response.statusCode == 200;
+  }
+
+  // DELETE: Flat
+  static Future<bool> deleteFlat(String id, String societyId) async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+       Uri.parse('${ApiConfig.tenantService}/api/Societies/delete-flat/$id?societyId=$societyId'),
+      headers: headers,
+    );
+    return response.statusCode == 204 || response.statusCode == 200;
+  }
+
+  // UPDATE: Flat
+  static Future<bool> updateFlat(String id, Map<String, dynamic> payload) async {
+    final headers = await _getHeaders();
+    final response = await http.put(
+       Uri.parse('${ApiConfig.tenantService}/api/Societies/update-flat/$id'),
+      headers: headers,
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 204 || response.statusCode == 200;
+  }
  
 
 

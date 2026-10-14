@@ -15,7 +15,8 @@ class AdminManagementScreen extends StatelessWidget {
         backgroundColor: Colors.indigo.shade800,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
+      body: SingleChildScrollView( 
+      child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
@@ -76,6 +77,7 @@ class AdminManagementScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
